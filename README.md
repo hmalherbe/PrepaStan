@@ -84,6 +84,43 @@ Trois parcours sont prêts à tester :
 Le seed est idempotent (upserts + vérifications avant création) : le
 relancer ne duplique rien.
 
+## Déployer en ligne pour tester (depuis un navigateur, sans terminal)
+
+Le microservice OR-Tools n'est pas nécessaire pour ce test : seuls les
+scénarios "semaine 1" et "semaine 2" du jeu de données de démo sont
+accessibles (la génération de planning "semaine 3" resterait indisponible
+tant que le solveur n'est pas déployé séparément).
+
+1. **Base de données** — sur [neon.tech](https://neon.tech), créer un compte
+   gratuit et un projet. Copier la "Connection string" (commence par
+   `postgresql://...`) : c'est la valeur de `DATABASE_URL`.
+2. **Déploiement** — sur [vercel.com](https://vercel.com), créer un compte
+   (connexion possible directement avec GitHub), puis "Add New… → Project"
+   et importer le dépôt `hmalherbe/PrepaStan`.
+3. Dans les paramètres du projet Vercel, section **Environment Variables**,
+   ajouter :
+   - `DATABASE_URL` — la chaîne de connexion Neon de l'étape 1
+   - `NEXTAUTH_SECRET` — n'importe quelle chaîne aléatoire longue (ex :
+     générée sur [generate-secret.vercel.app](https://generate-secret.vercel.app/32))
+   - `RUN_SEED` = `1` — pour que le jeu de données de démo soit créé
+     automatiquement au premier déploiement
+4. Lancer le déploiement (bouton "Deploy"). Vercel exécute `prisma migrate
+   deploy` (crée les tables) puis le seed (`RUN_SEED=1`) automatiquement —
+   voir le script `vercel-build` dans `package.json`.
+5. Une fois déployé, Vercel donne une URL du type
+   `https://prepastan.vercel.app`. Ajouter une dernière variable
+   d'environnement `NEXTAUTH_URL` avec cette URL exacte, puis redéployer
+   (bouton "Redeploy") — l'authentification en a besoin pour fonctionner
+   correctement en production.
+6. Ouvrir l'URL depuis n'importe quel appareil (y compris un téléphone) et
+   se connecter avec les identifiants listés dans "Jeu de données de
+   démonstration" ci-dessus.
+
+Pour éviter que `RUN_SEED=1` ne re-crée les données de démo à chaque futur
+déploiement une fois que de vraies données existeront, repasser cette
+variable à `0` (ou la supprimer) après les premiers tests — le seed est
+idempotent donc ce n'est pas dangereux, juste inutile.
+
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript
