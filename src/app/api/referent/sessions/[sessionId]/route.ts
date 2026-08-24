@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/referent/sessions/:sessionId
@@ -8,6 +9,9 @@ export async function GET(
   _req: Request,
   { params }: { params: { sessionId: string } }
 ) {
+  const auth = await requireRole(["PROFESSEUR_REFERENT", "ADMIN"]);
+  if (auth instanceof NextResponse) return auth;
+
   const session = await prisma.sessionKholle.findUniqueOrThrow({
     where: { id: params.sessionId },
     include: {
@@ -24,6 +28,17 @@ export async function GET(
       },
     },
   });
+
+  if (auth.user.role === "PROFESSEUR_REFERENT") {
+    const estReferent = await prisma.professeurReferent.findUnique({
+      where: {
+        classeId_disciplineId: { classeId: session.classeId, disciplineId: session.disciplineId },
+      },
+    });
+    if (!estReferent || estReferent.utilisateurId !== auth.user.id) {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+  }
 
   const kholleurIds = [...new Set(session.creneaux.map((c) => c.kholleurId))];
   const validations = await prisma.validationGrille.findMany({

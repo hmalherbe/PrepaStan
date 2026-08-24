@@ -27,6 +27,16 @@ par les professeurs référents.
    valide à son tour (`ValidationReferent.statut = VALIDE`) → les notes
    deviennent visibles aux élèves.
 
+## Authentification
+
+NextAuth (provider Credentials, email + mot de passe) avec un rôle par
+compte (`ADMIN`, `KHOLLEUR`, `PROFESSEUR_REFERENT`, `ELEVE`). Chaque route
+API vérifie le rôle via `requireRole()` (`src/lib/auth.ts`), et
+`src/middleware.ts` filtre en plus par préfixe d'URL (`/api/admin`,
+`/api/kholleur`, `/api/referent`, `/api/eleve`) en défense en profondeur.
+Un élève ne peut se connecter que si son enregistrement `Eleve` est lié à un
+`Utilisateur` (`Eleve.utilisateurId`) — sinon il n'a pas de compte.
+
 ## Démarrage
 
 ```bash
@@ -34,6 +44,7 @@ cp .env.example .env
 docker compose up -d          # démarre PostgreSQL
 npm install
 npx prisma migrate dev
+npm run prisma:seed           # crée le premier compte admin
 npm run dev
 ```
 

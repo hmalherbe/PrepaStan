@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const bodySchema = z.object({
@@ -13,7 +14,9 @@ const bodySchema = z.object({
 // asynchrone (fire-and-forget) ; le microservice rappelle
 // /api/internal/planification/callback à la fin du calcul.
 export async function POST(req: Request) {
-  const lanceParId = "TODO: récupérer depuis la session NextAuth";
+  const auth = await requireRole(["ADMIN"]);
+  if (auth instanceof NextResponse) return auth;
+  const lanceParId = auth.user.id;
   const { classeId, semaine, disciplineIds } = bodySchema.parse(await req.json());
 
   const job = await prisma.planificationJob.create({

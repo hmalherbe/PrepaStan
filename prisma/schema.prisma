@@ -13,20 +13,23 @@ enum Role {
   ADMIN
   KHOLLEUR
   PROFESSEUR_REFERENT
+  ELEVE
 }
 
 model Utilisateur {
-  id    String @id @default(cuid())
-  email String @unique
-  nom   String
-  prenom String
-  role  Role
+  id       String @id @default(cuid())
+  email    String @unique
+  password String // hash bcrypt
+  nom      String
+  prenom   String
+  role     Role
 
   competences       Competence[]
   disponibilites    Disponibilite[]
   referentsMatiere  ProfesseurReferent[]
   creneaux          Creneau[]
   planificationJobs PlanificationJob[]
+  eleve             Eleve?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -44,11 +47,14 @@ model Classe {
 }
 
 model Eleve {
-  id       String @id @default(cuid())
-  nom      String
-  prenom   String
-  classeId String
-  classe   Classe @relation(fields: [classeId], references: [id])
+  id            String  @id @default(cuid())
+  nom           String
+  prenom        String
+  classeId      String
+  utilisateurId String? @unique // compte de connexion, optionnel
+
+  classe      Classe       @relation(fields: [classeId], references: [id])
+  utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id])
 
   passages Passage[]
 }

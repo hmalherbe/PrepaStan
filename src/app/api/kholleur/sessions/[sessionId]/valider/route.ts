@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // POST /api/kholleur/sessions/:sessionId/valider
@@ -9,7 +10,9 @@ export async function POST(
   _req: Request,
   { params }: { params: { sessionId: string } }
 ) {
-  const kholleurId = "TODO: récupérer depuis la session NextAuth";
+  const auth = await requireRole(["KHOLLEUR"]);
+  if (auth instanceof NextResponse) return auth;
+  const kholleurId = auth.user.id;
   const sessionKholleId = params.sessionId;
 
   const passagesSansNote = await prisma.passage.count({

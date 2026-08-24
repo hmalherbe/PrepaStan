@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const bodySchema = z.object({
@@ -14,7 +15,9 @@ export async function PUT(
   req: Request,
   { params }: { params: { passageId: string } }
 ) {
-  const kholleurId = "TODO: récupérer depuis la session NextAuth";
+  const auth = await requireRole(["KHOLLEUR"]);
+  if (auth instanceof NextResponse) return auth;
+  const kholleurId = auth.user.id;
   const body = bodySchema.parse(await req.json());
 
   const passage = await prisma.passage.findUniqueOrThrow({

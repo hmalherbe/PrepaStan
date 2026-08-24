@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
+import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/referent/sessions
 // Sessions des disciplines/classes dont l'utilisateur connecté est
 // professeur référent, avec la progression des validations.
 export async function GET() {
-  const utilisateurId = "TODO: récupérer depuis la session NextAuth";
+  const auth = await requireRole(["PROFESSEUR_REFERENT"]);
+  if (auth instanceof NextResponse) return auth;
+  const utilisateurId = auth.user.id;
 
   const referents = await prisma.professeurReferent.findMany({
     where: { utilisateurId },

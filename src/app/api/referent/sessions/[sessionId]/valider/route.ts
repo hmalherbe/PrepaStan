@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // POST /api/referent/sessions/:sessionId/valider
@@ -9,8 +10,20 @@ export async function POST(
   _req: Request,
   { params }: { params: { sessionId: string } }
 ) {
-  const professeurReferentId = "TODO: récupérer depuis la session NextAuth";
+  const auth = await requireRole(["PROFESSEUR_REFERENT"]);
+  if (auth instanceof NextResponse) return auth;
+  const professeurReferentId = auth.user.id;
   const sessionKholleId = params.sessionId;
+
+  const session = await prisma.sessionKholle.findUniqueOrThrow({ where: { id: sessionKholleId } });
+  const estReferent = await prisma.professeurReferent.findUnique({
+    where: {
+      classeId_disciplineId: { classeId: session.classeId, disciplineId: session.disciplineId },
+    },
+  });
+  if (!estReferent || estReferent.utilisateurId !== professeurReferentId) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
 
   const grillesNonValidees = await prisma.validationGrille.count({
     where: { sessionKholleId, statut: { not: "VALIDE" } },
