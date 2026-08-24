@@ -129,6 +129,7 @@ model SessionKholle {
   classe             Classe     @relation(fields: [classeId], references: [id])
   discipline         Discipline @relation(fields: [disciplineId], references: [id])
   creneaux           Creneau[]
+  validationGrilles  ValidationGrille[]
   validationReferent ValidationReferent?
 
   @@unique([classeId, disciplineId, semaine])
@@ -143,7 +144,7 @@ model Creneau {
   heureDebut      String
   heureFin        String
 
-  sessionKholle SessionKholle @relation(fields: [sessionKholleId], references: [id])
+  sessionKholle SessionKholle @relation(fields: [sessionKholleId], references: [id], onDelete: Cascade)
   kholleur      Utilisateur   @relation(fields: [kholleurId], references: [id])
   salle         Salle         @relation(fields: [salleId], references: [id])
   passages      Passage[]
@@ -155,7 +156,7 @@ model Passage {
   eleveId   String
   ordre     Int
 
-  creneau Creneau @relation(fields: [creneauId], references: [id])
+  creneau Creneau @relation(fields: [creneauId], references: [id], onDelete: Cascade)
   eleve   Eleve   @relation(fields: [eleveId], references: [id])
   note    Note?
 
@@ -167,7 +168,7 @@ model Passage {
 model Note {
   id           String    @id @default(cuid())
   passageId    String    @unique
-  passage      Passage   @relation(fields: [passageId], references: [id])
+  passage      Passage   @relation(fields: [passageId], references: [id], onDelete: Cascade)
   valeur       Decimal?
   appreciation String?
   dateSaisie   DateTime?
@@ -184,6 +185,8 @@ model ValidationGrille {
   sessionKholleId String
   statut          StatutValidation @default(EN_ATTENTE)
   dateValidation  DateTime?
+
+  sessionKholle SessionKholle @relation(fields: [sessionKholleId], references: [id], onDelete: Cascade)
 
   @@unique([kholleurId, sessionKholleId])
 }

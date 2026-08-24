@@ -8,12 +8,12 @@ import { prisma } from "@/lib/prisma";
 // de la session ont désormais validé (pour notifier le référent).
 export async function POST(
   _req: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const auth = await requireRole(["KHOLLEUR"]);
   if (auth instanceof NextResponse) return auth;
   const kholleurId = auth.user.id;
-  const sessionKholleId = params.sessionId;
+  const { sessionId: sessionKholleId } = await params;
 
   const passagesSansNote = await prisma.passage.count({
     where: {

@@ -7,13 +7,14 @@ import { prisma } from "@/lib/prisma";
 // notes, appréciations et statut de validation de chaque grille.
 export async function GET(
   _req: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const auth = await requireRole(["PROFESSEUR_REFERENT", "ADMIN"]);
   if (auth instanceof NextResponse) return auth;
+  const { sessionId } = await params;
 
   const session = await prisma.sessionKholle.findUniqueOrThrow({
-    where: { id: params.sessionId },
+    where: { id: sessionId },
     include: {
       classe: true,
       discipline: true,

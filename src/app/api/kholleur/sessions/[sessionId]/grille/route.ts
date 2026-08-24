@@ -6,14 +6,15 @@ import { prisma } from "@/lib/prisma";
 // Mes créneaux, passages et notes existantes pour cette session.
 export async function GET(
   _req: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const auth = await requireRole(["KHOLLEUR"]);
   if (auth instanceof NextResponse) return auth;
   const kholleurId = auth.user.id;
+  const { sessionId } = await params;
 
   const creneaux = await prisma.creneau.findMany({
-    where: { sessionKholleId: params.sessionId, kholleurId },
+    where: { sessionKholleId: sessionId, kholleurId },
     include: {
       salle: true,
       passages: { include: { eleve: true, note: true }, orderBy: { ordre: "asc" } },
@@ -23,7 +24,7 @@ export async function GET(
 
   const validation = await prisma.validationGrille.findUnique({
     where: {
-      kholleurId_sessionKholleId: { kholleurId, sessionKholleId: params.sessionId },
+      kholleurId_sessionKholleId: { kholleurId, sessionKholleId: sessionId },
     },
   });
 

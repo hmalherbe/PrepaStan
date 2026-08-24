@@ -13,15 +13,16 @@ const bodySchema = z.object({
 // pour cette session est déjà validée.
 export async function PUT(
   req: Request,
-  { params }: { params: { passageId: string } }
+  { params }: { params: Promise<{ passageId: string }> }
 ) {
   const auth = await requireRole(["KHOLLEUR"]);
   if (auth instanceof NextResponse) return auth;
   const kholleurId = auth.user.id;
+  const { passageId } = await params;
   const body = bodySchema.parse(await req.json());
 
   const passage = await prisma.passage.findUniqueOrThrow({
-    where: { id: params.passageId },
+    where: { id: passageId },
     include: { creneau: true },
   });
 
@@ -46,9 +47,9 @@ export async function PUT(
   }
 
   const note = await prisma.note.upsert({
-    where: { passageId: params.passageId },
+    where: { passageId },
     update: { ...body, dateSaisie: new Date() },
-    create: { passageId: params.passageId, ...body, dateSaisie: new Date() },
+    create: { passageId, ...body, dateSaisie: new Date() },
   });
 
   return NextResponse.json(note);

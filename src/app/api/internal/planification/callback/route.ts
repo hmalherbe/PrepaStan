@@ -55,6 +55,20 @@ export async function POST(req: Request) {
   await prisma.$transaction(async (tx) => {
     const disciplineIds = [...new Set(payload.creneaux.map((c) => c.disciplineId))];
 
+    // Idempotence : si un brouillon existait déjà pour cette classe/semaine/
+    // discipline (régénération), on repart d'une base propre. La cascade
+    // Prisma supprime les passages/notes associés à ces créneaux.
+    await tx.creneau.deleteMany({
+      where: {
+        sessionKholle: {
+          classeId: payload.classeId,
+          semaine: payload.semaine,
+          disciplineId: { in: disciplineIds },
+          statut: "PLANIFICATION",
+        },
+      },
+    });
+
     const sessions = new Map<string, string>(); // disciplineId -> sessionKholleId
     for (const disciplineId of disciplineIds) {
       const session = await tx.sessionKholle.upsert({

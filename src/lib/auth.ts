@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { getServerSession, type NextAuthOptions, type Session } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -72,6 +73,19 @@ export async function requireRole(allowed: Role[]): Promise<Session | NextRespon
   }
   if (!allowed.includes(session.user.role)) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  }
+  return session;
+}
+
+/**
+ * Équivalent de requireRole() pour les Server Components (pages). Redirige
+ * vers /login si l'utilisateur n'est pas authentifié ou n'a pas le rôle
+ * attendu, au lieu de renvoyer une réponse JSON.
+ */
+export async function requirePageSession(allowed: Role[]): Promise<Session> {
+  const session = await getServerSession(authOptions);
+  if (!session || !allowed.includes(session.user.role)) {
+    redirect("/login");
   }
   return session;
 }

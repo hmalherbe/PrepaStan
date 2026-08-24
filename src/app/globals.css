@@ -1,0 +1,205 @@
+:root {
+  --couleur-fond: #f7f7f9;
+  --couleur-texte: #1d1d1f;
+  --couleur-bordure: #d8d8dd;
+  --couleur-primaire: #2952e3;
+  --couleur-primaire-fonce: #1e3fb8;
+  --couleur-succes: #1a7f4e;
+  --couleur-attente: #b8860b;
+  --couleur-erreur: #c0392b;
+  --couleur-surface: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--couleur-bordure);
+  vertical-align: middle;
+}
+
+th {
+  background: #f0f0f4;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #555;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+a {
+  color: var(--couleur-primaire);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--couleur-primaire);
+  background: var(--couleur-primaire);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+}
+
+button:hover:not(:disabled) {
+  background: var(--couleur-primaire-fonce);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.secondaire {
+  background: transparent;
+  color: var(--couleur-primaire);
+}
+
+button.discret {
+  background: transparent;
+  color: #555;
+  border-color: var(--couleur-bordure);
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 4px;
+  background: var(--couleur-surface);
+  color: inherit;
+}
+
+input:disabled,
+textarea:disabled {
+  background: #f0f0f4;
+}
+
+form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-attente {
+  background: #fdf3d9;
+  color: var(--couleur-attente);
+}
+
+.badge-succes {
+  background: #e1f3ea;
+  color: var(--couleur-succes);
+}
+
+.badge-erreur {
+  background: #fbe4e1;
+  color: var(--couleur-erreur);
+}
+
+.barre-progression {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--couleur-bordure);
+  overflow: hidden;
+  width: 120px;
+}
+
+.barre-progression > div {
+  height: 100%;
+  background: var(--couleur-succes);
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--couleur-bordure);
+  background: var(--couleur-surface);
+}
+
+.navbar nav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.navbar nav a {
+  color: var(--couleur-texte);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.navbar nav a:hover {
+  color: var(--couleur-primaire);
+}
+
+.champ-erreur {
+  color: var(--couleur-erreur);
+  font-size: 0.9rem;
+  margin: 4px 0;
+}
+
+.carte {
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.jour-titre {
+  font-weight: 600;
+  margin: 20px 0 8px;
+}

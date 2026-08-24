@@ -8,12 +8,12 @@ import { prisma } from "@/lib/prisma";
 // élèves et la session passe CLOTUREE.
 export async function POST(
   _req: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const auth = await requireRole(["PROFESSEUR_REFERENT"]);
   if (auth instanceof NextResponse) return auth;
   const professeurReferentId = auth.user.id;
-  const sessionKholleId = params.sessionId;
+  const { sessionId: sessionKholleId } = await params;
 
   const session = await prisma.sessionKholle.findUniqueOrThrow({ where: { id: sessionKholleId } });
   const estReferent = await prisma.professeurReferent.findUnique({
