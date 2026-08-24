@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: prepastan
+      POSTGRES_PASSWORD: prepastan
+      POSTGRES_DB: prepastan
+    ports:
+      - "5432:5432"
+    volumes:
+      - prepastan-db-data:/var/lib/postgresql/data
+
+  planning-solver:
+    build: ./services/planning-solver
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+
+volumes:
+  prepastan-db-data:

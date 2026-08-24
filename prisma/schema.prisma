@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Utilisateurs, classes, élèves, disciplines ----------
+
+enum Role {
+  ADMIN
+  KHOLLEUR
+  PROFESSEUR_REFERENT
+}
+
+model Utilisateur {
+  id    String @id @default(cuid())
+  email String @unique
+  nom   String
+  prenom String
+  role  Role
+
+  competences       Competence[]
+  disponibilites    Disponibilite[]
+  referentsMatiere  ProfesseurReferent[]
+  creneaux          Creneau[]
+  planificationJobs PlanificationJob[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Classe {
+  id            String @id @default(cuid())
+  nom           String
+  anneeScolaire String
+
+  eleves   Eleve[]
+  sessions SessionKholle[]
+
+  @@unique([nom, anneeScolaire])
+}
+
+model Eleve {
+  id       String @id @default(cuid())
+  nom      String
+  prenom   String
+  classeId String
+  classe   Classe @relation(fields: [classeId], references: [id])
+
+  passages Passage[]
+}
+
+model Discipline {
+  id   String @id @default(cuid())
+  nom  String @unique
+
+  competences Competence[]
+  sessions    SessionKholle[]
+  referents   ProfesseurReferent[]
+}
+
+model Competence {
+  kholleurId   String
+  disciplineId String
+  kholleur     Utilisateur @relation(fields: [kholleurId], references: [id])
+  discipline   Discipline  @relation(fields: [disciplineId], references: [id])
+
+  @@id([kholleurId, disciplineId])
+}
+
+model ProfesseurReferent {
+  id           String @id @default(cuid())
+  utilisateurId String
+  classeId     String
+  disciplineId String
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+  discipline  Discipline  @relation(fields: [disciplineId], references: [id])
+
+  @@unique([classeId, disciplineId])
+}
+
+// ---------- Disponibilités et ressources ----------
+
+model Disponibilite {
+  id          String    @id @default(cuid())
+  kholleurId  String
+  kholleur    Utilisateur @relation(fields: [kholleurId], references: [id])
+  jourSemaine Int?      // 1 (lundi) - 7 (dimanche), si récurrent
+  date        DateTime? // si ponctuel, remplace/complète le récurrent
+  heureDebut  String    // "14:00"
+  heureFin    String
+}
+
+model Salle {
+  id       String @id @default(cuid())
+  nom      String @unique
+
+  creneaux Creneau[]
+}
+
+// ---------- Planification ----------
+
+enum StatutSession {
+  PLANIFICATION
+  PLANIFIEE
+  EN_COURS
+  CLOTUREE
+}
+
+model SessionKholle {
+  id           String   @id @default(cuid())
+  classeId     String
+  disciplineId String
+  semaine      Int
+  dateDebut    DateTime
+  dateFin      DateTime
+  statut       StatutSession @default(PLANIFICATION)
+
+  classe             Classe     @relation(fields: [classeId], references: [id])
+  discipline         Discipline @relation(fields: [disciplineId], references: [id])
+  creneaux           Creneau[]
+  validationReferent ValidationReferent?
+
+  @@unique([classeId, disciplineId, semaine])
+}
+
+model Creneau {
+  id              String   @id @default(cuid())
+  sessionKholleId String
+  kholleurId      String
+  salleId         String
+  date            DateTime
+  heureDebut      String
+  heureFin        String
+
+  sessionKholle SessionKholle @relation(fields: [sessionKholleId], references: [id])
+  kholleur      Utilisateur   @relation(fields: [kholleurId], references: [id])
+  salle         Salle         @relation(fields: [salleId], references: [id])
+  passages      Passage[]
+}
+
+model Passage {
+  id        String @id @default(cuid())
+  creneauId String
+  eleveId   String
+  ordre     Int
+
+  creneau Creneau @relation(fields: [creneauId], references: [id])
+  eleve   Eleve   @relation(fields: [eleveId], references: [id])
+  note    Note?
+
+  @@unique([creneauId, eleveId])
+}
+
+// ---------- Notation et validation en cascade ----------
+
+model Note {
+  id           String    @id @default(cuid())
+  passageId    String    @unique
+  passage      Passage   @relation(fields: [passageId], references: [id])
+  valeur       Decimal?
+  appreciation String?
+  dateSaisie   DateTime?
+}
+
+enum StatutValidation {
+  EN_ATTENTE
+  VALIDE
+}
+
+model ValidationGrille {
+  id              String @id @default(cuid())
+  kholleurId      String
+  sessionKholleId String
+  statut          StatutValidation @default(EN_ATTENTE)
+  dateValidation  DateTime?
+
+  @@unique([kholleurId, sessionKholleId])
+}
+
+model ValidationReferent {
+  id                   String @id @default(cuid())
+  sessionKholleId      String @unique
+  professeurReferentId String
+  statut               StatutValidation @default(EN_ATTENTE)
+  dateValidation       DateTime?
+
+  sessionKholle SessionKholle @relation(fields: [sessionKholleId], references: [id])
+}
+
+// ---------- Génération du planning (job asynchrone OR-Tools) ----------
+
+enum JobStatut {
+  EN_COURS
+  SUCCES
+  ECHEC
+  INFAISABLE
+}
+
+model PlanificationJob {
+  id          String    @id @default(cuid())
+  classeId    String
+  semaine     Int
+  disciplines String[]
+  statut      JobStatut @default(EN_COURS)
+  lanceParId  String
+  lancePar    Utilisateur @relation(fields: [lanceParId], references: [id])
+  dateDebut   DateTime  @default(now())
+  dateFin     DateTime?
+  message     String?
+}
