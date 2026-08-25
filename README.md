@@ -121,6 +121,27 @@ déploiement une fois que de vraies données existeront, repasser cette
 variable à `0` (ou la supprimer) après les premiers tests — le seed est
 idempotent donc ce n'est pas dangereux, juste inutile.
 
+## Moteur de planification (OR-Tools)
+
+En plus des contraintes dures (pas de chevauchement élève/kholleur/salle,
+une khôlle par discipline demandée), le solveur (`services/planning-solver/app/solver.py`)
+optimise trois objectifs "soft", pondérés (constantes `POIDS_*` en tête de
+fichier, ajustables) :
+
+- **Équilibrage de la charge des kholleurs**, historique inclus — un
+  kholleur déjà très sollicité les semaines précédentes est défavorisé,
+  pas seulement celui qui aurait le plus de créneaux cette semaine.
+- **Diversité des kholleurs par élève** — pénalise le fait qu'un élève
+  retombe sur un kholleur qu'il a déjà eu dans la même discipline.
+- **Équilibrage des horaires de passage** — pénalise le fait de redonner
+  un créneau tardif (après 17h par défaut) à un élève déjà souvent tombé
+  tardif par le passé.
+
+Cet historique est recalculé à chaque génération à partir des sessions déjà
+publiées (`SessionKholle.statut != PLANIFICATION`) — pas de table dédiée,
+les données existent déjà dans `Creneau`/`Passage`. Voir
+`calculerHistorique()` dans `src/app/api/admin/planification/jobs/route.ts`.
+
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript

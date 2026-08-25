@@ -9,6 +9,16 @@ from app.solver import resoudre
 app = FastAPI(title="PrepaStan - Planning Solver")
 
 
+class Historique(BaseModel):
+    # Clé "eleveId|disciplineId|kholleurId" -> nombre de fois déjà eu.
+    eleveKholleur: dict[str, int] = {}
+    # kholleurId -> nombre de créneaux déjà assignés, toutes classes/semaines
+    # publiées confondues.
+    chargeKholleur: dict[str, int] = {}
+    # eleveId -> nombre de fois déjà affecté à un créneau tardif.
+    tardifEleve: dict[str, int] = {}
+
+
 class SolveRequest(BaseModel):
     jobId: str
     classeId: str
@@ -17,6 +27,7 @@ class SolveRequest(BaseModel):
     disponibilites: list[dict[str, Any]]
     competences: list[dict[str, Any]]
     salles: list[dict[str, Any]]
+    historique: Historique = Historique()
     callbackUrl: str
     callbackSecret: str
 
@@ -41,6 +52,9 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
         competences=payload.competences,
         salles=payload.salles,
         disciplines_semaine=disciplines_semaine,
+        historique_eleve_kholleur=payload.historique.eleveKholleur,
+        historique_charge_kholleur=payload.historique.chargeKholleur,
+        historique_tardif_eleve=payload.historique.tardifEleve,
     )
 
     if result.statut == "SUCCES":

@@ -3,12 +3,38 @@
 Un élève ne pouvant pas avoir deux khôlles en même temps, y compris entre
 disciplines différentes, la résolution porte sur toute la semaine d'une
 classe (toutes disciplines demandées confondues) en une seule fois.
+
+Contraintes dures :
+- pas de chevauchement horaire pour un même élève, kholleur ou salle
+- chaque élève passe exactement une fois par discipline demandée
+- seuls les créneaux dans les disponibilités déclarées sont utilisables
+
+Objectifs "soft" (somme pondérée, pondérations ajustables ci-dessous) :
+- équilibrer la charge cumulée des kholleurs (historique inclus)
+- maximiser la diversité des kholleurs vus par un même élève dans une
+  discipline (pénalise le fait de retomber sur un kholleur déjà eu)
+- éviter qu'un élève se retrouve systématiquement sur un créneau tardif
+  (pénalise un nouveau créneau tardif proportionnellement au nombre de
+  fois où cet élève a déjà été tardif par le passé)
+
+Ces trois objectifs ont des unités différentes (nombre de créneaux vs
+nombre de répétitions vs nombre d'occurrences tardives) : leur pondération
+relative est une heuristique de départ, à ajuster empiriquement.
 """
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from ortools.sat.python import cp_model
+
+# Pondérations de l'objectif combiné (voir docstring ci-dessus).
+POIDS_EQUILIBRAGE_KHOLLEUR = 10
+POIDS_DIVERSITE_KHOLLEUR = 5
+POIDS_EQUILIBRAGE_HORAIRE = 1
+
+# Un créneau démarrant à partir de cette heure est considéré "tardif" pour
+# l'objectif d'équilibrage des horaires de passage.
+SEUIL_TARDIF_MINUTES = 17 * 60
 
 
 @dataclass
@@ -78,9 +104,16 @@ def resoudre(
     competences: list[dict],
     salles: list[dict],
     disciplines_semaine: list[str],
+    historique_eleve_kholleur: dict[str, int] | None = None,
+    historique_charge_kholleur: dict[str, int] | None = None,
+    historique_tardif_eleve: dict[str, int] | None = None,
     max_temps_secondes: float = 30.0,
     duree_creneau_minutes: int = 20,
 ) -> SolveResult:
+    historique_eleve_kholleur = historique_eleve_kholleur or {}
+    historique_charge_kholleur = historique_charge_kholleur or {}
+    historique_tardif_eleve = historique_tardif_eleve or {}
+
     slots = generer_slots_candidats(disponibilites, competences, salles, duree_creneau_minutes)
     if not slots:
         return SolveResult(statut="INFAISABLE", message="Aucun créneau candidat : vérifier les disponibilités et compétences saisies.")
@@ -134,12 +167,46 @@ def resoudre(
                 )
             model.Add(sum(vars_ed) == 1)
 
-    # Objectif : équilibrer la charge entre kholleurs.
-    charge_max = model.NewIntVar(0, len(eleves) * len(disciplines_semaine), "charge_max")
-    for kholleur_id, ivs in intervals_kholleur.items():
+    # --- Objectif 1 : équilibrer la charge cumulée des kholleurs -----------
+    # charge_max borne le nombre de créneaux d'un kholleur, historique inclus,
+    # donc un kholleur déjà très sollicité par le passé est défavorisé même
+    # s'il a peu de créneaux cette semaine.
+    charge_historique_max = max(historique_charge_kholleur.values(), default=0)
+    charge_max = model.NewIntVar(
+        0, len(eleves) * len(disciplines_semaine) + charge_historique_max, "charge_max"
+    )
+    for kholleur_id in intervals_kholleur:
         vars_k = [presence[key] for key in presence if slots[key[1]].kholleur_id == kholleur_id]
-        model.Add(charge_max >= sum(vars_k))
-    model.Minimize(charge_max)
+        model.Add(charge_max >= historique_charge_kholleur.get(kholleur_id, 0) + sum(vars_k))
+
+    # --- Objectif 2 : diversité des kholleurs vus par un même élève --------
+    # Pénalise l'affectation d'un kholleur que cet élève a déjà eu dans cette
+    # discipline, proportionnellement au nombre de fois où c'est déjà arrivé.
+    termes_diversite = []
+    for (eleve_id, s_idx), var in presence.items():
+        slot = slots[s_idx]
+        deja_eu = historique_eleve_kholleur.get(f"{eleve_id}|{slot.discipline_id}|{slot.kholleur_id}", 0)
+        if deja_eu:
+            termes_diversite.append(deja_eu * var)
+    diversite_penalite = sum(termes_diversite) if termes_diversite else 0
+
+    # --- Objectif 3 : équilibrer les horaires de passage --------------------
+    # Pénalise un créneau tardif pour un élève déjà souvent tombé tard,
+    # proportionnellement au nombre de fois où c'est déjà arrivé.
+    termes_horaire = []
+    for (eleve_id, s_idx), var in presence.items():
+        slot = slots[s_idx]
+        if slot.debut_minutes >= SEUIL_TARDIF_MINUTES:
+            deja_tardif = historique_tardif_eleve.get(eleve_id, 0)
+            if deja_tardif:
+                termes_horaire.append(deja_tardif * var)
+    horaire_penalite = sum(termes_horaire) if termes_horaire else 0
+
+    model.Minimize(
+        POIDS_EQUILIBRAGE_KHOLLEUR * charge_max
+        + POIDS_DIVERSITE_KHOLLEUR * diversite_penalite
+        + POIDS_EQUILIBRAGE_HORAIRE * horaire_penalite
+    )
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = max_temps_secondes

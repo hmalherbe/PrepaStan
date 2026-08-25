@@ -1,7 +1,7 @@
 # dependencies
 node_modules/
 services/planning-solver/.venv/
-services/planning-solver/__pycache__/
+**/__pycache__/
 
 # next.js
 .next/
