@@ -22,6 +22,13 @@ nombre de répétitions vs nombre d'occurrences tardives) : leur pondération
 relative est une heuristique de départ, à ajuster empiriquement.
 """
 
+# Nécessaire pour rester compatible Python 3.9 : sans ceci, la syntaxe
+# `list[dict] | None` (PEP 604, disponible seulement à partir de 3.10) lève
+# une TypeError au chargement du module. Avec cet import, les annotations ne
+# sont plus évaluées à la définition de la classe/fonction, seulement à la
+# demande (get_type_hints), ce qu'on ne fait jamais ici.
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 

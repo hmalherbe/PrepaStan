@@ -69,13 +69,17 @@ npm run prisma:seed           # crée le compte admin + le jeu de données de d�
 npm run dev
 ```
 
-Le microservice de planification se lance séparément :
+Le microservice de planification se lance séparément (Python 3.9 ou plus) :
 
 ```bash
 cd services/planning-solver
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8001
 ```
+
+Sur Windows, si `uvicorn` n'est pas reconnu comme commande après
+l'installation, utilisez `python -m uvicorn app.main:app --port 8001`
+(évite les soucis de PATH).
 
 ## Jeu de données de démonstration
 
