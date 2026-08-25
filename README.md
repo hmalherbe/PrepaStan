@@ -142,6 +142,21 @@ publiées (`SessionKholle.statut != PLANIFICATION`) — pas de table dédiée,
 les données existent déjà dans `Creneau`/`Passage`. Voir
 `calculerHistorique()` dans `src/app/api/admin/planification/jobs/route.ts`.
 
+### Valider les objectifs sur la durée
+
+`services/planning-solver/scripts/simuler_annee.py` rejoue le solveur sur
+une année scolaire synthétique (32 semaines) en faisant vivre l'historique
+d'une semaine à l'autre, puis affiche moyenne/écart-type/min/max sur la
+charge des kholleurs, la diversité kholleur/élève et les créneaux tardifs.
+Utile pour vérifier que les objectifs pondérés tiennent sur la durée, pas
+seulement semaine par semaine, ou pour ajuster les constantes `POIDS_*`.
+
+```bash
+cd services/planning-solver
+pip install -r requirements.txt
+python scripts/simuler_annee.py
+```
+
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript
