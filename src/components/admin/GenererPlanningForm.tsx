@@ -57,7 +57,11 @@ export function GenererPlanningForm({
     }
 
     setJobId(data.jobId);
+    let tentatives = 0;
+    const MAX_TENTATIVES = 45; // 45 x 2s = 90s avant d'abandonner le polling
+
     intervalRef.current = setInterval(async () => {
+      tentatives += 1;
       const pollRes = await fetch(`/api/admin/planification/jobs/${data.jobId}`);
       const job = await pollRes.json();
       setStatutJob(job.statut);
@@ -67,6 +71,13 @@ export function GenererPlanningForm({
       } else if (job.statut === "INFAISABLE" || job.statut === "ECHEC") {
         if (intervalRef.current) clearInterval(intervalRef.current);
         setMessageJob(job.message);
+      } else if (tentatives >= MAX_TENTATIVES) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setStatutJob("ECHEC");
+        setMessageJob(
+          "Toujours en cours après 90s, ce qui n'est pas normal — vérifiez que le microservice OR-Tools " +
+            "(services/planning-solver, uvicorn app.main:app --port 8001) est bien lancé et accessible."
+        );
       }
     }, 2000);
   }
