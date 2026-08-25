@@ -40,8 +40,10 @@ model Classe {
   nom           String
   anneeScolaire String
 
-  eleves   Eleve[]
-  sessions SessionKholle[]
+  eleves      Eleve[]
+  sessions    SessionKholle[]
+  disciplines ClasseDiscipline[]
+  referents   ProfesseurReferent[]
 
   @@unique([nom, anneeScolaire])
 }
@@ -66,6 +68,20 @@ model Discipline {
   competences Competence[]
   sessions    SessionKholle[]
   referents   ProfesseurReferent[]
+  classes     ClasseDiscipline[]
+}
+
+// Déclare qu'une discipline est khôllée dans une classe, indépendamment de
+// l'assignation d'un professeur référent (qui peut se faire plus tard).
+model ClasseDiscipline {
+  id           String @id @default(cuid())
+  classeId     String
+  disciplineId String
+
+  classe     Classe     @relation(fields: [classeId], references: [id], onDelete: Cascade)
+  discipline Discipline @relation(fields: [disciplineId], references: [id])
+
+  @@unique([classeId, disciplineId])
 }
 
 model Competence {
@@ -84,6 +100,7 @@ model ProfesseurReferent {
   disciplineId String
 
   utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+  classe      Classe      @relation(fields: [classeId], references: [id])
   discipline  Discipline  @relation(fields: [disciplineId], references: [id])
 
   @@unique([classeId, disciplineId])

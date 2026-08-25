@@ -109,6 +109,14 @@ async function main() {
     });
   }
 
+  for (const disciplineId of [maths.id, physique.id, anglais.id]) {
+    await prisma.classeDiscipline.upsert({
+      where: { classeId_disciplineId: { classeId: classe.id, disciplineId } },
+      update: {},
+      create: { classeId: classe.id, disciplineId },
+    });
+  }
+
   await prisma.professeurReferent.upsert({
     where: { classeId_disciplineId: { classeId: classe.id, disciplineId: maths.id } },
     update: {},

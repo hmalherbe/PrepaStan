@@ -23,6 +23,7 @@ class SolveRequest(BaseModel):
     jobId: str
     classeId: str
     semaine: int
+    dateDebutSemaine: str
     eleves: list[dict[str, Any]]
     disponibilites: list[dict[str, Any]]
     competences: list[dict[str, Any]]
@@ -63,6 +64,7 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
             "statut": "SUCCES",
             "classeId": payload.classeId,
             "semaine": payload.semaine,
+            "dateDebutSemaine": payload.dateDebutSemaine,
             "creneaux": result.creneaux,
         }
     else:

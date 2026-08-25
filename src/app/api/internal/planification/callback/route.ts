@@ -18,6 +18,7 @@ const bodySchema = z.discriminatedUnion("statut", [
     statut: z.literal("SUCCES"),
     classeId: z.string(),
     semaine: z.number().int(),
+    dateDebutSemaine: z.string(),
     creneaux: z.array(creneauSchema),
   }),
   z.object({
@@ -69,6 +70,10 @@ export async function POST(req: Request) {
       },
     });
 
+    const lundi = new Date(`${payload.dateDebutSemaine}T00:00:00.000Z`);
+    const vendredi = new Date(lundi);
+    vendredi.setUTCDate(vendredi.getUTCDate() + 4);
+
     const sessions = new Map<string, string>(); // disciplineId -> sessionKholleId
     for (const disciplineId of disciplineIds) {
       const session = await tx.sessionKholle.upsert({
@@ -84,8 +89,8 @@ export async function POST(req: Request) {
           classeId: payload.classeId,
           disciplineId,
           semaine: payload.semaine,
-          dateDebut: new Date(),
-          dateFin: new Date(),
+          dateDebut: lundi,
+          dateFin: vendredi,
         },
       });
       sessions.set(disciplineId, session.id);

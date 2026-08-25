@@ -7,6 +7,10 @@ const bodySchema = z.object({
   classeId: z.string(),
   semaine: z.number().int(),
   disciplineIds: z.array(z.string()).min(1),
+  // Date du lundi de la semaine à planifier ("YYYY-MM-DD"). Sert à
+  // transformer les disponibilités récurrentes (par jour de semaine) en
+  // créneaux concrets pour cette semaine précise.
+  dateDebutSemaine: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
 // Au-delà de cette heure, un créneau est considéré "tardif" pour
@@ -21,13 +25,13 @@ export async function POST(req: Request) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
   const lanceParId = auth.user.id;
-  const { classeId, semaine, disciplineIds } = bodySchema.parse(await req.json());
+  const { classeId, semaine, disciplineIds, dateDebutSemaine } = bodySchema.parse(await req.json());
 
   const job = await prisma.planificationJob.create({
     data: { classeId, semaine, disciplines: disciplineIds, lanceParId },
   });
 
-  const [eleves, disponibilites, competences, salles] = await Promise.all([
+  const [eleves, dispoBrutes, competences, salles] = await Promise.all([
     prisma.eleve.findMany({ where: { classeId } }),
     prisma.disponibilite.findMany({
       where: { kholleur: { competences: { some: { disciplineId: { in: disciplineIds } } } } },
@@ -35,6 +39,8 @@ export async function POST(req: Request) {
     prisma.competence.findMany({ where: { disciplineId: { in: disciplineIds } } }),
     prisma.salle.findMany(),
   ]);
+
+  const disponibilites = expanserDisponibilites(dispoBrutes, dateDebutSemaine);
 
   const historique = await calculerHistorique(
     eleves.map((e) => e.id),
@@ -55,6 +61,7 @@ export async function POST(req: Request) {
       jobId: job.id,
       classeId,
       semaine,
+      dateDebutSemaine,
       eleves,
       disponibilites,
       competences,
@@ -71,6 +78,48 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({ jobId: job.id }, { status: 202 });
+}
+
+type DisponibiliteBrute = {
+  kholleurId: string;
+  jourSemaine: number | null;
+  date: Date | null;
+  heureDebut: string;
+  heureFin: string;
+};
+
+// Transforme les disponibilités récurrentes (jourSemaine 1=lundi..7=dimanche)
+// en dates concrètes pour la semaine ciblée, et convertit les disponibilités
+// ponctuelles en la même forme attendue par le solveur (date "YYYY-MM-DD").
+// Une disponibilité ponctuelle hors de la semaine ciblée est ignorée.
+function expanserDisponibilites(brutes: DisponibiliteBrute[], dateDebutSemaine: string) {
+  const lundi = new Date(`${dateDebutSemaine}T00:00:00.000Z`);
+  const dimanche = new Date(lundi);
+  dimanche.setUTCDate(dimanche.getUTCDate() + 7);
+
+  const resultat: { kholleurId: string; date: string; heureDebut: string; heureFin: string }[] = [];
+
+  for (const d of brutes) {
+    if (d.jourSemaine) {
+      const jour = new Date(lundi);
+      jour.setUTCDate(jour.getUTCDate() + (d.jourSemaine - 1));
+      resultat.push({
+        kholleurId: d.kholleurId,
+        date: jour.toISOString().slice(0, 10),
+        heureDebut: d.heureDebut,
+        heureFin: d.heureFin,
+      });
+    } else if (d.date && d.date >= lundi && d.date < dimanche) {
+      resultat.push({
+        kholleurId: d.kholleurId,
+        date: d.date.toISOString().slice(0, 10),
+        heureDebut: d.heureDebut,
+        heureFin: d.heureFin,
+      });
+    }
+  }
+
+  return resultat;
 }
 
 // Agrège l'historique des khôlles déjà publiées (PLANIFIEE ou CLOTUREE, donc

@@ -21,6 +21,7 @@ export function GenererPlanningForm({
 
   const [classeId, setClasseId] = useState(classeIdInitiale ?? classes[0]?.id ?? "");
   const [semaine, setSemaine] = useState(semaineInitiale ?? 1);
+  const [dateDebutSemaine, setDateDebutSemaine] = useState("");
   const [disciplineIds, setDisciplineIds] = useState<string[]>(
     disciplines.filter((d) => d.kholleursTotal > 0 && d.kholleursAvecDispo === d.kholleursTotal).map((d) => d.id)
   );
@@ -46,7 +47,7 @@ export function GenererPlanningForm({
     const res = await fetch("/api/admin/planification/jobs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ classeId, semaine, disciplineIds }),
+      body: JSON.stringify({ classeId, semaine, disciplineIds, dateDebutSemaine }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -102,6 +103,17 @@ export function GenererPlanningForm({
           />
         </label>
 
+        <label>
+          Lundi de la semaine à planifier
+          <input
+            type="date"
+            value={dateDebutSemaine}
+            onChange={(e) => setDateDebutSemaine(e.target.value)}
+            disabled={enCours}
+            required
+          />
+        </label>
+
         <p>Disciplines à planifier cette semaine :</p>
         {disciplines.map((d) => (
           <label key={d.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -121,7 +133,7 @@ export function GenererPlanningForm({
         ))}
 
         <p style={{ marginTop: 16 }}>
-          <button type="submit" disabled={enCours || disciplineIds.length === 0 || !classeId}>
+          <button type="submit" disabled={enCours || disciplineIds.length === 0 || !classeId || !dateDebutSemaine}>
             {enCours ? "Calcul en cours…" : "Générer le planning"}
           </button>
         </p>

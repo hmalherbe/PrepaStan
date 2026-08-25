@@ -13,6 +13,27 @@ par les professeurs référents.
   façon asynchrone par l'app web via un callback HTTP.
 - **`docker-compose.yml`** — PostgreSQL local pour le développement.
 
+## Administration
+
+Écrans réservés à l'admin pour gérer le référentiel (avant, tout passait
+par `prisma/seed.ts`) :
+
+- `/admin/classes` — créer des classes ; `/admin/classes/[id]` gère ses
+  élèves (avec compte de connexion optionnel) et les disciplines qui lui
+  sont assignées (table `ClasseDiscipline`, indépendante du référent).
+- `/admin/disciplines` — créer les disciplines (Maths, Physique...).
+- `/admin/kholleurs` — créer un kholleur et ses compétences (disciplines) ;
+  `/admin/kholleurs/[id]` gère ses disponibilités récurrentes par jour de
+  semaine.
+- `/admin/referents` — assigner un professeur référent à une classe pour
+  une discipline (celle-ci doit déjà être assignée à la classe).
+
+La génération de planning (`/admin/planification`) demande maintenant la
+date du lundi de la semaine ciblée : les disponibilités récurrentes (par
+jour de semaine) sont converties en dates concrètes pour cette semaine
+avant l'appel au solveur (voir `expanserDisponibilites()` dans
+`src/app/api/admin/planification/jobs/route.ts`).
+
 ## Workflow métier
 
 1. Un admin/référent déclenche la génération du planning d'une semaine
@@ -79,7 +100,8 @@ Trois parcours sont prêts à tester :
   saisies pour les 4 kholleurs du 24 au 27 août 2026. Avec le microservice
   OR-Tools lancé (`PLANNING_SOLVER_URL`), connectez-vous en admin
   (`admin@prepastan.local`) et générez le planning depuis
-  `/admin/planification` (classe MP2I-1, semaine 3, les 3 disciplines).
+  `/admin/planification` (classe MP2I-1, semaine 3, les 3 disciplines,
+  lundi de la semaine = `2026-08-24`).
 
 Le seed est idempotent (upserts + vérifications avant création) : le
 relancer ne duplique rien.
