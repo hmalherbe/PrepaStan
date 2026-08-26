@@ -2,6 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import { useState } from "react";
 
 const LIENS_PAR_ROLE: Record<string, { href: string; label: string }[]> = {
   ADMIN: [
@@ -18,6 +19,7 @@ const LIENS_PAR_ROLE: Record<string, { href: string; label: string }[]> = {
 
 export function NavBar() {
   const { data: session, status } = useSession();
+  const [ouvert, setOuvert] = useState(false);
 
   if (status !== "authenticated") {
     return null;
@@ -30,9 +32,18 @@ export function NavBar() {
       <Link href="/" style={{ fontWeight: 700, textDecoration: "none", color: "inherit" }}>
         PrepaStan
       </Link>
-      <nav>
+      <button
+        type="button"
+        className="navbar-toggle"
+        aria-label="Ouvrir le menu"
+        aria-expanded={ouvert}
+        onClick={() => setOuvert((v) => !v)}
+      >
+        ☰
+      </button>
+      <nav className={ouvert ? "ouvert" : ""}>
         {liens.map((lien) => (
-          <Link key={lien.href} href={lien.href}>
+          <Link key={lien.href} href={lien.href} onClick={() => setOuvert(false)}>
             {lien.label}
           </Link>
         ))}

@@ -43,7 +43,14 @@ table {
   background: var(--couleur-surface);
   border: 1px solid var(--couleur-bordure);
   border-radius: 8px;
-  overflow: hidden;
+  /* display:block (plutôt que le table-layout par défaut) permet à un
+     tableau plus large que l'écran de défiler horizontalement au lieu de
+     déborder de la page ; les lignes/cellules gardent leur mise en page de
+     tableau normale, le navigateur générant les boîtes anonymes nécessaires
+     autour d'un <table> devenu block. */
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 th,
@@ -167,6 +174,7 @@ form label {
   padding: 12px 20px;
   border-bottom: 1px solid var(--couleur-bordure);
   background: var(--couleur-surface);
+  flex-wrap: wrap;
 }
 
 .navbar nav {
@@ -183,6 +191,16 @@ form label {
 
 .navbar nav a:hover {
   color: var(--couleur-primaire);
+}
+
+.navbar-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--couleur-bordure);
+  color: var(--couleur-texte);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 6px 10px;
 }
 
 .champ-erreur {
@@ -202,4 +220,49 @@ form label {
 .jour-titre {
   font-weight: 600;
   margin: 20px 0 8px;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 16px 12px 48px;
+  }
+
+  h1 {
+    font-size: 1.25rem;
+  }
+
+  h2 {
+    font-size: 1.05rem;
+  }
+
+  th,
+  td {
+    padding: 8px 8px;
+    font-size: 0.85rem;
+  }
+
+  .carte {
+    padding: 12px;
+  }
+
+  .navbar {
+    padding: 10px 14px;
+  }
+
+  .navbar-toggle {
+    display: inline-flex;
+  }
+
+  .navbar nav {
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    gap: 10px;
+    padding-top: 10px;
+  }
+
+  .navbar nav.ouvert {
+    display: flex;
+  }
 }
