@@ -18,8 +18,14 @@ const bodySchema = z.object({
 const SEUIL_TARDIF = "17:00";
 
 // POST /api/admin/planification/jobs
-// Crée un job de planification et appelle le microservice OR-Tools de façon
-// asynchrone (fire-and-forget) ; le microservice rappelle
+// Crée un job de planification et déclenche le microservice OR-Tools ; le
+// calcul lui-même tourne en tâche de fond côté Python (le microservice
+// répond 202 immédiatement), mais on ATTEND cet accusé de réception avant
+// de répondre au navigateur. Un appel "fire-and-forget" (fetch non attendu)
+// peut être interrompu par Next.js dès que cette route répond, avant même
+// que la requête n'ait été envoyée sur le réseau — c'est exactement ce qui
+// provoquait des jobs bloqués indéfiniment en EN_COURS, le microservice ne
+// recevant jamais rien. Le microservice rappelle ensuite
 // /api/internal/planification/callback à la fin du calcul.
 export async function POST(req: Request) {
   const auth = await requireRole(["ADMIN"]);
@@ -53,29 +59,43 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "PLANNING_SOLVER_URL non configuré" }, { status: 500 });
   }
 
-  // Appel fire-and-forget : on ne bloque pas la réponse HTTP sur le calcul.
-  fetch(`${solverUrl}/solve`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jobId: job.id,
-      classeId,
-      semaine,
-      dateDebutSemaine,
-      eleves,
-      disponibilites,
-      competences,
-      salles,
-      historique,
-      callbackUrl: `${process.env.NEXTAUTH_URL}/api/internal/planification/callback`,
-      callbackSecret: process.env.PLANNING_CALLBACK_SECRET,
-    }),
-  }).catch(async (err) => {
+  try {
+    const solveRes = await fetch(`${solverUrl}/solve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jobId: job.id,
+        classeId,
+        semaine,
+        dateDebutSemaine,
+        eleves,
+        disponibilites,
+        competences,
+        salles,
+        historique,
+        callbackUrl: `${process.env.NEXTAUTH_URL}/api/internal/planification/callback`,
+        callbackSecret: process.env.PLANNING_CALLBACK_SECRET,
+      }),
+      // Le endpoint /solve répond quasi instantanément (il ne fait que
+      // planifier une tâche de fond) : un délai court suffit largement et
+      // transforme un éventuel blocage réseau silencieux (ex. résolution
+      // "localhost" capricieuse sous Windows) en erreur claire plutôt qu'un
+      // job qui reste EN_COURS indéfiniment sans aucun message.
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!solveRes.ok) {
+      throw new Error(`Le microservice a répondu ${solveRes.status}`);
+    }
+  } catch (err) {
     await prisma.planificationJob.update({
       where: { id: job.id },
       data: { statut: "ECHEC", message: String(err), dateFin: new Date() },
     });
-  });
+    return NextResponse.json(
+      { error: `Impossible de joindre le microservice de planification : ${String(err)}` },
+      { status: 502 }
+    );
+  }
 
   return NextResponse.json({ jobId: job.id }, { status: 202 });
 }
