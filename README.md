@@ -28,10 +28,18 @@ par `prisma/seed.ts`) :
 - `/admin/referents` — assigner un professeur référent à une classe pour
   une discipline (celle-ci doit déjà être assignée à la classe).
 
-La génération de planning (`/admin/planification`) demande maintenant la
-date du lundi de la semaine ciblée : les disponibilités récurrentes (par
-jour de semaine) sont converties en dates concrètes pour cette semaine
-avant l'appel au solveur (voir `expanserDisponibilites()` dans
+La génération de planning (`/admin/planification`) demande la date du
+lundi de la semaine ciblée, puis des **quotas** saisis ligne par ligne :
+pour chaque (jour de la semaine, discipline, kholleur), le nombre d'élèves
+à lui affecter. Un récapitulatif par discipline vérifie en direct que la
+somme des quotas correspond exactement à l'effectif de la classe avant
+d'activer le bouton de génération. OR-Tools ne choisit donc plus le
+nombre d'élèves par kholleur (fixé par l'admin) mais uniquement **quels
+élèves précis** et **à quel horaire** remplissent chaque quota, dans le
+respect des objectifs soft habituels (diversité, équilibrage). Les
+disponibilités récurrentes (par jour de semaine) sont converties en dates
+concrètes pour cette semaine avant l'appel au solveur (voir
+`expanserDisponibilites()` dans
 `src/app/api/admin/planification/jobs/route.ts`).
 
 ## Workflow métier
@@ -104,8 +112,12 @@ Trois parcours sont prêts à tester :
   saisies pour les 4 kholleurs du 24 au 27 août 2026. Avec le microservice
   OR-Tools lancé (`PLANNING_SOLVER_URL`), connectez-vous en admin
   (`admin@prepastan.local`) et générez le planning depuis
-  `/admin/planification` (classe MP2I-1, semaine 3, les 3 disciplines,
-  lundi de la semaine = `2026-08-24`).
+  `/admin/planification` (classe MP2I-1, semaine 3, lundi de la semaine =
+  `2026-08-24`), avec par exemple ces quotas (chaque kholleur a 2h de
+  dispo ce jour-là, soit exactement 6 créneaux de 20 min) :
+  - Lundi — Mathématiques — Claude Bernard — 6 élèves
+  - Lundi — Physique-Chimie — Marc Klein — 6 élèves
+  - Mardi — Anglais — Julie Faure — 6 élèves
 
 Le seed est idempotent (upserts + vérifications avant création) : le
 relancer ne duplique rien.
@@ -150,9 +162,11 @@ idempotent donc ce n'est pas dangereux, juste inutile.
 ## Moteur de planification (OR-Tools)
 
 En plus des contraintes dures (pas de chevauchement élève/kholleur/salle,
-une khôlle par discipline demandée), le solveur (`services/planning-solver/app/solver.py`)
-optimise trois objectifs "soft", pondérés (constantes `POIDS_*` en tête de
-fichier, ajustables) :
+une khôlle par discipline demandée, et désormais le respect exact des
+quotas (jour, discipline, kholleur, nombre d'élèves) fixés par l'admin —
+voir `quotas` dans `resoudre()`), le solveur
+(`services/planning-solver/app/solver.py`) optimise trois objectifs
+"soft", pondérés (constantes `POIDS_*` en tête de fichier, ajustables) :
 
 - **Équilibrage de la charge des kholleurs**, historique inclus — un
   kholleur déjà très sollicité les semaines précédentes est défavorisé,

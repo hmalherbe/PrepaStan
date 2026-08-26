@@ -232,6 +232,11 @@ model PlanificationJob {
   classeId    String
   semaine     Int
   disciplines String[]
+  // Quotas fixés par l'admin avant génération : pour chaque (jour, discipline,
+  // kholleur), le nombre d'élèves à lui affecter. OR-Tools choisit ensuite
+  // quels élèves précis remplissent ces quotas. Conservé pour traçabilité.
+  // Forme : [{ jourSemaine, disciplineId, kholleurId, nombreEleves }]
+  quotas      Json
   statut      JobStatut @default(EN_COURS)
   lanceParId  String
   lancePar    Utilisateur @relation(fields: [lanceParId], references: [id])

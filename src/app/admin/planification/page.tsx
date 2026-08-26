@@ -10,28 +10,43 @@ export default async function PlanificationPage({
   await requirePageSession(["ADMIN"]);
   const { classeId: classeIdParam, semaine: semaineParam } = await searchParams;
 
-  const [classes, disciplines] = await Promise.all([
-    prisma.classe.findMany({ orderBy: { nom: "asc" } }),
-    prisma.discipline.findMany({
-      include: { competences: { include: { kholleur: { include: { disponibilites: true } } } } },
-      orderBy: { nom: "asc" },
-    }),
-  ]);
-
-  const disciplinesAvecPrerequis = disciplines.map((d) => {
-    const kholleurIds = [...new Set(d.competences.map((c) => c.kholleurId))];
-    const kholleursAvecDispo = kholleurIds.filter((id) =>
-      d.competences.some((c) => c.kholleurId === id && c.kholleur.disponibilites.length > 0)
-    ).length;
-    return { id: d.id, nom: d.nom, kholleursTotal: kholleurIds.length, kholleursAvecDispo };
+  const classes = await prisma.classe.findMany({
+    orderBy: { nom: "asc" },
+    include: {
+      eleves: { select: { id: true } },
+      disciplines: {
+        include: {
+          discipline: {
+            include: {
+              competences: {
+                include: { kholleur: { select: { id: true, nom: true, prenom: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
   });
+
+  const classesAvecDisciplines = classes.map((c) => ({
+    id: c.id,
+    nom: c.nom,
+    effectif: c.eleves.length,
+    disciplines: c.disciplines.map((cd) => ({
+      id: cd.discipline.id,
+      nom: cd.discipline.nom,
+      kholleurs: cd.discipline.competences.map((comp) => ({
+        id: comp.kholleur.id,
+        nom: `${comp.kholleur.prenom} ${comp.kholleur.nom}`,
+      })),
+    })),
+  }));
 
   return (
     <main className="container">
       <h1>Générer le planning</h1>
       <GenererPlanningForm
-        classes={classes.map((c) => ({ id: c.id, nom: c.nom }))}
-        disciplines={disciplinesAvecPrerequis}
+        classes={classesAvecDisciplines}
         classeIdInitiale={classeIdParam}
         semaineInitiale={semaineParam ? Number(semaineParam) : undefined}
       />

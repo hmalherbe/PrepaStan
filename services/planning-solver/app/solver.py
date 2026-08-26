@@ -111,12 +111,14 @@ def resoudre(
     competences: list[dict],
     salles: list[dict],
     disciplines_semaine: list[str],
+    quotas: list[dict] | None = None,
     historique_eleve_kholleur: dict[str, int] | None = None,
     historique_charge_kholleur: dict[str, int] | None = None,
     historique_tardif_eleve: dict[str, int] | None = None,
     max_temps_secondes: float = 30.0,
     duree_creneau_minutes: int = 20,
 ) -> SolveResult:
+    quotas = quotas or []
     historique_eleve_kholleur = historique_eleve_kholleur or {}
     historique_charge_kholleur = historique_charge_kholleur or {}
     historique_tardif_eleve = historique_tardif_eleve or {}
@@ -173,6 +175,29 @@ def resoudre(
                     message=f"Aucun créneau disponible pour la discipline {discipline_id}.",
                 )
             model.Add(sum(vars_ed) == 1)
+
+    # Quotas fixés par l'admin : pour chaque (date, discipline, kholleur), le
+    # nombre exact d'élèves à lui affecter est imposé — OR-Tools ne choisit
+    # plus que QUELS élèves et à QUEL horaire, dans le respect des objectifs
+    # soft ci-dessous. La somme des quotas par discipline a déjà été validée
+    # par l'appelant comme égale à l'effectif de la classe.
+    presence_par_bucket: dict[tuple[str, str, str], list[cp_model.IntVar]] = {}
+    for (eleve_id, s_idx), var in presence.items():
+        slot = slots[s_idx]
+        presence_par_bucket.setdefault((slot.jour, slot.discipline_id, slot.kholleur_id), []).append(var)
+
+    for q in quotas:
+        bucket = (q["date"], q["disciplineId"], q["kholleurId"])
+        vars_bucket = presence_par_bucket.get(bucket, [])
+        if not vars_bucket:
+            return SolveResult(
+                statut="INFAISABLE",
+                message=(
+                    f"Aucun créneau candidat pour le quota discipline={q['disciplineId']} "
+                    f"kholleur={q['kholleurId']} le {q['date']} : vérifier les disponibilités."
+                ),
+            )
+        model.Add(sum(vars_bucket) == q["nombreEleves"])
 
     # --- Objectif 1 : équilibrer la charge cumulée des kholleurs -----------
     # charge_max borne le nombre de créneaux d'un kholleur, historique inclus,
