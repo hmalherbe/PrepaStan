@@ -49,12 +49,34 @@ concrètes pour cette semaine avant l'appel au solveur (voir
    les créneaux et les élèves affectés, puis les écrit en brouillon
    (`SessionKholle.statut = PLANIFICATION`).
 2. Après relecture, l'admin publie (`POST .../publier`) → les créneaux
-   deviennent visibles aux kholleurs.
+   deviennent visibles aux kholleurs, qui reçoivent chacun un email
+   récapitulatif de leurs créneaux de la semaine (voir "Notifications par
+   email" ci-dessous).
 3. Chaque kholleur saisit notes et appréciations puis valide sa grille
    (`ValidationGrille.statut = VALIDE`).
 4. Une fois tous les kholleurs d'une session validés, le professeur référent
    valide à son tour (`ValidationReferent.statut = VALIDE`) → les notes
    deviennent visibles aux élèves.
+
+## Notifications par email
+
+À la publication d'un planning (`POST /api/admin/planification/[classeId]/[semaine]/publier`),
+chaque kholleur concerné reçoit un email récapitulant ses créneaux de la
+semaine (jour, horaire, discipline, salle, élèves), envoyé via
+[Resend](https://resend.com) (`src/lib/email.ts`).
+
+- Créez un compte gratuit sur [resend.com](https://resend.com), récupérez
+  une clé API et renseignez `RESEND_API_KEY` dans `.env`.
+- Sans `RESEND_API_KEY`, l'envoi est simplement ignoré (message loggé en
+  console) — la publication du planning n'est jamais bloquée par un souci
+  d'email.
+- Tant que vous n'avez pas vérifié votre propre nom de domaine sur Resend,
+  laissez `RESEND_FROM_EMAIL` à sa valeur par défaut
+  (`PrepaStan <onboarding@resend.dev>`) : les emails ne peuvent alors être
+  envoyés qu'à l'adresse de votre propre compte Resend, ce qui suffit pour
+  tester. Pour notifier de vraies adresses de kholleurs, il faut vérifier un
+  domaine sur Resend puis mettre `RESEND_FROM_EMAIL` à une adresse de ce
+  domaine.
 
 ## Authentification
 
