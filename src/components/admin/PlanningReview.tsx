@@ -183,19 +183,28 @@ export function PlanningReview({
 
       {erreur && <p className="champ-erreur">{erreur}</p>}
 
-      {estBrouillon && (
-        <p style={{ marginTop: 20, display: "flex", gap: 12 }}>
+      <p style={{ marginTop: 20, display: "flex", gap: 12, alignItems: "center" }}>
+        {estBrouillon && (
           <button className="discret" onClick={annuler} disabled={actionEnCours !== null}>
             {actionEnCours === "annuler" ? "Suppression…" : "Annuler"}
           </button>
-          <Link href={`/admin/planification?classeId=${classeId}&semaine=${semaine}`}>
-            <button type="button" className="secondaire">
-              Régénérer
-            </button>
-          </Link>
+        )}
+        <Link href={`/admin/planification?classeId=${classeId}&semaine=${semaine}`}>
+          <button type="button" className="secondaire">
+            Régénérer
+          </button>
+        </Link>
+        {estBrouillon && (
           <button onClick={publier} disabled={actionEnCours !== null}>
             {actionEnCours === "publier" ? "Publication…" : "Publier le planning"}
           </button>
+        )}
+      </p>
+      {!estBrouillon && (
+        <p className="champ-erreur">
+          Ce planning est déjà publié. Le régénérer remplacera les créneaux actuels et repassera la
+          session en brouillon — pensez à republier ensuite, et notez que les notes déjà saisies pour
+          ces créneaux seraient perdues.
         </p>
       )}
     </div>

@@ -56,8 +56,11 @@ export async function POST(req: Request) {
   await prisma.$transaction(async (tx) => {
     const disciplineIds = [...new Set(payload.creneaux.map((c) => c.disciplineId))];
 
-    // Idempotence : si un brouillon existait déjà pour cette classe/semaine/
-    // discipline (régénération), on repart d'une base propre. La cascade
+    // Idempotence : si une session existait déjà pour cette classe/semaine/
+    // discipline (régénération), on repart d'une base propre — qu'elle soit
+    // encore en brouillon ou déjà publiée. Ne filtrer que sur le statut
+    // PLANIFICATION laissait les anciens créneaux d'une session déjà publiée
+    // intacts, et les nouveaux s'ajoutaient par-dessus (doublons). La cascade
     // Prisma supprime les passages/notes associés à ces créneaux.
     await tx.creneau.deleteMany({
       where: {
@@ -65,7 +68,6 @@ export async function POST(req: Request) {
           classeId: payload.classeId,
           semaine: payload.semaine,
           disciplineId: { in: disciplineIds },
-          statut: "PLANIFICATION",
         },
       },
     });
@@ -76,6 +78,9 @@ export async function POST(req: Request) {
 
     const sessions = new Map<string, string>(); // disciplineId -> sessionKholleId
     for (const disciplineId of disciplineIds) {
+      // Régénérer une session déjà publiée la repasse en brouillon : les
+      // créneaux ayant changé, l'admin doit revalider et republier avant que
+      // les kholleurs ne les revoient.
       const session = await tx.sessionKholle.upsert({
         where: {
           classeId_disciplineId_semaine: {
@@ -84,7 +89,7 @@ export async function POST(req: Request) {
             semaine: payload.semaine,
           },
         },
-        update: {},
+        update: { statut: "PLANIFICATION" },
         create: {
           classeId: payload.classeId,
           disciplineId,
