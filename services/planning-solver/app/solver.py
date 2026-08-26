@@ -4,10 +4,20 @@ Un élève ne pouvant pas avoir deux khôlles en même temps, y compris entre
 disciplines différentes, la résolution porte sur toute la semaine d'une
 classe (toutes disciplines demandées confondues) en une seule fois.
 
+Chaque quota fixé par l'admin (jour, discipline, kholleur, salle, heure de
+début, nombre d'élèves) détermine déjà tout sauf l'identité des élèves : les
+créneaux candidats sont générés directement à partir des quotas, en découpant
+la plage [heureDebut, heureDebut + nombreEleves * durée] en créneaux
+successifs dans la salle indiquée. OR-Tools ne choisit donc que QUELS élèves
+remplissent chaque créneau ainsi généré.
+
 Contraintes dures :
-- pas de chevauchement horaire pour un même élève, kholleur ou salle
+- pas de chevauchement horaire pour un même élève (un kholleur/une salle ne
+  peuvent en pratique pas se chevaucher puisque chaque quota leur est propre,
+  mais la contrainte reste posée par sécurité)
 - chaque élève passe exactement une fois par discipline demandée
-- seuls les créneaux dans les disponibilités déclarées sont utilisables
+- chaque créneau issu d'un quota est occupé par exactement un élève (donc
+  chaque quota est intégralement rempli)
 
 Objectifs "soft" (somme pondérée, pondérations ajustables ci-dessous) :
 - équilibrer la charge cumulée des kholleurs (historique inclus)
@@ -52,6 +62,7 @@ class Slot:
     jour: str  # date ISO "YYYY-MM-DD"
     debut_minutes: int
     fin_minutes: int
+    quota_index: int
 
 
 @dataclass
@@ -66,66 +77,45 @@ def _minutes(hhmm: str) -> int:
     return int(h) * 60 + int(m)
 
 
-def generer_slots_candidats(
-    disponibilites: list[dict],
-    competences: list[dict],
-    salles: list[dict],
-    duree_creneau_minutes: int,
-) -> list[Slot]:
-    """Découpe chaque disponibilité de kholleur en créneaux candidats d'une
-    durée fixe, croisés avec les disciplines qu'il peut kholler et les
-    salles disponibles."""
-    comp_par_kholleur: dict[str, list[str]] = {}
-    for c in competences:
-        comp_par_kholleur.setdefault(c["kholleurId"], []).append(c["disciplineId"])
-
+def generer_slots_candidats(quotas: list[dict], duree_creneau_minutes: int) -> list[Slot]:
+    """Découpe chaque quota en `nombreEleves` créneaux successifs d'une durée
+    fixe, dans la salle et à partir de l'heure de début qu'il spécifie."""
     slots: list[Slot] = []
-    for dispo in disponibilites:
-        disciplines = comp_par_kholleur.get(dispo["kholleurId"], [])
-        debut = _minutes(dispo["heureDebut"])
-        fin = _minutes(dispo["heureFin"])
-        jour = dispo.get("date", "")[:10]
-
-        t = debut
-        while t + duree_creneau_minutes <= fin:
-            for discipline_id in disciplines:
-                for salle in salles:
-                    slots.append(
-                        Slot(
-                            kholleur_id=dispo["kholleurId"],
-                            discipline_id=discipline_id,
-                            salle_id=salle["id"],
-                            jour=jour,
-                            debut_minutes=t,
-                            fin_minutes=t + duree_creneau_minutes,
-                        )
-                    )
-            t += duree_creneau_minutes
-
+    for quota_index, q in enumerate(quotas):
+        debut = _minutes(q["heureDebut"])
+        for i in range(q["nombreEleves"]):
+            t = debut + i * duree_creneau_minutes
+            slots.append(
+                Slot(
+                    kholleur_id=q["kholleurId"],
+                    discipline_id=q["disciplineId"],
+                    salle_id=q["salleId"],
+                    jour=q["date"],
+                    debut_minutes=t,
+                    fin_minutes=t + duree_creneau_minutes,
+                    quota_index=quota_index,
+                )
+            )
     return slots
 
 
 def resoudre(
     eleves: list[dict],
-    disponibilites: list[dict],
-    competences: list[dict],
-    salles: list[dict],
-    disciplines_semaine: list[str],
-    quotas: list[dict] | None = None,
+    quotas: list[dict],
     historique_eleve_kholleur: dict[str, int] | None = None,
     historique_charge_kholleur: dict[str, int] | None = None,
     historique_tardif_eleve: dict[str, int] | None = None,
     max_temps_secondes: float = 30.0,
     duree_creneau_minutes: int = 20,
 ) -> SolveResult:
-    quotas = quotas or []
     historique_eleve_kholleur = historique_eleve_kholleur or {}
     historique_charge_kholleur = historique_charge_kholleur or {}
     historique_tardif_eleve = historique_tardif_eleve or {}
+    disciplines_semaine = sorted({q["disciplineId"] for q in quotas})
 
-    slots = generer_slots_candidats(disponibilites, competences, salles, duree_creneau_minutes)
+    slots = generer_slots_candidats(quotas, duree_creneau_minutes)
     if not slots:
-        return SolveResult(statut="INFAISABLE", message="Aucun créneau candidat : vérifier les disponibilités et compétences saisies.")
+        return SolveResult(statut="INFAISABLE", message="Aucun quota fourni.")
 
     model = cp_model.CpModel()
 
@@ -136,8 +126,6 @@ def resoudre(
 
     for e in eleves:
         for s_idx, slot in enumerate(slots):
-            if slot.discipline_id not in disciplines_semaine:
-                continue
             key = (e["id"], s_idx)
             b = model.NewBoolVar(f"x_{e['id']}_{s_idx}")
             presence[key] = b
@@ -167,37 +155,22 @@ def resoudre(
             vars_ed = [
                 presence[(e["id"], s_idx)]
                 for s_idx, slot in enumerate(slots)
-                if slot.discipline_id == discipline_id and (e["id"], s_idx) in presence
+                if slot.discipline_id == discipline_id
             ]
-            if not vars_ed:
-                return SolveResult(
-                    statut="INFAISABLE",
-                    message=f"Aucun créneau disponible pour la discipline {discipline_id}.",
-                )
             model.Add(sum(vars_ed) == 1)
 
-    # Quotas fixés par l'admin : pour chaque (date, discipline, kholleur), le
-    # nombre exact d'élèves à lui affecter est imposé — OR-Tools ne choisit
-    # plus que QUELS élèves et à QUEL horaire, dans le respect des objectifs
-    # soft ci-dessous. La somme des quotas par discipline a déjà été validée
-    # par l'appelant comme égale à l'effectif de la classe.
-    presence_par_bucket: dict[tuple[str, str, str], list[cp_model.IntVar]] = {}
+    # Chaque quota doit être intégralement rempli : le nombre total de
+    # (élève, créneau du quota) retenus doit égaler nombreEleves. Combiné à
+    # la contrainte NoOverlap par kholleur (qui interdit déjà que deux
+    # élèves occupent le même créneau, puisqu'ils partageraient alors le
+    # même horaire), ça force chaque créneau du quota à être occupé par
+    # exactement un élève — sans quoi le solveur pourrait laisser des
+    # créneaux vides tant que le total par discipline reste correct.
+    presence_par_quota: dict[int, list[cp_model.IntVar]] = {}
     for (eleve_id, s_idx), var in presence.items():
-        slot = slots[s_idx]
-        presence_par_bucket.setdefault((slot.jour, slot.discipline_id, slot.kholleur_id), []).append(var)
-
-    for q in quotas:
-        bucket = (q["date"], q["disciplineId"], q["kholleurId"])
-        vars_bucket = presence_par_bucket.get(bucket, [])
-        if not vars_bucket:
-            return SolveResult(
-                statut="INFAISABLE",
-                message=(
-                    f"Aucun créneau candidat pour le quota discipline={q['disciplineId']} "
-                    f"kholleur={q['kholleurId']} le {q['date']} : vérifier les disponibilités."
-                ),
-            )
-        model.Add(sum(vars_bucket) == q["nombreEleves"])
+        presence_par_quota.setdefault(slots[s_idx].quota_index, []).append(var)
+    for quota_index, vars_quota in presence_par_quota.items():
+        model.Add(sum(vars_quota) == quotas[quota_index]["nombreEleves"])
 
     # --- Objectif 1 : équilibrer la charge cumulée des kholleurs -----------
     # charge_max borne le nombre de créneaux d'un kholleur, historique inclus,
@@ -247,7 +220,7 @@ def resoudre(
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return SolveResult(
             statut="INFAISABLE",
-            message="Impossible de satisfaire toutes les contraintes avec les disponibilités actuelles.",
+            message="Impossible de satisfaire toutes les contraintes avec les quotas actuels.",
         )
 
     par_creneau: dict[tuple, list[str]] = {}

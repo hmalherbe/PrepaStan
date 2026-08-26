@@ -8,6 +8,9 @@ const quotaSchema = z.object({
   disciplineId: z.string(),
   kholleurId: z.string(),
   nombreEleves: z.number().int().min(1),
+  heureDebut: z.string().regex(/^\d{2}:\d{2}$/),
+  salleId: z.string(),
+  referentId: z.string(),
 });
 
 const bodySchema = z.object({
@@ -18,14 +21,12 @@ const bodySchema = z.object({
   // semaine) en dates concrètes pour cette semaine précise.
   dateDebutSemaine: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   // Quotas fixés par l'admin : pour chaque (jour, discipline, kholleur), le
-  // nombre d'élèves à lui affecter cette semaine. OR-Tools choisit ensuite
-  // quels élèves précis remplissent ces quotas.
+  // nombre d'élèves à lui affecter cette semaine, l'heure de début du
+  // premier créneau, la salle et le référent de la discipline. OR-Tools
+  // choisit ensuite quels élèves précis remplissent ces quotas.
   quotas: z.array(quotaSchema).min(1),
 });
 
-// Au-delà de cette heure, un créneau est considéré "tardif" pour
-// l'équilibrage des horaires de passage (voir calculerHistorique ci-dessous).
-const SEUIL_TARDIF = "17:00";
 const DUREE_CRENEAU_MINUTES = 20;
 
 // POST /api/admin/planification/jobs
@@ -70,37 +71,97 @@ export async function POST(req: Request) {
     );
   }
 
-  const job = await prisma.planificationJob.create({
-    data: { classeId, semaine, disciplines: disciplineIds, quotas, lanceParId },
-  });
+  // Le référent est rattaché à (classe, discipline) : deux lignes de quota
+  // pour la même discipline doivent forcément désigner le même référent.
+  const erreursReferent: string[] = [];
+  for (const disciplineId of disciplineIds) {
+    const referentIds = new Set(quotas.filter((q) => q.disciplineId === disciplineId).map((q) => q.referentId));
+    if (referentIds.size > 1) {
+      const discipline = await prisma.discipline.findUnique({ where: { id: disciplineId } });
+      erreursReferent.push(`${discipline?.nom ?? disciplineId} : référent différent selon les lignes`);
+    }
+  }
+  if (erreursReferent.length > 0) {
+    return NextResponse.json(
+      { error: `Référent incohérent : ${erreursReferent.join(" ; ")}` },
+      { status: 400 }
+    );
+  }
 
-  const [dispoBrutes, competences, salles] = await Promise.all([
-    prisma.disponibilite.findMany({ where: { kholleurId: { in: kholleurIds } } }),
-    prisma.competence.findMany({ where: { disciplineId: { in: disciplineIds } } }),
-    prisma.salle.findMany(),
-  ]);
-
-  const disponibilites = expanserDisponibilites(dispoBrutes, dateDebutSemaine);
   const quotasDates = quotas.map((q) => ({
     date: dateDuJourSemaine(dateDebutSemaine, q.jourSemaine),
     disciplineId: q.disciplineId,
     kholleurId: q.kholleurId,
     nombreEleves: q.nombreEleves,
+    heureDebut: q.heureDebut,
+    salleId: q.salleId,
   }));
 
-  // Vérification précoce : un quota dont le kholleur n'a aucune disponibilité
-  // ce jour-là (ou pas assez pour caser tout le monde) est nécessairement
-  // infaisable — autant le dire tout de suite plutôt que de faire tourner
+  // Une même salle ne peut pas accueillir deux quotas qui se chevauchent le
+  // même jour — autant le détecter tout de suite avec un message clair
+  // plutôt que de laisser OR-Tools échouer avec un "INFAISABLE" générique.
+  const erreursSalle: string[] = [];
+  const parSalleEtDate = new Map<string, typeof quotasDates>();
+  for (const q of quotasDates) {
+    const cle = `${q.date}|${q.salleId}`;
+    const liste = parSalleEtDate.get(cle) ?? [];
+    liste.push(q);
+    parSalleEtDate.set(cle, liste);
+  }
+  for (const liste of parSalleEtDate.values()) {
+    const triee = [...liste].sort((a, b) => minutes(a.heureDebut) - minutes(b.heureDebut));
+    for (let i = 1; i < triee.length; i++) {
+      const precedent = triee[i - 1];
+      const finPrecedent = minutes(precedent.heureDebut) + precedent.nombreEleves * DUREE_CRENEAU_MINUTES;
+      if (finPrecedent > minutes(triee[i].heureDebut)) {
+        const salle = await prisma.salle.findUnique({ where: { id: triee[i].salleId } });
+        erreursSalle.push(`${salle?.nom ?? triee[i].salleId} le ${triee[i].date} : deux quotas se chevauchent`);
+      }
+    }
+  }
+  if (erreursSalle.length > 0) {
+    return NextResponse.json({ error: `Conflit de salle : ${erreursSalle.join(" ; ")}` }, { status: 400 });
+  }
+
+  const job = await prisma.planificationJob.create({
+    data: { classeId, semaine, disciplines: disciplineIds, quotas, lanceParId },
+  });
+
+  // Assigne (ou met à jour) le professeur référent de chaque discipline pour
+  // cette classe, directement depuis l'écran de planification plutôt que de
+  // devoir passer par /admin/referents séparément.
+  for (const disciplineId of disciplineIds) {
+    const referentId = quotas.find((q) => q.disciplineId === disciplineId)!.referentId;
+    await prisma.professeurReferent.upsert({
+      where: { classeId_disciplineId: { classeId, disciplineId } },
+      update: { utilisateurId: referentId },
+      create: { classeId, disciplineId, utilisateurId: referentId },
+    });
+  }
+
+  const dispoBrutes = await prisma.disponibilite.findMany({ where: { kholleurId: { in: kholleurIds } } });
+  const disponibilites = expanserDisponibilites(dispoBrutes, dateDebutSemaine);
+
+  // Vérification précoce : le créneau [heureDebut, heureDebut + durée] doit
+  // tenir intégralement dans une disponibilité déclarée du kholleur ce
+  // jour-là — autant le dire tout de suite plutôt que de faire tourner
   // OR-Tools pour rien.
   const erreursCapacite: string[] = [];
   for (const q of quotasDates) {
-    const dispoJour = disponibilites.filter((d) => d.kholleurId === q.kholleurId && d.date === q.date);
-    const capaciteMinutes = dispoJour.reduce((s, d) => s + (minutes(d.heureFin) - minutes(d.heureDebut)), 0);
-    const minutesRequises = q.nombreEleves * DUREE_CRENEAU_MINUTES;
-    if (capaciteMinutes < minutesRequises) {
+    const debut = minutes(q.heureDebut);
+    const fin = debut + q.nombreEleves * DUREE_CRENEAU_MINUTES;
+    const couvert = disponibilites.some(
+      (d) =>
+        d.kholleurId === q.kholleurId &&
+        d.date === q.date &&
+        minutes(d.heureDebut) <= debut &&
+        fin <= minutes(d.heureFin)
+    );
+    if (!couvert) {
       const kholleur = await prisma.utilisateur.findUnique({ where: { id: q.kholleurId } });
       erreursCapacite.push(
-        `${kholleur ? `${kholleur.prenom} ${kholleur.nom}` : q.kholleurId} le ${q.date} : ${capaciteMinutes} min disponibles pour ${minutesRequises} min requises (${q.nombreEleves} élèves)`
+        `${kholleur ? `${kholleur.prenom} ${kholleur.nom}` : q.kholleurId} le ${q.date} de ${q.heureDebut} à ` +
+          `${minutesVersHeure(fin)} (${q.nombreEleves} élèves) : hors de ses disponibilités déclarées`
       );
     }
   }
@@ -133,9 +194,6 @@ export async function POST(req: Request) {
         semaine,
         dateDebutSemaine,
         eleves,
-        disponibilites,
-        competences,
-        salles,
         quotas: quotasDates,
         historique,
         callbackUrl: `${process.env.NEXTAUTH_URL}/api/internal/planification/callback`,
@@ -168,6 +226,12 @@ export async function POST(req: Request) {
 function minutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
+}
+
+function minutesVersHeure(total: number): string {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 function dateDuJourSemaine(dateDebutSemaine: string, jourSemaine: number): string {
@@ -216,6 +280,10 @@ function expanserDisponibilites(brutes: DisponibiliteBrute[], dateDebutSemaine: 
 
   return resultat;
 }
+
+// Au-delà de cette heure, un créneau est considéré "tardif" pour
+// l'équilibrage des horaires de passage (voir calculerHistorique ci-dessous).
+const SEUIL_TARDIF = "17:00";
 
 // Agrège l'historique des khôlles déjà publiées (PLANIFIEE ou CLOTUREE, donc
 // hors brouillon en cours) pour nourrir les objectifs "soft" du solveur :

@@ -28,13 +28,12 @@ class SolveRequest(BaseModel):
     semaine: int
     dateDebutSemaine: str
     eleves: list[dict[str, Any]]
-    disponibilites: list[dict[str, Any]]
-    competences: list[dict[str, Any]]
-    salles: list[dict[str, Any]]
-    # Quotas fixés par l'admin : [{date, disciplineId, kholleurId, nombreEleves}].
-    # OR-Tools choisit quels élèves précis et à quel horaire remplissent
-    # chaque quota (voir resoudre() dans solver.py).
-    quotas: list[dict[str, Any]] = []
+    # Quotas fixés par l'admin : chacun fixe déjà tout sauf les élèves —
+    # [{date, disciplineId, kholleurId, salleId, heureDebut, nombreEleves}].
+    # OR-Tools choisit uniquement quels élèves précis remplissent chaque
+    # quota, dans l'ordre des créneaux qui en découlent (voir resoudre() dans
+    # solver.py).
+    quotas: list[dict[str, Any]]
     historique: Historique = Historique()
     callbackUrl: str
     callbackSecret: str
@@ -58,14 +57,8 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
     # process — d'où le try/except explicite pour au moins la rendre visible
     # au lieu de laisser le job appelant bloqué indéfiniment sur EN_COURS.
     try:
-        disciplines_semaine = sorted({q["disciplineId"] for q in payload.quotas})
-
         result = resoudre(
             eleves=payload.eleves,
-            disponibilites=payload.disponibilites,
-            competences=payload.competences,
-            salles=payload.salles,
-            disciplines_semaine=disciplines_semaine,
             quotas=payload.quotas,
             historique_eleve_kholleur=payload.historique.eleveKholleur,
             historique_charge_kholleur=payload.historique.chargeKholleur,

@@ -30,16 +30,23 @@ par `prisma/seed.ts`) :
 
 La génération de planning (`/admin/planification`) demande la date du
 lundi de la semaine ciblée, puis des **quotas** saisis ligne par ligne :
-pour chaque (jour de la semaine, discipline, kholleur), le nombre d'élèves
-à lui affecter. Un récapitulatif par discipline vérifie en direct que la
-somme des quotas correspond exactement à l'effectif de la classe avant
-d'activer le bouton de génération. OR-Tools ne choisit donc plus le
-nombre d'élèves par kholleur (fixé par l'admin) mais uniquement **quels
-élèves précis** et **à quel horaire** remplissent chaque quota, dans le
+pour chaque jour de la semaine, discipline et kholleur, l'admin fixe le
+nombre d'élèves à lui affecter, l'heure de début du premier créneau, la
+salle et le professeur référent de la discipline (sélectionné dans une
+liste déroulante — l'assignation `ProfesseurReferent` pour la classe est
+mise à jour directement depuis cet écran, sans passer par
+`/admin/referents`). Le référent doit être le même sur toutes les lignes
+d'une même discipline puisqu'il est rattaché à (classe, discipline), pas à
+une ligne. Un récapitulatif par discipline vérifie en direct que la somme
+des quotas correspond exactement à l'effectif de la classe avant d'activer
+le bouton de génération. OR-Tools ne choisit donc plus ni le nombre
+d'élèves par kholleur, ni l'horaire, ni la salle (tous fixés par l'admin)
+mais uniquement **quels élèves précis** remplissent chaque quota, dans le
 respect des objectifs soft habituels (diversité, équilibrage). Les
 disponibilités récurrentes (par jour de semaine) sont converties en dates
-concrètes pour cette semaine avant l'appel au solveur (voir
-`expanserDisponibilites()` dans
+concrètes pour cette semaine avant l'appel au solveur, et servent à
+vérifier que chaque quota tient dans une disponibilité déclarée du
+kholleur (voir `expanserDisponibilites()` dans
 `src/app/api/admin/planification/jobs/route.ts`).
 
 ## Workflow métier
@@ -145,10 +152,11 @@ Trois parcours sont prêts à tester :
   (`admin@prepastan.local`) et générez le planning depuis
   `/admin/planification` (classe MP2I-1, semaine 3, lundi de la semaine =
   `2026-08-24`), avec par exemple ces quotas (chaque kholleur a 2h de
-  dispo ce jour-là, soit exactement 6 créneaux de 20 min) :
-  - Lundi — Mathématiques — Claude Bernard — 6 élèves
-  - Lundi — Physique-Chimie — Marc Klein — 6 élèves
-  - Mardi — Anglais — Julie Faure — 6 élèves
+  dispo ce jour-là, soit exactement 6 créneaux de 20 min ; salle et
+  référent au choix) :
+  - Lundi 14:00 — Mathématiques — Claude Bernard — 6 élèves
+  - Lundi 16:00 — Physique-Chimie — Marc Klein — 6 élèves
+  - Mardi 16:00 — Anglais — Julie Faure — 6 élèves
 
 Le seed est idempotent (upserts + vérifications avant création) : le
 relancer ne duplique rien.
@@ -192,12 +200,18 @@ idempotent donc ce n'est pas dangereux, juste inutile.
 
 ## Moteur de planification (OR-Tools)
 
-En plus des contraintes dures (pas de chevauchement élève/kholleur/salle,
-une khôlle par discipline demandée, et désormais le respect exact des
-quotas (jour, discipline, kholleur, nombre d'élèves) fixés par l'admin —
-voir `quotas` dans `resoudre()`), le solveur
-(`services/planning-solver/app/solver.py`) optimise trois objectifs
-"soft", pondérés (constantes `POIDS_*` en tête de fichier, ajustables) :
+Chaque quota (jour, discipline, kholleur, salle, heure de début, nombre
+d'élèves) fixé par l'admin détermine déjà tout sauf l'identité des
+élèves : les créneaux candidats sont générés directement à partir des
+quotas (voir `generer_slots_candidats()` dans
+`services/planning-solver/app/solver.py`), en découpant la plage
+[heureDebut, heureDebut + nombreEleves × 20 min] en créneaux successifs
+dans la salle indiquée. Le solveur (`resoudre()`) ne choisit donc plus
+que quels élèves remplissent chaque créneau ainsi généré, sous la
+contrainte dure qu'un élève ne peut pas avoir deux khôlles en même temps
+et passe exactement une fois par discipline demandée, en optimisant trois
+objectifs "soft" pondérés (constantes `POIDS_*` en tête de fichier,
+ajustables) :
 
 - **Équilibrage de la charge des kholleurs**, historique inclus — un
   kholleur déjà très sollicité les semaines précédentes est défavorisé,

@@ -4,7 +4,15 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Kholleur = { id: string; nom: string };
-type Discipline = { id: string; nom: string; kholleurs: Kholleur[] };
+type Referent = { id: string; nom: string };
+type Discipline = {
+  id: string;
+  nom: string;
+  kholleurs: Kholleur[];
+  referents: Referent[];
+  referentActuelId: string | null;
+};
+type Salle = { id: string; nom: string };
 type Classe = { id: string; nom: string; effectif: number; disciplines: Discipline[] };
 
 type Quota = {
@@ -13,9 +21,13 @@ type Quota = {
   disciplineId: string;
   kholleurId: string;
   nombreEleves: number;
+  heureDebut: string;
+  salleId: string;
+  referentId: string;
 };
 
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+const HEURE_DEBUT_DEFAUT = "14:00";
 
 let compteurCle = 0;
 function nouvelleCle() {
@@ -25,10 +37,12 @@ function nouvelleCle() {
 
 export function GenererPlanningForm({
   classes,
+  salles,
   classeIdInitiale,
   semaineInitiale,
 }: {
   classes: Classe[];
+  salles: Salle[];
   classeIdInitiale?: string;
   semaineInitiale?: number;
 }) {
@@ -58,6 +72,10 @@ export function GenererPlanningForm({
     setQuotas([]);
   }
 
+  function referentParDefaut(discipline: Discipline | undefined): string {
+    return discipline?.referentActuelId ?? discipline?.referents[0]?.id ?? "";
+  }
+
   function ajouterQuota() {
     const premiereDiscipline = disciplines[0];
     setQuotas((prev) => [
@@ -68,6 +86,9 @@ export function GenererPlanningForm({
         disciplineId: premiereDiscipline?.id ?? "",
         kholleurId: premiereDiscipline?.kholleurs[0]?.id ?? "",
         nombreEleves: 1,
+        heureDebut: HEURE_DEBUT_DEFAUT,
+        salleId: salles[0]?.id ?? "",
+        referentId: referentParDefaut(premiereDiscipline),
       },
     ]);
   }
@@ -93,10 +114,33 @@ export function GenererPlanningForm({
     }));
   }, [quotas, disciplines, classe]);
 
-  const quotasIncomplets = quotas.some((q) => !q.disciplineId || !q.kholleurId || q.nombreEleves < 1);
+  // Le référent est rattaché à (classe, discipline), pas à une ligne : deux
+  // lignes de la même discipline (ex. deux kholleurs, deux jours) doivent
+  // donc obligatoirement pointer vers le même référent.
+  const disciplinesReferentIncoherent = useMemo(() => {
+    const parDiscipline = new Map<string, Set<string>>();
+    for (const q of quotas) {
+      if (!q.referentId) continue;
+      const set = parDiscipline.get(q.disciplineId) ?? new Set<string>();
+      set.add(q.referentId);
+      parDiscipline.set(q.disciplineId, set);
+    }
+    return [...parDiscipline.entries()]
+      .filter(([, ids]) => ids.size > 1)
+      .map(([disciplineId]) => disciplines.find((d) => d.id === disciplineId)?.nom ?? disciplineId);
+  }, [quotas, disciplines]);
+
+  const quotasIncomplets = quotas.some(
+    (q) => !q.disciplineId || !q.kholleurId || !q.heureDebut || !q.salleId || !q.referentId || q.nombreEleves < 1
+  );
   const effectifsOk = recap.length > 0 && recap.every((r) => r.ok);
   const formulaireValide =
-    !!classeId && !!dateDebutSemaine && quotas.length > 0 && !quotasIncomplets && effectifsOk;
+    !!classeId &&
+    !!dateDebutSemaine &&
+    quotas.length > 0 &&
+    !quotasIncomplets &&
+    effectifsOk &&
+    disciplinesReferentIncoherent.length === 0;
 
   async function lancer() {
     setStatutJob("EN_COURS");
@@ -114,6 +158,9 @@ export function GenererPlanningForm({
           disciplineId: q.disciplineId,
           kholleurId: q.kholleurId,
           nombreEleves: q.nombreEleves,
+          heureDebut: q.heureDebut,
+          salleId: q.salleId,
+          referentId: q.referentId,
         })),
       }),
     });
@@ -194,8 +241,8 @@ export function GenererPlanningForm({
         </label>
 
         <p style={{ marginTop: 16 }}>
-          Quotas par jour / discipline / kholleur — pour chaque ligne, OR-Tools choisira
-          quels élèves précis et à quel horaire remplissent le quota.
+          Quotas par jour / discipline / kholleur — pour chaque ligne, OR-Tools choisira quels
+          élèves précis remplissent le quota, à partir de l&apos;heure de début indiquée.
         </p>
 
         {disciplines.length === 0 && classe && (
@@ -209,6 +256,9 @@ export function GenererPlanningForm({
               <th>Discipline</th>
               <th>Kholleur</th>
               <th>Nb élèves</th>
+              <th>Début</th>
+              <th>Salle</th>
+              <th>Référent</th>
               <th></th>
             </tr>
           </thead>
@@ -216,6 +266,7 @@ export function GenererPlanningForm({
             {quotas.map((q) => {
               const discipline = disciplines.find((d) => d.id === q.disciplineId);
               const kholleurs = discipline?.kholleurs ?? [];
+              const referents = discipline?.referents ?? [];
               return (
                 <tr key={q.cle}>
                   <td>
@@ -239,6 +290,7 @@ export function GenererPlanningForm({
                         modifierQuota(q.cle, {
                           disciplineId: e.target.value,
                           kholleurId: nouvelleDiscipline?.kholleurs[0]?.id ?? "",
+                          referentId: referentParDefaut(nouvelleDiscipline),
                         });
                       }}
                       disabled={enCours}
@@ -283,6 +335,49 @@ export function GenererPlanningForm({
                     />
                   </td>
                   <td>
+                    <input
+                      type="time"
+                      value={q.heureDebut}
+                      onChange={(e) => modifierQuota(q.cle, { heureDebut: e.target.value })}
+                      disabled={enCours}
+                    />
+                  </td>
+                  <td>
+                    <select
+                      value={q.salleId}
+                      onChange={(e) => modifierQuota(q.cle, { salleId: e.target.value })}
+                      disabled={enCours || salles.length === 0}
+                    >
+                      <option value="" disabled>
+                        —
+                      </option>
+                      {salles.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.nom}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      value={q.referentId}
+                      onChange={(e) => modifierQuota(q.cle, { referentId: e.target.value })}
+                      disabled={enCours || referents.length === 0}
+                    >
+                      <option value="" disabled>
+                        —
+                      </option>
+                      {referents.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.nom}
+                        </option>
+                      ))}
+                    </select>
+                    {discipline && referents.length === 0 && (
+                      <span className="champ-erreur">Aucun référent pour cette matière</span>
+                    )}
+                  </td>
+                  <td>
                     <button type="button" onClick={() => retirerQuota(q.cle)} disabled={enCours}>
                       Retirer
                     </button>
@@ -298,6 +393,13 @@ export function GenererPlanningForm({
             + Ajouter une ligne
           </button>
         </p>
+
+        {disciplinesReferentIncoherent.length > 0 && (
+          <p className="champ-erreur">
+            Référent incohérent entre plusieurs lignes de la même discipline : uniformisez-le pour{" "}
+            {disciplinesReferentIncoherent.join(", ")}.
+          </p>
+        )}
 
         {recap.length > 0 && (
           <>
