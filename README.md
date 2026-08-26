@@ -89,6 +89,15 @@ Sur Windows, si `uvicorn` n'est pas reconnu comme commande après
 l'installation, utilisez `python -m uvicorn app.main:app --port 8001`
 (évite les soucis de PATH).
 
+Le service `planning-solver` du `docker-compose.yml` est volontairement
+sur un profile séparé (`solver`) : un simple `docker compose up -d` ne
+démarre donc que PostgreSQL, jamais le microservice en même temps que
+l'`uvicorn` lancé à la main ci-dessus — les deux tournant sur le même
+port 8001, le conteneur masquerait sinon silencieusement le processus
+local (source d'un bug difficile à diagnostiquer). Pour lancer le
+microservice en conteneur plutôt qu'en local, utilisez explicitement
+`docker compose --profile solver up -d planning-solver`.
+
 ## Jeu de données de démonstration
 
 `npm run prisma:seed` (voir `prisma/seed.ts`) crée une classe complète

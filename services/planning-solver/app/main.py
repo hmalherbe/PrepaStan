@@ -9,6 +9,7 @@ from app.solver import resoudre
 
 app = FastAPI(title="PrepaStan - Planning Solver")
 logger = logging.getLogger("prepastan.planning-solver")
+logger.setLevel(logging.INFO)
 
 
 class Historique(BaseModel):
@@ -41,13 +42,12 @@ class SolveRequest(BaseModel):
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    print(">>> /health appelé", flush=True)
     return {"status": "ok"}
 
 
 @app.post("/solve", status_code=202)
 async def solve(payload: SolveRequest, background_tasks: BackgroundTasks) -> dict[str, str]:
-    print(f">>> /solve appelé, jobId={payload.jobId}", flush=True)
+    logger.info("Job %s reçu (classe=%s, semaine=%s)", payload.jobId, payload.classeId, payload.semaine)
     background_tasks.add_task(_solve_and_callback, payload)
     return {"jobId": payload.jobId, "statut": "EN_COURS"}
 
@@ -57,10 +57,8 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
     # remonte nulle part côté client, elle finit juste dans les logs du
     # process — d'où le try/except explicite pour au moins la rendre visible
     # au lieu de laisser le job appelant bloqué indéfiniment sur EN_COURS.
-    print(f">>> _solve_and_callback démarré pour {payload.jobId}", flush=True)
     try:
         disciplines_semaine = sorted({q["disciplineId"] for q in payload.quotas})
-        print(f">>> disciplines_semaine={disciplines_semaine}", flush=True)
 
         result = resoudre(
             eleves=payload.eleves,
@@ -73,7 +71,7 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
             historique_charge_kholleur=payload.historique.chargeKholleur,
             historique_tardif_eleve=payload.historique.tardifEleve,
         )
-        print(f">>> resoudre() terminé, statut={result.statut}, message={result.message}", flush=True)
+        logger.info("Job %s résolu : statut=%s", payload.jobId, result.statut)
 
         if result.statut == "SUCCES":
             body = {
@@ -86,8 +84,7 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
             }
         else:
             body = {"jobId": payload.jobId, "statut": result.statut, "message": result.message}
-    except Exception as e:
-        print(f">>> EXCEPTION pendant le calcul : {e!r}", flush=True)
+    except Exception:
         logger.exception("Échec du calcul pour le job %s", payload.jobId)
         body = {
             "jobId": payload.jobId,
@@ -95,7 +92,6 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
             "message": "Erreur interne du solveur, voir les logs du microservice.",
         }
 
-    print(f">>> Appel du callback {payload.callbackUrl}", flush=True)
     try:
         async with httpx.AsyncClient() as client:
             reponse = await client.post(
@@ -104,7 +100,6 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
                 headers={"x-callback-secret": payload.callbackSecret},
                 timeout=30.0,
             )
-        print(f">>> Callback répondu : {reponse.status_code} {reponse.text}", flush=True)
         if reponse.status_code >= 400:
             logger.error(
                 "Callback refusé par %s pour le job %s : %s %s",
@@ -113,8 +108,7 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
                 reponse.status_code,
                 reponse.text,
             )
-    except httpx.HTTPError as e:
-        print(f">>> EXCEPTION en appelant le callback : {e!r}", flush=True)
+    except httpx.HTTPError:
         logger.exception(
             "Impossible d'appeler le callback %s pour le job %s (job resté EN_COURS côté app)",
             payload.callbackUrl,

@@ -11,8 +11,16 @@ services:
     volumes:
       - prepastan-db-data:/var/lib/postgresql/data
 
+  # Non démarré par un simple `docker compose up -d` (voir README) : lancez-le
+  # explicitement avec `docker compose --profile solver up -d planning-solver`.
+  # Sans ce profile, un `docker compose up -d` lancé après avoir arrêté ce
+  # service pour le remplacer par un `uvicorn` local le redémarrerait ici en
+  # silence, masquant le processus local sur le même port 8001 — c'est
+  # exactement ce qui a causé plusieurs heures de blocages difficiles à
+  # diagnostiquer.
   planning-solver:
     build: ./services/planning-solver
+    profiles: ["solver"]
     restart: unless-stopped
     ports:
       - "8001:8001"
