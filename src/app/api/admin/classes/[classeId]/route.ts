@@ -46,3 +46,28 @@ export async function PUT(req: Request, { params }: { params: Promise<{ classeId
     );
   }
 }
+
+// DELETE /api/admin/classes/:classeId
+// Les disciplines assignées (ClasseDiscipline) sont supprimées avec la
+// classe. En revanche, la présence d'élèves, de sessions de khôlle ou de
+// référents fait échouer la suppression (contrainte de clé étrangère) :
+// on ne veut pas perdre silencieusement un historique réel.
+export async function DELETE(_req: Request, { params }: { params: Promise<{ classeId: string }> }) {
+  const auth = await requireRole(["ADMIN"]);
+  if (auth instanceof NextResponse) return auth;
+  const { classeId } = await params;
+
+  try {
+    await prisma.classe.delete({ where: { id: classeId } });
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          "Impossible de supprimer cette classe : elle a encore des élèves, des sessions de khôlle ou un " +
+          "référent assigné. Retirez-les d'abord.",
+      },
+      { status: 409 }
+    );
+  }
+  return NextResponse.json({ ok: true });
+}

@@ -105,6 +105,17 @@ export function KholleursForm({
     setEnEdition(null);
   }
 
+  async function supprimer(kholleurId: string) {
+    if (!confirm("Supprimer ce kholleur ?")) return;
+    const res = await fetch(`/api/admin/kholleurs/${kholleurId}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error ?? "Erreur lors de la suppression");
+      return;
+    }
+    setKholleurs((prev) => prev.filter((k) => k.id !== kholleurId));
+  }
+
   return (
     <div>
       <table>
@@ -138,6 +149,9 @@ export function KholleursForm({
                 <td style={{ display: "flex", gap: 8 }}>
                   <button className="discret" onClick={() => setEnEdition(k.id)}>
                     Modifier
+                  </button>
+                  <button className="discret" onClick={() => supprimer(k.id)}>
+                    Supprimer
                   </button>
                   <Link href={`/admin/kholleurs/${k.id}`}>Disponibilités</Link>
                 </td>

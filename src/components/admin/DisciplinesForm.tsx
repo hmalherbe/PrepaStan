@@ -50,6 +50,17 @@ export function DisciplinesForm({ disciplinesInitiales }: { disciplinesInitiales
     setEnEdition(null);
   }
 
+  async function supprimer(disciplineId: string) {
+    if (!confirm("Supprimer cette discipline ?")) return;
+    const res = await fetch(`/api/admin/disciplines/${disciplineId}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error ?? "Erreur lors de la suppression");
+      return;
+    }
+    setDisciplines((prev) => prev.filter((d) => d.id !== disciplineId));
+  }
+
   return (
     <div>
       <table>
@@ -75,9 +86,12 @@ export function DisciplinesForm({ disciplinesInitiales }: { disciplinesInitiales
                 <td>{d.nom}</td>
                 <td>{d.nbClasses}</td>
                 <td>{d.nbKholleurs}</td>
-                <td>
+                <td style={{ display: "flex", gap: 8 }}>
                   <button className="discret" onClick={() => setEnEdition(d.id)}>
                     Modifier
+                  </button>
+                  <button className="discret" onClick={() => supprimer(d.id)}>
+                    Supprimer
                   </button>
                 </td>
               </tr>

@@ -67,3 +67,34 @@ export async function PUT(req: Request, { params }: { params: Promise<{ kholleur
     return NextResponse.json({ error: "Un compte avec cet email existe déjà" }, { status: 409 });
   }
 }
+
+// DELETE /api/admin/kholleurs/:kholleurId
+// Les compétences et disponibilités (pure configuration, sans valeur
+// d'historique) sont nettoyées avant la suppression du compte. En
+// revanche, la présence de créneaux déjà donnés ou d'un job de
+// planification lancé par ce kholleur fait échouer toute l'opération
+// (contrainte de clé étrangère, transaction annulée) : impossible de
+// perdre silencieusement un historique réel de khôlles.
+export async function DELETE(_req: Request, { params }: { params: Promise<{ kholleurId: string }> }) {
+  const auth = await requireRole(["ADMIN"]);
+  if (auth instanceof NextResponse) return auth;
+  const { kholleurId } = await params;
+
+  try {
+    await prisma.$transaction([
+      prisma.competence.deleteMany({ where: { kholleurId } }),
+      prisma.disponibilite.deleteMany({ where: { kholleurId } }),
+      prisma.utilisateur.delete({ where: { id: kholleurId } }),
+    ]);
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          "Impossible de supprimer ce kholleur : il a déjà des créneaux de khôlle (planifiés ou passés) " +
+          "enregistrés à son nom.",
+      },
+      { status: 409 }
+    );
+  }
+  return NextResponse.json({ ok: true });
+}

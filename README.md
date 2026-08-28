@@ -17,10 +17,14 @@ par les professeurs référents.
 
 Écrans réservés à l'admin pour gérer le référentiel (avant, tout passait
 par `prisma/seed.ts`). Classes, disciplines, kholleurs, référents et élèves
-se créent et se modifient (bouton "Modifier" sur chaque ligne) directement
-depuis ces écrans ; seuls les élèves et les référents peuvent aussi être
-retirés (pas les classes/disciplines/kholleurs, pour éviter de casser
-l'historique des sessions déjà planifiées) :
+se créent, se modifient (bouton "Modifier") et se suppriment (bouton
+"Supprimer") directement depuis ces écrans. La suppression échoue
+volontairement (409, message explicite) tant qu'un historique réel
+existe — élèves inscrits, sessions de khôlle, créneaux déjà donnés,
+référent assigné — pour ne jamais perdre de données silencieusement ; le
+kholleur fait exception pour ses compétences/disponibilités, qui sont de
+la pure configuration nettoyée automatiquement à la suppression du
+compte :
 
 - `/admin/classes` — créer/renommer des classes ; `/admin/classes/[id]`
   gère ses élèves (créer, modifier, retirer, avec compte de connexion

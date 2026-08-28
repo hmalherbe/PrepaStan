@@ -20,3 +20,27 @@ export async function PUT(req: Request, { params }: { params: Promise<{ discipli
     return NextResponse.json({ error: "Une discipline avec ce nom existe déjà" }, { status: 409 });
   }
 }
+
+// DELETE /api/admin/disciplines/:disciplineId
+// Échoue (contrainte de clé étrangère) si la discipline est encore
+// assignée à une classe, a des kholleurs compétents, des sessions de
+// khôlle ou un référent : il faut d'abord tout retirer côté classe/kholleur.
+export async function DELETE(_req: Request, { params }: { params: Promise<{ disciplineId: string }> }) {
+  const auth = await requireRole(["ADMIN"]);
+  if (auth instanceof NextResponse) return auth;
+  const { disciplineId } = await params;
+
+  try {
+    await prisma.discipline.delete({ where: { id: disciplineId } });
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          "Impossible de supprimer cette discipline : elle est encore assignée à une classe, a des " +
+          "kholleurs compétents ou des sessions de khôlle. Retirez-les d'abord.",
+      },
+      { status: 409 }
+    );
+  }
+  return NextResponse.json({ ok: true });
+}

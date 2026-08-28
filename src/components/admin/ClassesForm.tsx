@@ -53,6 +53,17 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
     setEnEdition(null);
   }
 
+  async function supprimer(classeId: string) {
+    if (!confirm("Supprimer cette classe ?")) return;
+    const res = await fetch(`/api/admin/classes/${classeId}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error ?? "Erreur lors de la suppression");
+      return;
+    }
+    setClasses((prev) => prev.filter((c) => c.id !== classeId));
+  }
+
   return (
     <div>
       <table>
@@ -83,6 +94,9 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
                 <td style={{ display: "flex", gap: 8 }}>
                   <button className="discret" onClick={() => setEnEdition(c.id)}>
                     Modifier
+                  </button>
+                  <button className="discret" onClick={() => supprimer(c.id)}>
+                    Supprimer
                   </button>
                   <Link href={`/admin/classes/${c.id}`}>Gérer</Link>
                 </td>
