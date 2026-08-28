@@ -21,16 +21,25 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ elev
   return NextResponse.json({ ok: true });
 }
 
-const bodySchema = z.object({
-  nom: z.string().min(1),
-  prenom: z.string().min(1),
-  classeId: z.string().min(1),
-  // Si fourni sans compte existant, en crée un. Si fourni avec un compte
-  // existant, met à jour son email. Mot de passe optionnel dans les deux cas
-  // (obligatoire seulement à la création du compte).
-  email: z.string().email().optional(),
-  password: z.string().min(4).optional(),
-});
+const bodySchema = z
+  .object({
+    nom: z.string().min(1),
+    prenom: z.string().min(1),
+    classeId: z.string().min(1),
+    // LV1/LV2 : disciplines marquées Discipline.estLangueVivante. LV2 peut
+    // rester vide, mais si les deux sont renseignées elles doivent différer.
+    lv1Id: z.string().min(1).optional(),
+    lv2Id: z.string().min(1).optional(),
+    // Si fourni sans compte existant, en crée un. Si fourni avec un compte
+    // existant, met à jour son email. Mot de passe optionnel dans les deux cas
+    // (obligatoire seulement à la création du compte).
+    email: z.string().email().optional(),
+    password: z.string().min(4).optional(),
+  })
+  .refine((b) => !b.lv1Id || !b.lv2Id || b.lv1Id !== b.lv2Id, {
+    message: "LV1 et LV2 doivent être différentes",
+    path: ["lv2Id"],
+  });
 
 // PUT /api/admin/eleves/:eleveId
 // Peut aussi déplacer l'élève vers une autre classe (classeId).
@@ -70,7 +79,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ eleveId:
       }
       return tx.eleve.update({
         where: { id: eleveId },
-        data: { nom: body.nom, prenom: body.prenom, classeId: body.classeId },
+        data: {
+          nom: body.nom,
+          prenom: body.prenom,
+          classeId: body.classeId,
+          lv1Id: body.lv1Id ?? null,
+          lv2Id: body.lv2Id ?? null,
+        },
         include: { classe: { select: { id: true, nom: true } } },
       });
     });

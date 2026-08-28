@@ -5,8 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 const bodySchema = z.object({
   nom: z.string().min(1),
-  estLV1: z.boolean().default(false),
-  estLV2: z.boolean().default(false),
+  estLangueVivante: z.boolean().default(false),
 });
 
 // PUT /api/admin/disciplines/:disciplineId
@@ -15,12 +14,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ discipli
   if (auth instanceof NextResponse) return auth;
   const { disciplineId } = await params;
 
-  const { nom, estLV1, estLV2 } = bodySchema.parse(await req.json());
+  const { nom, estLangueVivante } = bodySchema.parse(await req.json());
 
   try {
     const discipline = await prisma.discipline.update({
       where: { id: disciplineId },
-      data: { nom, estLV1, estLV2 },
+      data: { nom, estLangueVivante },
     });
     return NextResponse.json(discipline);
   } catch {
@@ -44,7 +43,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ disc
       {
         error:
           "Impossible de supprimer cette discipline : elle est encore assignée à une classe, a des " +
-          "kholleurs compétents ou des sessions de khôlle. Retirez-les d'abord.",
+          "kholleurs compétents, des sessions de khôlle, ou est choisie comme LV1/LV2 par un élève. " +
+          "Retirez-les d'abord.",
       },
       { status: 409 }
     );

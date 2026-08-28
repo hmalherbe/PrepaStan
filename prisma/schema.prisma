@@ -65,23 +65,31 @@ model Eleve {
   prenom        String
   classeId      String
   utilisateurId String? @unique // compte de connexion, optionnel
+  // Langues vivantes choisies parmi les disciplines marquées
+  // Discipline.estLangueVivante ; LV2 peut rester vide, LV1 doit être
+  // différente de LV2 (contrôlé côté API).
+  lv1Id         String?
+  lv2Id         String?
 
   classe      Classe       @relation(fields: [classeId], references: [id])
   utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id])
+  lv1         Discipline?  @relation("EleveLV1", fields: [lv1Id], references: [id])
+  lv2         Discipline?  @relation("EleveLV2", fields: [lv2Id], references: [id])
 
   passages Passage[]
 }
 
 model Discipline {
-  id     String  @id @default(cuid())
-  nom    String  @unique
-  estLV1 Boolean @default(false)
-  estLV2 Boolean @default(false)
+  id               String  @id @default(cuid())
+  nom              String  @unique
+  estLangueVivante Boolean @default(false)
 
   competences Competence[]
   sessions    SessionKholle[]
   referents   ProfesseurReferent[]
   classes     ClasseDiscipline[]
+  elevesLV1   Eleve[]              @relation("EleveLV1")
+  elevesLV2   Eleve[]              @relation("EleveLV2")
 }
 
 // Déclare qu'une discipline est khôllée dans une classe, indépendamment de

@@ -32,12 +32,15 @@ compte :
   `ClasseDiscipline`, indépendante du référent).
 - `/admin/eleves` — écran global "Étudiants" : créer/modifier/retirer un
   élève en choisissant sa classe dans une liste déroulante (peut aussi le
-  déplacer vers une autre classe), sans avoir à ouvrir la fiche de la
-  classe. Cet écran par classe reste aussi disponible.
+  déplacer vers une autre classe), ses LV1/LV2 (listes déroulantes limitées
+  aux disciplines marquées "langue vivante" — LV2 peut rester vide, LV1 et
+  LV2 doivent différer) sans avoir à ouvrir la fiche de la classe. Cet
+  écran par classe reste aussi disponible.
 - `/admin/disciplines` — créer/renommer les disciplines (Maths, Physique...),
-  avec deux cases à cocher LV1/LV2 ; pour chacune, un bouton "gérer"
-  déplie la liste des classes où elle est khôllée (cases à cocher, miroir
-  de ce qui se fait côté `/admin/classes`).
+  avec une case à cocher "langue vivante" (utilisée pour peupler les listes
+  LV1/LV2 côté élèves) ; pour chacune, un bouton "gérer" déplie la liste
+  des classes où elle est khôllée (cases à cocher, miroir de ce qui se
+  fait côté `/admin/classes`).
 - `/admin/kholleurs` — créer/modifier un kholleur et ses compétences
   (disciplines) ; `/admin/kholleurs/[id]` gère ses disponibilités
   récurrentes par jour de semaine.

@@ -5,12 +5,18 @@ import { ElevesForm } from "@/components/admin/ElevesForm";
 export default async function ElevesPage() {
   await requirePageSession(["ADMIN"]);
 
-  const [eleves, classes] = await Promise.all([
+  const [eleves, classes, languesVivantes] = await Promise.all([
     prisma.eleve.findMany({
-      include: { classe: { select: { id: true, nom: true } }, utilisateur: { select: { email: true } } },
+      include: {
+        classe: { select: { id: true, nom: true } },
+        utilisateur: { select: { email: true } },
+        lv1: { select: { id: true, nom: true } },
+        lv2: { select: { id: true, nom: true } },
+      },
       orderBy: [{ classe: { nom: "asc" } }, { nom: "asc" }],
     }),
     prisma.classe.findMany({ orderBy: { nom: "asc" } }),
+    prisma.discipline.findMany({ where: { estLangueVivante: true }, orderBy: { nom: "asc" } }),
   ]);
 
   return (
@@ -23,10 +29,15 @@ export default async function ElevesPage() {
           prenom: e.prenom,
           classeId: e.classeId,
           classe: e.classe.nom,
+          lv1Id: e.lv1Id,
+          lv1: e.lv1?.nom ?? null,
+          lv2Id: e.lv2Id,
+          lv2: e.lv2?.nom ?? null,
           aUnCompte: e.utilisateurId !== null,
           email: e.utilisateur?.email ?? null,
         }))}
         classes={classes.map((c) => ({ id: c.id, nom: c.nom }))}
+        languesVivantes={languesVivantes.map((d) => ({ id: d.id, nom: d.nom }))}
       />
     </main>
   );

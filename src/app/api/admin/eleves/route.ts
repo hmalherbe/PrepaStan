@@ -18,14 +18,23 @@ export async function GET() {
   return NextResponse.json(eleves);
 }
 
-const bodySchema = z.object({
-  nom: z.string().min(1),
-  prenom: z.string().min(1),
-  classeId: z.string().min(1),
-  // Si fourni, crée aussi un compte de connexion ELEVE pour cet élève.
-  email: z.string().email().optional(),
-  password: z.string().min(4).optional(),
-});
+const bodySchema = z
+  .object({
+    nom: z.string().min(1),
+    prenom: z.string().min(1),
+    classeId: z.string().min(1),
+    // LV1/LV2 : disciplines marquées Discipline.estLangueVivante. LV2 peut
+    // rester vide, mais si les deux sont renseignées elles doivent différer.
+    lv1Id: z.string().min(1).optional(),
+    lv2Id: z.string().min(1).optional(),
+    // Si fourni, crée aussi un compte de connexion ELEVE pour cet élève.
+    email: z.string().email().optional(),
+    password: z.string().min(4).optional(),
+  })
+  .refine((b) => !b.lv1Id || !b.lv2Id || b.lv1Id !== b.lv2Id, {
+    message: "LV1 et LV2 doivent être différentes",
+    path: ["lv2Id"],
+  });
 
 // POST /api/admin/eleves
 // Crée un élève dans la classe choisie, avec un compte de connexion optionnel.
@@ -50,7 +59,14 @@ export async function POST(req: Request) {
   }
 
   const eleve = await prisma.eleve.create({
-    data: { nom: body.nom, prenom: body.prenom, classeId: body.classeId, utilisateurId },
+    data: {
+      nom: body.nom,
+      prenom: body.prenom,
+      classeId: body.classeId,
+      lv1Id: body.lv1Id,
+      lv2Id: body.lv2Id,
+      utilisateurId,
+    },
     include: { classe: { select: { id: true, nom: true } } },
   });
 

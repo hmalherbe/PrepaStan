@@ -20,8 +20,7 @@ export default async function DisciplinesPage() {
         disciplinesInitiales={disciplines.map((d) => ({
           id: d.id,
           nom: d.nom,
-          estLV1: d.estLV1,
-          estLV2: d.estLV2,
+          estLangueVivante: d.estLangueVivante,
           classeIds: d.classes.map((cd) => cd.classeId),
         }))}
         classes={classes.map((c) => ({ id: c.id, nom: c.nom }))}

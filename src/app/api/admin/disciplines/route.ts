@@ -17,8 +17,7 @@ export async function GET() {
 
 const bodySchema = z.object({
   nom: z.string().min(1),
-  estLV1: z.boolean().default(false),
-  estLV2: z.boolean().default(false),
+  estLangueVivante: z.boolean().default(false),
 });
 
 // POST /api/admin/disciplines
@@ -26,7 +25,7 @@ export async function POST(req: Request) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
 
-  const { nom, estLV1, estLV2 } = bodySchema.parse(await req.json());
-  const discipline = await prisma.discipline.create({ data: { nom, estLV1, estLV2 } });
+  const { nom, estLangueVivante } = bodySchema.parse(await req.json());
+  const discipline = await prisma.discipline.create({ data: { nom, estLangueVivante } });
   return NextResponse.json(discipline, { status: 201 });
 }

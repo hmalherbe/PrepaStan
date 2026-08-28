@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type Discipline = { id: string; nom: string; estLV1: boolean; estLV2: boolean; classeIds: string[] };
+type Discipline = { id: string; nom: string; estLangueVivante: boolean; classeIds: string[] };
 type Classe = { id: string; nom: string };
 
 export function DisciplinesForm({
@@ -14,8 +14,7 @@ export function DisciplinesForm({
 }) {
   const [disciplines, setDisciplines] = useState(disciplinesInitiales);
   const [nom, setNom] = useState("");
-  const [estLV1, setEstLV1] = useState(false);
-  const [estLV2, setEstLV2] = useState(false);
+  const [estLangueVivante, setEstLangueVivante] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [enEdition, setEnEdition] = useState<string | null>(null);
@@ -30,7 +29,7 @@ export function DisciplinesForm({
       const res = await fetch("/api/admin/disciplines", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom, estLV1, estLV2 }),
+        body: JSON.stringify({ nom, estLangueVivante }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -39,17 +38,16 @@ export function DisciplinesForm({
       }
       setDisciplines((prev) => [...prev, { ...data, classeIds: [] }]);
       setNom("");
-      setEstLV1(false);
-      setEstLV2(false);
+      setEstLangueVivante(false);
     } finally {
       setEnCours(false);
     }
   }
 
-  async function sauvegarder(disciplineId: string, patch: { nom: string; estLV1: boolean; estLV2: boolean }) {
+  async function sauvegarder(disciplineId: string, patch: { nom: string; estLangueVivante: boolean }) {
     setErreurEdition(null);
-    // Mise à jour optimiste : nécessaire notamment pour les cases LV1/LV2,
-    // qui se cochent directement sans passer par le mode "Modifier".
+    // Mise à jour optimiste : nécessaire notamment pour la case "langue
+    // vivante", qui se coche directement sans passer par le mode "Modifier".
     setDisciplines((prev) => prev.map((d) => (d.id === disciplineId ? { ...d, ...patch } : d)));
     const res = await fetch(`/api/admin/disciplines/${disciplineId}`, {
       method: "PUT",
@@ -109,8 +107,7 @@ export function DisciplinesForm({
         <thead>
           <tr>
             <th>Nom</th>
-            <th>LV1</th>
-            <th>LV2</th>
+            <th>Langue vivante</th>
             <th>Classes</th>
             <th></th>
           </tr>
@@ -130,15 +127,8 @@ export function DisciplinesForm({
                 <td>
                   <input
                     type="checkbox"
-                    checked={d.estLV1}
-                    onChange={() => sauvegarder(d.id, { nom: d.nom, estLV1: !d.estLV1, estLV2: d.estLV2 })}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={d.estLV2}
-                    onChange={() => sauvegarder(d.id, { nom: d.nom, estLV1: d.estLV1, estLV2: !d.estLV2 })}
+                    checked={d.estLangueVivante}
+                    onChange={() => sauvegarder(d.id, { nom: d.nom, estLangueVivante: !d.estLangueVivante })}
                   />
                 </td>
                 <td>
@@ -180,7 +170,7 @@ export function DisciplinesForm({
           )}
           {disciplines.length === 0 && (
             <tr>
-              <td colSpan={5}>Aucune discipline pour le moment.</td>
+              <td colSpan={4}>Aucune discipline pour le moment.</td>
             </tr>
           )}
         </tbody>
@@ -194,12 +184,12 @@ export function DisciplinesForm({
           <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Mathématiques" required />
         </label>
         <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <input type="checkbox" checked={estLV1} onChange={(e) => setEstLV1(e.target.checked)} />
-          LV1
-        </label>
-        <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <input type="checkbox" checked={estLV2} onChange={(e) => setEstLV2(e.target.checked)} />
-          LV2
+          <input
+            type="checkbox"
+            checked={estLangueVivante}
+            onChange={(e) => setEstLangueVivante(e.target.checked)}
+          />
+          Langue vivante
         </label>
         {erreur && <p className="champ-erreur">{erreur}</p>}
         <button type="submit" disabled={enCours} style={{ marginTop: 12 }}>
@@ -217,7 +207,7 @@ function LigneEdition({
 }: {
   discipline: Discipline;
   onAnnuler: () => void;
-  onSauvegarder: (patch: { nom: string; estLV1: boolean; estLV2: boolean }) => void;
+  onSauvegarder: (patch: { nom: string; estLangueVivante: boolean }) => void;
 }) {
   const [nom, setNom] = useState(discipline.nom);
 
@@ -226,12 +216,10 @@ function LigneEdition({
       <td>
         <input value={nom} onChange={(e) => setNom(e.target.value)} />
       </td>
-      <td colSpan={2} />
+      <td />
       <td>{discipline.classeIds.length}</td>
       <td style={{ display: "flex", gap: 6 }}>
-        <button onClick={() => onSauvegarder({ nom, estLV1: discipline.estLV1, estLV2: discipline.estLV2 })}>
-          OK
-        </button>
+        <button onClick={() => onSauvegarder({ nom, estLangueVivante: discipline.estLangueVivante })}>OK</button>
         <button className="discret" onClick={onAnnuler}>
           Annuler
         </button>
