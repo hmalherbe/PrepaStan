@@ -1,7 +1,9 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ANNEE_SCOLAIRE_COOKIE, anneeScolaireCourante } from "@/lib/anneeScolaire";
 
 // GET /api/admin/classes
 // Liste des classes avec quelques compteurs pour l'écran de gestion.
@@ -17,23 +19,28 @@ export async function GET() {
   return NextResponse.json(classes);
 }
 
-const bodySchema = z.object({
-  nom: z.string().min(1),
-  anneeScolaireId: z.string().min(1),
-});
+const bodySchema = z.object({ nom: z.string().min(1) });
 
 // POST /api/admin/classes
-// Crée une nouvelle classe. L'année scolaire est déjà créée séparément
-// (voir /api/admin/annees-scolaires) : ici on ne fait que la référencer.
+// Crée une nouvelle classe pour l'année scolaire courante, choisie
+// globalement dans le menu du haut (cookie) plutôt que redemandée ici.
 export async function POST(req: Request) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
 
-  const { nom, anneeScolaireId } = bodySchema.parse(await req.json());
+  const { nom } = bodySchema.parse(await req.json());
+
+  const cookieStore = await cookies();
+  const libelle = cookieStore.get(ANNEE_SCOLAIRE_COOKIE)?.value ?? anneeScolaireCourante();
+  const anneeScolaire = await prisma.anneeScolaire.upsert({
+    where: { libelle },
+    update: {},
+    create: { libelle },
+  });
 
   try {
     const classe = await prisma.classe.create({
-      data: { nom, anneeScolaireId },
+      data: { nom, anneeScolaireId: anneeScolaire.id },
       include: { anneeScolaire: true },
     });
     return NextResponse.json(classe, { status: 201 });

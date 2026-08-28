@@ -26,18 +26,18 @@ kholleur fait exception pour ses compétences/disponibilités, qui sont de
 la pure configuration nettoyée automatiquement à la suppression du
 compte :
 
-- `/admin/classes` — créer/renommer des classes, avec leur année scolaire
-  (entité à part, `AnneeScolaire` — plusieurs classes la partagent ; on en
-  choisit une existante ou on en crée une nouvelle à la volée depuis ce
-  même formulaire) ; `/admin/classes/[id]` gère les disciplines qui lui
-  sont assignées (table `ClasseDiscipline`, indépendante du référent).
+- `/admin/classes` — créer/renommer des classes ; le formulaire ne demande
+  pas l'année scolaire (voir plus bas), seulement le nom.
+  `/admin/classes/[id]` gère les disciplines qui lui sont assignées (table
+  `ClasseDiscipline`, indépendante du référent).
 - `/admin/eleves` — écran global "Étudiants" : créer/modifier/retirer un
   élève en choisissant sa classe dans une liste déroulante (peut aussi le
   déplacer vers une autre classe), sans avoir à ouvrir la fiche de la
   classe. Cet écran par classe reste aussi disponible.
-- `/admin/disciplines` — créer/renommer les disciplines (Maths, Physique...) ;
-  pour chacune, un bouton "gérer" déplie la liste des classes où elle est
-  khôllée (cases à cocher, miroir de ce qui se fait côté `/admin/classes`).
+- `/admin/disciplines` — créer/renommer les disciplines (Maths, Physique...),
+  avec deux cases à cocher LV1/LV2 ; pour chacune, un bouton "gérer"
+  déplie la liste des classes où elle est khôllée (cases à cocher, miroir
+  de ce qui se fait côté `/admin/classes`).
 - `/admin/kholleurs` — créer/modifier un kholleur et ses compétences
   (disciplines) ; `/admin/kholleurs/[id]` gère ses disponibilités
   récurrentes par jour de semaine.
@@ -45,6 +45,18 @@ compte :
   nouveau) à une ou plusieurs classes en une fois pour une discipline
   donnée (la discipline doit déjà être assignée à chacune) ; modifier ou
   retirer une assignation se fait ensuite ligne par ligne.
+
+### Année scolaire
+
+Contrairement au reste du référentiel, l'année scolaire n'est pas gérée
+depuis un écran dédié mais depuis un **sélecteur dans le menu du haut**
+(visible pour l'admin), avec l'année en cours (calculée à partir de la
+date du jour — une année scolaire commence en août) et les 5 suivantes.
+Le choix courant est mémorisé (cookie) et détermine l'année scolaire des
+**nouvelles** classes créées sur `/admin/classes` ; changer de classe
+existante ne change pas son année. C'est une entité à part (`AnneeScolaire`,
+`src/lib/anneeScolaire.ts`) plutôt qu'un champ texte libre par classe :
+plusieurs classes la partagent, sans risque de doublons/fautes de frappe.
 
 La génération de planning (`/admin/planification`) demande la date du
 lundi de la semaine ciblée, puis des **quotas** saisis ligne par ligne :

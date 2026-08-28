@@ -73,8 +73,10 @@ model Eleve {
 }
 
 model Discipline {
-  id   String @id @default(cuid())
-  nom  String @unique
+  id     String  @id @default(cuid())
+  nom    String  @unique
+  estLV1 Boolean @default(false)
+  estLV2 Boolean @default(false)
 
   competences Competence[]
   sessions    SessionKholle[]

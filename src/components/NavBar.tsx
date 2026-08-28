@@ -2,7 +2,9 @@
 
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ANNEE_SCOLAIRE_COOKIE } from "@/lib/anneeScolaire";
 
 const LIENS_PAR_ROLE: Record<string, { href: string; label: string }[]> = {
   ADMIN: [
@@ -18,15 +20,41 @@ const LIENS_PAR_ROLE: Record<string, { href: string; label: string }[]> = {
   ELEVE: [{ href: "/eleve/notes", label: "Mes notes" }],
 };
 
-export function NavBar() {
+export function NavBar({
+  anneeScolaireInitiale,
+  anneesScolaires,
+}: {
+  anneeScolaireInitiale: string;
+  anneesScolaires: string[];
+}) {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
+  const [anneeScolaire, setAnneeScolaire] = useState(anneeScolaireInitiale);
 
   if (status !== "authenticated") {
     return null;
   }
 
   const liens = LIENS_PAR_ROLE[session.user.role] ?? [];
+
+  // Change l'année scolaire courante pour toute l'appli (ex. les nouvelles
+  // classes créées y seront rattachées) : cookie lu par les Server
+  // Components, plus un router.refresh() pour qu'ils se re-rendent avec la
+  // nouvelle valeur.
+  async function changerAnneeScolaire(libelle: string) {
+    setAnneeScolaire(libelle);
+    document.cookie = `${ANNEE_SCOLAIRE_COOKIE}=${encodeURIComponent(libelle)}; path=/; max-age=31536000`;
+    // S'assure que l'entité existe déjà en base au moment où on en aura
+    // besoin (création d'une classe) ; un 409 ("existe déjà") est normal
+    // et sans conséquence.
+    await fetch("/api/admin/annees-scolaires", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ libelle }),
+    }).catch(() => {});
+    router.refresh();
+  }
 
   return (
     <header className="navbar">
@@ -48,6 +76,20 @@ export function NavBar() {
             {lien.label}
           </Link>
         ))}
+        {session.user.role === "ADMIN" && (
+          <select
+            value={anneeScolaire}
+            onChange={(e) => changerAnneeScolaire(e.target.value)}
+            aria-label="Année scolaire courante"
+            title="Année scolaire courante (utilisée pour les nouvelles classes)"
+          >
+            {anneesScolaires.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        )}
         <span style={{ color: "#777", fontSize: "0.9rem" }}>
           {session.user.prenom} {session.user.nom}
         </span>

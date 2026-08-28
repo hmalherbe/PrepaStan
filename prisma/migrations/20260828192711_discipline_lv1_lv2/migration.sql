@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Discipline" ADD COLUMN     "estLV1" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "estLV2" BOOLEAN NOT NULL DEFAULT false;

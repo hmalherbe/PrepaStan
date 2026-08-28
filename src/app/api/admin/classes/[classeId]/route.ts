@@ -24,23 +24,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ classeI
   return NextResponse.json({ classe, toutesDisciplines });
 }
 
-const bodySchema = z.object({
-  nom: z.string().min(1),
-  anneeScolaireId: z.string().min(1),
-});
+const bodySchema = z.object({ nom: z.string().min(1) });
 
 // PUT /api/admin/classes/:classeId
+// L'année scolaire n'est pas modifiable ici : elle est fixée à la
+// création par le sélecteur global du menu du haut.
 export async function PUT(req: Request, { params }: { params: Promise<{ classeId: string }> }) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
   const { classeId } = await params;
 
-  const { nom, anneeScolaireId } = bodySchema.parse(await req.json());
+  const { nom } = bodySchema.parse(await req.json());
 
   try {
     const classe = await prisma.classe.update({
       where: { id: classeId },
-      data: { nom, anneeScolaireId },
+      data: { nom },
       include: { anneeScolaire: true },
     });
     return NextResponse.json(classe);
