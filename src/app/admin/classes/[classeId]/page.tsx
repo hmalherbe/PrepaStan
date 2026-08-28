@@ -14,7 +14,7 @@ export default async function DetailClassePage({
   const classe = await prisma.classe.findUnique({
     where: { id: classeId },
     include: {
-      eleves: { orderBy: [{ nom: "asc" }] },
+      eleves: { include: { utilisateur: { select: { email: true } } }, orderBy: [{ nom: "asc" }] },
       disciplines: { include: { discipline: true }, orderBy: { discipline: { nom: "asc" } } },
     },
   });
@@ -34,6 +34,7 @@ export default async function DetailClassePage({
           nom: e.nom,
           prenom: e.prenom,
           aUnCompte: e.utilisateurId !== null,
+          email: e.utilisateur?.email ?? null,
         }))}
         disciplinesAssigneesInitiales={classe.disciplines.map((cd) => ({
           id: cd.discipline.id,

@@ -26,7 +26,9 @@ export default async function ReferentsPage() {
           nom: r.utilisateur.nom,
           prenom: r.utilisateur.prenom,
           email: r.utilisateur.email,
+          classeId: r.classeId,
           classe: r.classe.nom,
+          disciplineId: r.disciplineId,
           discipline: r.discipline.nom,
         }))}
         classes={classes.map((c) => ({

@@ -24,6 +24,7 @@ export default async function KholleursPage() {
           prenom: k.prenom,
           email: k.email,
           disciplines: k.competences.map((c) => c.discipline.nom),
+          disciplineIds: k.competences.map((c) => c.disciplineId),
           nbDisponibilites: k._count.disponibilites,
         }))}
         disciplines={disciplines.map((d) => ({ id: d.id, nom: d.nom }))}

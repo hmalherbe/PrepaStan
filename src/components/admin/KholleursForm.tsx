@@ -9,6 +9,7 @@ type Kholleur = {
   prenom: string;
   email: string;
   disciplines: string[];
+  disciplineIds: string[];
   nbDisponibilites: number;
 };
 type Discipline = { id: string; nom: string };
@@ -28,6 +29,8 @@ export function KholleursForm({
   const [disciplineIds, setDisciplineIds] = useState<string[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const [enEdition, setEnEdition] = useState<string | null>(null);
+  const [erreurEdition, setErreurEdition] = useState<string | null>(null);
 
   function toggleDiscipline(id: string) {
     setDisciplineIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]));
@@ -56,6 +59,7 @@ export function KholleursForm({
           prenom,
           email,
           disciplines: disciplines.filter((d) => disciplineIds.includes(d.id)).map((d) => d.nom),
+          disciplineIds,
           nbDisponibilites: 0,
         },
       ]);
@@ -67,6 +71,38 @@ export function KholleursForm({
     } finally {
       setEnCours(false);
     }
+  }
+
+  async function sauvegarderEdition(
+    kholleurId: string,
+    patch: { nom: string; prenom: string; email: string; password?: string; disciplineIds: string[] }
+  ) {
+    setErreurEdition(null);
+    const res = await fetch(`/api/admin/kholleurs/${kholleurId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setErreurEdition(data.error ?? "Erreur lors de la modification");
+      return;
+    }
+    setKholleurs((prev) =>
+      prev.map((k) =>
+        k.id === kholleurId
+          ? {
+              ...k,
+              nom: patch.nom,
+              prenom: patch.prenom,
+              email: patch.email,
+              disciplineIds: patch.disciplineIds,
+              disciplines: disciplines.filter((d) => patch.disciplineIds.includes(d.id)).map((d) => d.nom),
+            }
+          : k
+      )
+    );
+    setEnEdition(null);
   }
 
   return (
@@ -83,18 +119,31 @@ export function KholleursForm({
           </tr>
         </thead>
         <tbody>
-          {kholleurs.map((k) => (
-            <tr key={k.id}>
-              <td>{k.nom}</td>
-              <td>{k.prenom}</td>
-              <td>{k.email}</td>
-              <td>{k.disciplines.join(", ")}</td>
-              <td>{k.nbDisponibilites}</td>
-              <td>
-                <Link href={`/admin/kholleurs/${k.id}`}>Gérer les disponibilités</Link>
-              </td>
-            </tr>
-          ))}
+          {kholleurs.map((k) =>
+            enEdition === k.id ? (
+              <LigneEdition
+                key={k.id}
+                kholleur={k}
+                disciplines={disciplines}
+                onAnnuler={() => setEnEdition(null)}
+                onSauvegarder={(patch) => sauvegarderEdition(k.id, patch)}
+              />
+            ) : (
+              <tr key={k.id}>
+                <td>{k.nom}</td>
+                <td>{k.prenom}</td>
+                <td>{k.email}</td>
+                <td>{k.disciplines.join(", ")}</td>
+                <td>{k.nbDisponibilites}</td>
+                <td style={{ display: "flex", gap: 8 }}>
+                  <button className="discret" onClick={() => setEnEdition(k.id)}>
+                    Modifier
+                  </button>
+                  <Link href={`/admin/kholleurs/${k.id}`}>Disponibilités</Link>
+                </td>
+              </tr>
+            )
+          )}
           {kholleurs.length === 0 && (
             <tr>
               <td colSpan={6}>Aucun kholleur pour le moment.</td>
@@ -102,6 +151,7 @@ export function KholleursForm({
           )}
         </tbody>
       </table>
+      {erreurEdition && <p className="champ-erreur">{erreurEdition}</p>}
 
       <h2>Ajouter un kholleur</h2>
       <form onSubmit={ajouter} className="carte">
@@ -134,5 +184,90 @@ export function KholleursForm({
         </button>
       </form>
     </div>
+  );
+}
+
+function LigneEdition({
+  kholleur,
+  disciplines,
+  onAnnuler,
+  onSauvegarder,
+}: {
+  kholleur: Kholleur;
+  disciplines: Discipline[];
+  onAnnuler: () => void;
+  onSauvegarder: (patch: {
+    nom: string;
+    prenom: string;
+    email: string;
+    password?: string;
+    disciplineIds: string[];
+  }) => void;
+}) {
+  const [nom, setNom] = useState(kholleur.nom);
+  const [prenom, setPrenom] = useState(kholleur.prenom);
+  const [email, setEmail] = useState(kholleur.email);
+  const [password, setPassword] = useState("");
+  const [disciplineIds, setDisciplineIds] = useState<string[]>(kholleur.disciplineIds);
+
+  function toggleDiscipline(id: string) {
+    setDisciplineIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]));
+  }
+
+  return (
+    <tr>
+      <td colSpan={6}>
+        <div className="carte" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" style={{ flex: 1 }} />
+            <input
+              value={prenom}
+              onChange={(e) => setPrenom(e.target.value)}
+              placeholder="Prénom"
+              style={{ flex: 1 }}
+            />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              style={{ flex: 1 }}
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Nouveau mot de passe (optionnel)"
+              style={{ flex: 1 }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {disciplines.map((d) => (
+              <label key={d.id} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={disciplineIds.includes(d.id)}
+                  onChange={() => toggleDiscipline(d.id)}
+                />
+                {d.nom}
+              </label>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() =>
+                onSauvegarder({ nom, prenom, email, password: password || undefined, disciplineIds })
+              }
+              disabled={disciplineIds.length === 0}
+            >
+              OK
+            </button>
+            <button className="discret" onClick={onAnnuler}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      </td>
+    </tr>
   );
 }

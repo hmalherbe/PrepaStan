@@ -16,17 +16,23 @@ par les professeurs référents.
 ## Administration
 
 Écrans réservés à l'admin pour gérer le référentiel (avant, tout passait
-par `prisma/seed.ts`) :
+par `prisma/seed.ts`). Classes, disciplines, kholleurs, référents et élèves
+se créent et se modifient (bouton "Modifier" sur chaque ligne) directement
+depuis ces écrans ; seuls les élèves et les référents peuvent aussi être
+retirés (pas les classes/disciplines/kholleurs, pour éviter de casser
+l'historique des sessions déjà planifiées) :
 
-- `/admin/classes` — créer des classes ; `/admin/classes/[id]` gère ses
-  élèves (avec compte de connexion optionnel) et les disciplines qui lui
-  sont assignées (table `ClasseDiscipline`, indépendante du référent).
-- `/admin/disciplines` — créer les disciplines (Maths, Physique...).
-- `/admin/kholleurs` — créer un kholleur et ses compétences (disciplines) ;
-  `/admin/kholleurs/[id]` gère ses disponibilités récurrentes par jour de
-  semaine.
-- `/admin/referents` — assigner un professeur référent à une classe pour
-  une discipline (celle-ci doit déjà être assignée à la classe).
+- `/admin/classes` — créer/renommer des classes ; `/admin/classes/[id]`
+  gère ses élèves (créer, modifier, retirer, avec compte de connexion
+  optionnel) et les disciplines qui lui sont assignées (table
+  `ClasseDiscipline`, indépendante du référent).
+- `/admin/disciplines` — créer/renommer les disciplines (Maths, Physique...).
+- `/admin/kholleurs` — créer/modifier un kholleur et ses compétences
+  (disciplines) ; `/admin/kholleurs/[id]` gère ses disponibilités
+  récurrentes par jour de semaine.
+- `/admin/referents` — assigner, modifier ou retirer un professeur référent
+  d'une classe pour une discipline (celle-ci doit déjà être assignée à la
+  classe). Modifier peut aussi le réassigner à une autre classe/discipline.
 
 La génération de planning (`/admin/planification`) demande la date du
 lundi de la semaine ciblée, puis des **quotas** saisis ligne par ligne :

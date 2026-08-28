@@ -1,0 +1,22 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { requireRole } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+const bodySchema = z.object({ nom: z.string().min(1) });
+
+// PUT /api/admin/disciplines/:disciplineId
+export async function PUT(req: Request, { params }: { params: Promise<{ disciplineId: string }> }) {
+  const auth = await requireRole(["ADMIN"]);
+  if (auth instanceof NextResponse) return auth;
+  const { disciplineId } = await params;
+
+  const { nom } = bodySchema.parse(await req.json());
+
+  try {
+    const discipline = await prisma.discipline.update({ where: { id: disciplineId }, data: { nom } });
+    return NextResponse.json(discipline);
+  } catch {
+    return NextResponse.json({ error: "Une discipline avec ce nom existe déjà" }, { status: 409 });
+  }
+}
