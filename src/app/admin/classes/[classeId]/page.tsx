@@ -14,6 +14,7 @@ export default async function DetailClassePage({
   const classe = await prisma.classe.findUnique({
     where: { id: classeId },
     include: {
+      anneeScolaire: true,
       eleves: { include: { utilisateur: { select: { email: true } } }, orderBy: [{ nom: "asc" }] },
       disciplines: { include: { discipline: true }, orderBy: { discipline: { nom: "asc" } } },
     },
@@ -25,7 +26,7 @@ export default async function DetailClassePage({
   return (
     <main className="container">
       <h1>
-        {classe.nom} · {classe.anneeScolaire}
+        {classe.nom} · {classe.anneeScolaire.libelle}
       </h1>
       <DetailClasse
         classeId={classe.id}

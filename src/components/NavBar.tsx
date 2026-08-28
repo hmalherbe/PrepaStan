@@ -8,6 +8,7 @@ const LIENS_PAR_ROLE: Record<string, { href: string; label: string }[]> = {
   ADMIN: [
     { href: "/admin/planification", label: "Planification" },
     { href: "/admin/classes", label: "Classes" },
+    { href: "/admin/eleves", label: "Étudiants" },
     { href: "/admin/disciplines", label: "Disciplines" },
     { href: "/admin/kholleurs", label: "Kholleurs" },
     { href: "/admin/referents", label: "Référents" },

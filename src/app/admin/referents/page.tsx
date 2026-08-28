@@ -5,7 +5,7 @@ import { ReferentsForm } from "@/components/admin/ReferentsForm";
 export default async function ReferentsPage() {
   await requirePageSession(["ADMIN"]);
 
-  const [referents, classes, disciplines] = await Promise.all([
+  const [referents, classes, disciplines, comptesExistants] = await Promise.all([
     prisma.professeurReferent.findMany({
       include: { utilisateur: true, discipline: true, classe: true },
       orderBy: [{ classe: { nom: "asc" } }],
@@ -15,6 +15,11 @@ export default async function ReferentsPage() {
       orderBy: { nom: "asc" },
     }),
     prisma.discipline.findMany({ orderBy: { nom: "asc" } }),
+    prisma.utilisateur.findMany({
+      where: { role: "PROFESSEUR_REFERENT" },
+      select: { id: true, nom: true, prenom: true, email: true },
+      orderBy: [{ nom: "asc" }],
+    }),
   ]);
 
   return (
@@ -37,6 +42,7 @@ export default async function ReferentsPage() {
           disciplines: c.disciplines.map((cd) => ({ id: cd.discipline.id, nom: cd.discipline.nom })),
         }))}
         disciplines={disciplines.map((d) => ({ id: d.id, nom: d.nom }))}
+        comptesExistants={comptesExistants}
       />
     </main>
   );

@@ -66,10 +66,16 @@ async function main() {
   );
 
   // ---------- Référentiel : classe, disciplines, salles ----------
-  const classe = await prisma.classe.upsert({
-    where: { nom_anneeScolaire: { nom: "MP2I-1", anneeScolaire: "2025-2026" } },
+  const anneeScolaire = await prisma.anneeScolaire.upsert({
+    where: { libelle: "2025-2026" },
     update: {},
-    create: { nom: "MP2I-1", anneeScolaire: "2025-2026" },
+    create: { libelle: "2025-2026" },
+  });
+
+  const classe = await prisma.classe.upsert({
+    where: { nom_anneeScolaireId: { nom: "MP2I-1", anneeScolaireId: anneeScolaire.id } },
+    update: {},
+    create: { nom: "MP2I-1", anneeScolaireId: anneeScolaire.id },
   });
 
   const [maths, physique, anglais] = await Promise.all(

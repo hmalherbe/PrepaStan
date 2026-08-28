@@ -14,6 +14,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ classeI
   const classe = await prisma.classe.findUniqueOrThrow({
     where: { id: classeId },
     include: {
+      anneeScolaire: true,
       eleves: { orderBy: [{ nom: "asc" }] },
       disciplines: { include: { discipline: true } },
     },
@@ -25,7 +26,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ classeI
 
 const bodySchema = z.object({
   nom: z.string().min(1),
-  anneeScolaire: z.string().min(1),
+  anneeScolaireId: z.string().min(1),
 });
 
 // PUT /api/admin/classes/:classeId
@@ -34,10 +35,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ classeId
   if (auth instanceof NextResponse) return auth;
   const { classeId } = await params;
 
-  const { nom, anneeScolaire } = bodySchema.parse(await req.json());
+  const { nom, anneeScolaireId } = bodySchema.parse(await req.json());
 
   try {
-    const classe = await prisma.classe.update({ where: { id: classeId }, data: { nom, anneeScolaire } });
+    const classe = await prisma.classe.update({
+      where: { id: classeId },
+      data: { nom, anneeScolaireId },
+      include: { anneeScolaire: true },
+    });
     return NextResponse.json(classe);
   } catch {
     return NextResponse.json(

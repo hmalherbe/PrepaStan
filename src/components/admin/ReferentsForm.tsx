@@ -14,30 +14,43 @@ type Referent = {
 };
 type Discipline = { id: string; nom: string };
 type Classe = { id: string; nom: string; disciplines: Discipline[] };
+type CompteExistant = { id: string; nom: string; prenom: string; email: string };
 
 export function ReferentsForm({
   referentsInitiaux,
   classes,
   disciplines,
+  comptesExistants,
 }: {
   referentsInitiaux: Referent[];
   classes: Classe[];
   disciplines: Discipline[];
+  comptesExistants: CompteExistant[];
 }) {
   const [referents, setReferents] = useState(referentsInitiaux);
+  const [comptes, setComptes] = useState(comptesExistants);
+  const [modeCompte, setModeCompte] = useState<"nouveau" | "existant">(
+    comptesExistants.length > 0 ? "existant" : "nouveau"
+  );
+  const [utilisateurId, setUtilisateurId] = useState(comptesExistants[0]?.id ?? "");
   const [nom, setNom] = useState("");
   const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [classeId, setClasseId] = useState(classes[0]?.id ?? "");
   const [disciplineId, setDisciplineId] = useState("");
+  const [classeIds, setClasseIds] = useState<string[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [enEdition, setEnEdition] = useState<string | null>(null);
   const [erreurEdition, setErreurEdition] = useState<string | null>(null);
 
-  const classeChoisie = classes.find((c) => c.id === classeId);
-  const disciplinesDisponibles = classeChoisie?.disciplines ?? [];
+  // Une classe n'est proposable que si la discipline choisie lui est déjà
+  // assignée (table ClasseDiscipline) — voir écran Classes ou Disciplines.
+  const classesEligibles = classes.filter((c) => c.disciplines.some((d) => d.id === disciplineId));
+
+  function toggleClasse(id: string) {
+    setClasseIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
 
   async function ajouter(e: React.FormEvent) {
     e.preventDefault();
@@ -47,30 +60,37 @@ export function ReferentsForm({
       const res = await fetch("/api/admin/referents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom, prenom, email, password, classeId, disciplineId }),
+        body: JSON.stringify(
+          modeCompte === "existant"
+            ? { utilisateurId, disciplineId, classeIds }
+            : { nom, prenom, email, password, disciplineId, classeIds }
+        ),
       });
       const data = await res.json();
       if (!res.ok) {
         setErreur(data.error ?? "Erreur lors de la création");
         return;
       }
-      setReferents((prev) => [
-        ...prev,
-        {
-          id: data.id,
-          nom,
-          prenom,
-          email,
-          classeId,
-          classe: classes.find((c) => c.id === classeId)?.nom ?? "",
-          disciplineId,
-          discipline: disciplines.find((d) => d.id === disciplineId)?.nom ?? "",
-        },
-      ]);
+      const lignes = data as { id: string; utilisateur: CompteExistant; classeId: string }[];
+      const nouveauxReferents = lignes.map((r) => ({
+        id: r.id,
+        nom: r.utilisateur.nom,
+        prenom: r.utilisateur.prenom,
+        email: r.utilisateur.email,
+        classeId: r.classeId,
+        classe: classes.find((c) => c.id === r.classeId)?.nom ?? "",
+        disciplineId,
+        discipline: disciplines.find((d) => d.id === disciplineId)?.nom ?? "",
+      }));
+      setReferents((prev) => [...prev, ...nouveauxReferents]);
+      if (modeCompte === "nouveau" && lignes[0]) {
+        setComptes((prev) => [...prev, lignes[0].utilisateur]);
+      }
       setNom("");
       setPrenom("");
       setEmail("");
       setPassword("");
+      setClasseIds([]);
     } finally {
       setEnCours(false);
     }
@@ -175,58 +195,97 @@ export function ReferentsForm({
 
       <h2>Ajouter un référent</h2>
       <form onSubmit={ajouter} className="carte">
-        <label>
-          Nom
-          <input value={nom} onChange={(e) => setNom(e.target.value)} required />
-        </label>
-        <label>
-          Prénom
-          <input value={prenom} onChange={(e) => setPrenom(e.target.value)} required />
-        </label>
-        <label>
-          Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <label>
-          Mot de passe
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
-        <label>
-          Classe
-          <select
-            value={classeId}
-            onChange={(e) => {
-              setClasseId(e.target.value);
-              setDisciplineId("");
-            }}
-          >
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nom}
+        <div style={{ display: "flex", gap: 16 }}>
+          <label style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <input
+              type="radio"
+              checked={modeCompte === "existant"}
+              onChange={() => setModeCompte("existant")}
+              disabled={comptes.length === 0}
+            />
+            Compte existant
+          </label>
+          <label style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <input type="radio" checked={modeCompte === "nouveau"} onChange={() => setModeCompte("nouveau")} />
+            Nouveau compte
+          </label>
+        </div>
+
+        {modeCompte === "existant" ? (
+          <label>
+            Référent
+            <select value={utilisateurId} onChange={(e) => setUtilisateurId(e.target.value)} required>
+              <option value="" disabled>
+                Choisir…
               </option>
-            ))}
-          </select>
-        </label>
+              {comptes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.prenom} {c.nom} ({c.email})
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <>
+            <label>
+              Nom
+              <input value={nom} onChange={(e) => setNom(e.target.value)} required />
+            </label>
+            <label>
+              Prénom
+              <input value={prenom} onChange={(e) => setPrenom(e.target.value)} required />
+            </label>
+            <label>
+              Email
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </label>
+            <label>
+              Mot de passe
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </label>
+          </>
+        )}
+
         <label>
           Discipline
-          <select value={disciplineId} onChange={(e) => setDisciplineId(e.target.value)} required>
+          <select
+            value={disciplineId}
+            onChange={(e) => {
+              setDisciplineId(e.target.value);
+              setClasseIds([]);
+            }}
+            required
+          >
             <option value="" disabled>
               Choisir…
             </option>
-            {disciplinesDisponibles.map((d) => (
+            {disciplines.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.nom}
               </option>
             ))}
           </select>
-          {disciplinesDisponibles.length === 0 && (
-            <span style={{ color: "#777", fontSize: "0.85rem" }}>
-              Aucune discipline assignée à cette classe (voir l'écran Classes).
-            </span>
-          )}
         </label>
+
+        <p>Classe(s) concernée(s) :</p>
+        {classesEligibles.map((c) => (
+          <label key={c.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <input type="checkbox" checked={classeIds.includes(c.id)} onChange={() => toggleClasse(c.id)} />
+            {c.nom}
+          </label>
+        ))}
+        {disciplineId && classesEligibles.length === 0 && (
+          <span style={{ color: "#777", fontSize: "0.85rem" }}>
+            Aucune classe n&apos;a cette discipline assignée (voir l&apos;écran Classes ou Disciplines).
+          </span>
+        )}
+
         {erreur && <p className="champ-erreur">{erreur}</p>}
-        <button type="submit" disabled={enCours || !disciplineId}>
+        <button
+          type="submit"
+          disabled={enCours || classeIds.length === 0 || (modeCompte === "existant" && !utilisateurId)}
+          style={{ marginTop: 12 }}
+        >
           {enCours ? "Création…" : "Ajouter"}
         </button>
       </form>

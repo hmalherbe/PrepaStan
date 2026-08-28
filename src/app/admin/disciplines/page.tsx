@@ -5,10 +5,13 @@ import { DisciplinesForm } from "@/components/admin/DisciplinesForm";
 export default async function DisciplinesPage() {
   await requirePageSession(["ADMIN"]);
 
-  const disciplines = await prisma.discipline.findMany({
-    include: { _count: { select: { classes: true, competences: true } } },
-    orderBy: { nom: "asc" },
-  });
+  const [disciplines, classes] = await Promise.all([
+    prisma.discipline.findMany({
+      include: { classes: { select: { classeId: true } } },
+      orderBy: { nom: "asc" },
+    }),
+    prisma.classe.findMany({ orderBy: { nom: "asc" } }),
+  ]);
 
   return (
     <main className="container">
@@ -17,9 +20,9 @@ export default async function DisciplinesPage() {
         disciplinesInitiales={disciplines.map((d) => ({
           id: d.id,
           nom: d.nom,
-          nbClasses: d._count.classes,
-          nbKholleurs: d._count.competences,
+          classeIds: d.classes.map((cd) => cd.classeId),
         }))}
+        classes={classes.map((c) => ({ id: c.id, nom: c.nom }))}
       />
     </main>
   );

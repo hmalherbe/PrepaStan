@@ -2,15 +2,23 @@
 
 import { useState } from "react";
 
-type Discipline = { id: string; nom: string; nbClasses: number; nbKholleurs: number };
+type Discipline = { id: string; nom: string; classeIds: string[] };
+type Classe = { id: string; nom: string };
 
-export function DisciplinesForm({ disciplinesInitiales }: { disciplinesInitiales: Discipline[] }) {
+export function DisciplinesForm({
+  disciplinesInitiales,
+  classes,
+}: {
+  disciplinesInitiales: Discipline[];
+  classes: Classe[];
+}) {
   const [disciplines, setDisciplines] = useState(disciplinesInitiales);
   const [nom, setNom] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [enEdition, setEnEdition] = useState<string | null>(null);
   const [erreurEdition, setErreurEdition] = useState<string | null>(null);
+  const [classesOuvertes, setClassesOuvertes] = useState<string | null>(null);
 
   async function ajouter(e: React.FormEvent) {
     e.preventDefault();
@@ -27,7 +35,7 @@ export function DisciplinesForm({ disciplinesInitiales }: { disciplinesInitiales
         setErreur(data.error ?? "Erreur lors de la création");
         return;
       }
-      setDisciplines((prev) => [...prev, { ...data, nbClasses: 0, nbKholleurs: 0 }]);
+      setDisciplines((prev) => [...prev, { ...data, classeIds: [] }]);
       setNom("");
     } finally {
       setEnCours(false);
@@ -61,6 +69,32 @@ export function DisciplinesForm({ disciplinesInitiales }: { disciplinesInitiales
     setDisciplines((prev) => prev.filter((d) => d.id !== disciplineId));
   }
 
+  async function toggleClasse(disciplineId: string, classeId: string, assignee: boolean) {
+    // Mise à jour optimiste, comme pour les cases à cocher de disciplines
+    // côté écran Classes.
+    setDisciplines((prev) =>
+      prev.map((d) =>
+        d.id === disciplineId
+          ? { ...d, classeIds: assignee ? d.classeIds.filter((id) => id !== classeId) : [...d.classeIds, classeId] }
+          : d
+      )
+    );
+    const methode = assignee ? "DELETE" : "POST";
+    const res = await fetch(`/api/admin/classes/${classeId}/disciplines/${disciplineId}`, { method: methode });
+    if (!res.ok) {
+      setDisciplines((prev) =>
+        prev.map((d) =>
+          d.id === disciplineId
+            ? {
+                ...d,
+                classeIds: assignee ? [...d.classeIds, classeId] : d.classeIds.filter((id) => id !== classeId),
+              }
+            : d
+        )
+      );
+    }
+  }
+
   return (
     <div>
       <table>
@@ -68,7 +102,6 @@ export function DisciplinesForm({ disciplinesInitiales }: { disciplinesInitiales
           <tr>
             <th>Nom</th>
             <th>Classes</th>
-            <th>Kholleurs</th>
             <th></th>
           </tr>
         </thead>
@@ -84,8 +117,32 @@ export function DisciplinesForm({ disciplinesInitiales }: { disciplinesInitiales
             ) : (
               <tr key={d.id}>
                 <td>{d.nom}</td>
-                <td>{d.nbClasses}</td>
-                <td>{d.nbKholleurs}</td>
+                <td>
+                  {classesOuvertes === d.id ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {classes.map((c) => (
+                        <label key={c.id} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <input
+                            type="checkbox"
+                            checked={d.classeIds.includes(c.id)}
+                            onChange={() => toggleClasse(d.id, c.id, d.classeIds.includes(c.id))}
+                          />
+                          {c.nom}
+                        </label>
+                      ))}
+                      {classes.length === 0 && (
+                        <span style={{ color: "#777", fontSize: "0.85rem" }}>Aucune classe créée.</span>
+                      )}
+                      <button className="discret" onClick={() => setClassesOuvertes(null)}>
+                        Fermer
+                      </button>
+                    </div>
+                  ) : (
+                    <button className="discret" onClick={() => setClassesOuvertes(d.id)}>
+                      {d.classeIds.length} classe{d.classeIds.length !== 1 ? "s" : ""} — gérer
+                    </button>
+                  )}
+                </td>
                 <td style={{ display: "flex", gap: 8 }}>
                   <button className="discret" onClick={() => setEnEdition(d.id)}>
                     Modifier
@@ -99,7 +156,7 @@ export function DisciplinesForm({ disciplinesInitiales }: { disciplinesInitiales
           )}
           {disciplines.length === 0 && (
             <tr>
-              <td colSpan={4}>Aucune discipline pour le moment.</td>
+              <td colSpan={3}>Aucune discipline pour le moment.</td>
             </tr>
           )}
         </tbody>
@@ -137,8 +194,7 @@ function LigneEdition({
       <td>
         <input value={nom} onChange={(e) => setNom(e.target.value)} />
       </td>
-      <td>{discipline.nbClasses}</td>
-      <td>{discipline.nbKholleurs}</td>
+      <td>{discipline.classeIds.length}</td>
       <td style={{ display: "flex", gap: 6 }}>
         <button onClick={() => onSauvegarder(nom)}>OK</button>
         <button className="discret" onClick={onAnnuler}>

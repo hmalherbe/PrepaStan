@@ -26,17 +26,25 @@ kholleur fait exception pour ses compétences/disponibilités, qui sont de
 la pure configuration nettoyée automatiquement à la suppression du
 compte :
 
-- `/admin/classes` — créer/renommer des classes ; `/admin/classes/[id]`
-  gère ses élèves (créer, modifier, retirer, avec compte de connexion
-  optionnel) et les disciplines qui lui sont assignées (table
-  `ClasseDiscipline`, indépendante du référent).
-- `/admin/disciplines` — créer/renommer les disciplines (Maths, Physique...).
+- `/admin/classes` — créer/renommer des classes, avec leur année scolaire
+  (entité à part, `AnneeScolaire` — plusieurs classes la partagent ; on en
+  choisit une existante ou on en crée une nouvelle à la volée depuis ce
+  même formulaire) ; `/admin/classes/[id]` gère les disciplines qui lui
+  sont assignées (table `ClasseDiscipline`, indépendante du référent).
+- `/admin/eleves` — écran global "Étudiants" : créer/modifier/retirer un
+  élève en choisissant sa classe dans une liste déroulante (peut aussi le
+  déplacer vers une autre classe), sans avoir à ouvrir la fiche de la
+  classe. Cet écran par classe reste aussi disponible.
+- `/admin/disciplines` — créer/renommer les disciplines (Maths, Physique...) ;
+  pour chacune, un bouton "gérer" déplie la liste des classes où elle est
+  khôllée (cases à cocher, miroir de ce qui se fait côté `/admin/classes`).
 - `/admin/kholleurs` — créer/modifier un kholleur et ses compétences
   (disciplines) ; `/admin/kholleurs/[id]` gère ses disponibilités
   récurrentes par jour de semaine.
-- `/admin/referents` — assigner, modifier ou retirer un professeur référent
-  d'une classe pour une discipline (celle-ci doit déjà être assignée à la
-  classe). Modifier peut aussi le réassigner à une autre classe/discipline.
+- `/admin/referents` — assigner un professeur référent (compte existant ou
+  nouveau) à une ou plusieurs classes en une fois pour une discipline
+  donnée (la discipline doit déjà être assignée à chacune) ; modifier ou
+  retirer une assignation se fait ensuite ligne par ligne.
 
 La génération de planning (`/admin/planification`) demande la date du
 lundi de la semaine ciblée, puis des **quotas** saisis ligne par ligne :

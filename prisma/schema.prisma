@@ -35,17 +35,28 @@ model Utilisateur {
   updatedAt DateTime @updatedAt
 }
 
+// Entité à part (et non un simple champ texte sur Classe) : plusieurs
+// classes partagent la même année scolaire, et la gérer séparément évite
+// les doublons/fautes de frappe ("2025-2026" vs "2025/2026" etc.).
+model AnneeScolaire {
+  id      String @id @default(cuid())
+  libelle String @unique
+
+  classes Classe[]
+}
+
 model Classe {
-  id            String @id @default(cuid())
-  nom           String
-  anneeScolaire String
+  id              String @id @default(cuid())
+  nom             String
+  anneeScolaireId String
 
-  eleves      Eleve[]
-  sessions    SessionKholle[]
-  disciplines ClasseDiscipline[]
-  referents   ProfesseurReferent[]
+  anneeScolaire AnneeScolaire        @relation(fields: [anneeScolaireId], references: [id])
+  eleves        Eleve[]
+  sessions      SessionKholle[]
+  disciplines   ClasseDiscipline[]
+  referents     ProfesseurReferent[]
 
-  @@unique([nom, anneeScolaire])
+  @@unique([nom, anneeScolaireId])
 }
 
 model Eleve {

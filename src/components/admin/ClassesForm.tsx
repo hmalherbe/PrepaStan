@@ -3,16 +3,45 @@
 import Link from "next/link";
 import { useState } from "react";
 
-type Classe = { id: string; nom: string; anneeScolaire: string; nbEleves: number; nbDisciplines: number };
+type Classe = {
+  id: string;
+  nom: string;
+  anneeScolaireId: string;
+  anneeScolaire: string;
+  nbEleves: number;
+  nbDisciplines: number;
+};
+type AnneeScolaire = { id: string; libelle: string };
 
-export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }) {
+const NOUVELLE_ANNEE = "__nouvelle__";
+
+export function ClassesForm({
+  classesInitiales,
+  anneesScolairesInitiales,
+}: {
+  classesInitiales: Classe[];
+  anneesScolairesInitiales: AnneeScolaire[];
+}) {
   const [classes, setClasses] = useState(classesInitiales);
+  const [anneesScolaires, setAnneesScolaires] = useState(anneesScolairesInitiales);
   const [nom, setNom] = useState("");
-  const [anneeScolaire, setAnneeScolaire] = useState("");
+  const [anneeScolaireId, setAnneeScolaireId] = useState(anneesScolairesInitiales[0]?.id ?? "");
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [enEdition, setEnEdition] = useState<string | null>(null);
   const [erreurEdition, setErreurEdition] = useState<string | null>(null);
+
+  async function creerAnneeScolaire(libelle: string): Promise<AnneeScolaire | null> {
+    const res = await fetch("/api/admin/annees-scolaires", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ libelle }),
+    });
+    const data = await res.json();
+    if (!res.ok) return null;
+    setAnneesScolaires((prev) => [data, ...prev]);
+    return data;
+  }
 
   async function ajouter(e: React.FormEvent) {
     e.preventDefault();
@@ -22,22 +51,31 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
       const res = await fetch("/api/admin/classes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom, anneeScolaire }),
+        body: JSON.stringify({ nom, anneeScolaireId }),
       });
       const data = await res.json();
       if (!res.ok) {
         setErreur(data.error ?? "Erreur lors de la création");
         return;
       }
-      setClasses((prev) => [...prev, { ...data, nbEleves: 0, nbDisciplines: 0 }]);
+      setClasses((prev) => [
+        ...prev,
+        {
+          id: data.id,
+          nom: data.nom,
+          anneeScolaireId: data.anneeScolaireId,
+          anneeScolaire: data.anneeScolaire.libelle,
+          nbEleves: 0,
+          nbDisciplines: 0,
+        },
+      ]);
       setNom("");
-      setAnneeScolaire("");
     } finally {
       setEnCours(false);
     }
   }
 
-  async function sauvegarderEdition(classeId: string, patch: { nom: string; anneeScolaire: string }) {
+  async function sauvegarderEdition(classeId: string, patch: { nom: string; anneeScolaireId: string }) {
     setErreurEdition(null);
     const res = await fetch(`/api/admin/classes/${classeId}`, {
       method: "PUT",
@@ -49,7 +87,13 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
       setErreurEdition(data.error ?? "Erreur lors de la modification");
       return;
     }
-    setClasses((prev) => prev.map((c) => (c.id === classeId ? { ...c, nom: data.nom, anneeScolaire: data.anneeScolaire } : c)));
+    setClasses((prev) =>
+      prev.map((c) =>
+        c.id === classeId
+          ? { ...c, nom: data.nom, anneeScolaireId: data.anneeScolaireId, anneeScolaire: data.anneeScolaire.libelle }
+          : c
+      )
+    );
     setEnEdition(null);
   }
 
@@ -82,6 +126,8 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
               <LigneEdition
                 key={c.id}
                 classe={c}
+                anneesScolaires={anneesScolaires}
+                onCreerAnneeScolaire={creerAnneeScolaire}
                 onAnnuler={() => setEnEdition(null)}
                 onSauvegarder={(patch) => sauvegarderEdition(c.id, patch)}
               />
@@ -118,17 +164,14 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
           Nom
           <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="MP2I-1" required />
         </label>
-        <label>
-          Année scolaire
-          <input
-            value={anneeScolaire}
-            onChange={(e) => setAnneeScolaire(e.target.value)}
-            placeholder="2025-2026"
-            required
-          />
-        </label>
+        <SelectAnneeScolaire
+          anneesScolaires={anneesScolaires}
+          value={anneeScolaireId}
+          onChange={setAnneeScolaireId}
+          onCreer={creerAnneeScolaire}
+        />
         {erreur && <p className="champ-erreur">{erreur}</p>}
-        <button type="submit" disabled={enCours}>
+        <button type="submit" disabled={enCours || !anneeScolaireId}>
           {enCours ? "Création…" : "Ajouter"}
         </button>
       </form>
@@ -136,33 +179,132 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
   );
 }
 
+// Liste déroulante des années scolaires existantes, avec une option pour en
+// créer une nouvelle à la volée (l'année scolaire est une entité à part,
+// partagée entre classes, pas un simple champ texte par classe).
+function SelectAnneeScolaire({
+  anneesScolaires,
+  value,
+  onChange,
+  onCreer,
+}: {
+  anneesScolaires: AnneeScolaire[];
+  value: string;
+  onChange: (id: string) => void;
+  onCreer: (libelle: string) => Promise<AnneeScolaire | null>;
+}) {
+  const [enCreation, setEnCreation] = useState(false);
+  const [nouveauLibelle, setNouveauLibelle] = useState("");
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  async function valider() {
+    if (!nouveauLibelle.trim()) return;
+    const creee = await onCreer(nouveauLibelle.trim());
+    if (!creee) {
+      setErreur("Cette année scolaire existe déjà");
+      return;
+    }
+    onChange(creee.id);
+    setEnCreation(false);
+    setNouveauLibelle("");
+    setErreur(null);
+  }
+
+  if (enCreation) {
+    return (
+      <label>
+        Nouvelle année scolaire
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            value={nouveauLibelle}
+            onChange={(e) => setNouveauLibelle(e.target.value)}
+            placeholder="2026-2027"
+            autoFocus
+          />
+          <button type="button" onClick={valider}>
+            Créer
+          </button>
+          <button type="button" className="discret" onClick={() => setEnCreation(false)}>
+            Annuler
+          </button>
+        </div>
+        {erreur && <span className="champ-erreur">{erreur}</span>}
+      </label>
+    );
+  }
+
+  return (
+    <label>
+      Année scolaire
+      <select
+        value={value}
+        onChange={(e) => {
+          if (e.target.value === NOUVELLE_ANNEE) {
+            setEnCreation(true);
+          } else {
+            onChange(e.target.value);
+          }
+        }}
+      >
+        {anneesScolaires.length === 0 && (
+          <option value="" disabled>
+            Aucune année scolaire — créez-en une
+          </option>
+        )}
+        {anneesScolaires.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.libelle}
+          </option>
+        ))}
+        <option value={NOUVELLE_ANNEE}>+ Nouvelle année scolaire…</option>
+      </select>
+    </label>
+  );
+}
+
 function LigneEdition({
   classe,
+  anneesScolaires,
+  onCreerAnneeScolaire,
   onAnnuler,
   onSauvegarder,
 }: {
   classe: Classe;
+  anneesScolaires: AnneeScolaire[];
+  onCreerAnneeScolaire: (libelle: string) => Promise<AnneeScolaire | null>;
   onAnnuler: () => void;
-  onSauvegarder: (patch: { nom: string; anneeScolaire: string }) => void;
+  onSauvegarder: (patch: { nom: string; anneeScolaireId: string }) => void;
 }) {
   const [nom, setNom] = useState(classe.nom);
-  const [anneeScolaire, setAnneeScolaire] = useState(classe.anneeScolaire);
+  const [anneeScolaireId, setAnneeScolaireId] = useState(classe.anneeScolaireId);
 
   return (
     <tr>
-      <td>
-        <input value={nom} onChange={(e) => setNom(e.target.value)} />
-      </td>
-      <td>
-        <input value={anneeScolaire} onChange={(e) => setAnneeScolaire(e.target.value)} />
-      </td>
-      <td>{classe.nbEleves}</td>
-      <td>{classe.nbDisciplines}</td>
-      <td style={{ display: "flex", gap: 6 }}>
-        <button onClick={() => onSauvegarder({ nom, anneeScolaire })}>OK</button>
-        <button className="discret" onClick={onAnnuler}>
-          Annuler
-        </button>
+      <td colSpan={5}>
+        <div className="carte" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <label style={{ flex: 1 }}>
+              Nom
+              <input value={nom} onChange={(e) => setNom(e.target.value)} />
+            </label>
+            <div style={{ flex: 1 }}>
+              <SelectAnneeScolaire
+                anneesScolaires={anneesScolaires}
+                value={anneeScolaireId}
+                onChange={setAnneeScolaireId}
+                onCreer={onCreerAnneeScolaire}
+              />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => onSauvegarder({ nom, anneeScolaireId })} disabled={!anneeScolaireId}>
+              OK
+            </button>
+            <button className="discret" onClick={onAnnuler}>
+              Annuler
+            </button>
+          </div>
+        </div>
       </td>
     </tr>
   );

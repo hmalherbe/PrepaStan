@@ -10,8 +10,8 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth;
 
   const classes = await prisma.classe.findMany({
-    include: { _count: { select: { eleves: true, disciplines: true } } },
-    orderBy: [{ anneeScolaire: "desc" }, { nom: "asc" }],
+    include: { anneeScolaire: true, _count: { select: { eleves: true, disciplines: true } } },
+    orderBy: [{ anneeScolaire: { libelle: "desc" } }, { nom: "asc" }],
   });
 
   return NextResponse.json(classes);
@@ -19,17 +19,28 @@ export async function GET() {
 
 const bodySchema = z.object({
   nom: z.string().min(1),
-  anneeScolaire: z.string().min(1),
+  anneeScolaireId: z.string().min(1),
 });
 
 // POST /api/admin/classes
-// Crée une nouvelle classe.
+// Crée une nouvelle classe. L'année scolaire est déjà créée séparément
+// (voir /api/admin/annees-scolaires) : ici on ne fait que la référencer.
 export async function POST(req: Request) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
 
-  const { nom, anneeScolaire } = bodySchema.parse(await req.json());
+  const { nom, anneeScolaireId } = bodySchema.parse(await req.json());
 
-  const classe = await prisma.classe.create({ data: { nom, anneeScolaire } });
-  return NextResponse.json(classe, { status: 201 });
+  try {
+    const classe = await prisma.classe.create({
+      data: { nom, anneeScolaireId },
+      include: { anneeScolaire: true },
+    });
+    return NextResponse.json(classe, { status: 201 });
+  } catch {
+    return NextResponse.json(
+      { error: "Une classe avec ce nom existe déjà pour cette année scolaire" },
+      { status: 409 }
+    );
+  }
 }

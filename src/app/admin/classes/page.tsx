@@ -5,10 +5,13 @@ import { ClassesForm } from "@/components/admin/ClassesForm";
 export default async function ClassesPage() {
   await requirePageSession(["ADMIN"]);
 
-  const classes = await prisma.classe.findMany({
-    include: { _count: { select: { eleves: true, disciplines: true } } },
-    orderBy: [{ anneeScolaire: "desc" }, { nom: "asc" }],
-  });
+  const [classes, anneesScolaires] = await Promise.all([
+    prisma.classe.findMany({
+      include: { anneeScolaire: true, _count: { select: { eleves: true, disciplines: true } } },
+      orderBy: [{ anneeScolaire: { libelle: "desc" } }, { nom: "asc" }],
+    }),
+    prisma.anneeScolaire.findMany({ orderBy: { libelle: "desc" } }),
+  ]);
 
   return (
     <main className="container">
@@ -17,10 +20,12 @@ export default async function ClassesPage() {
         classesInitiales={classes.map((c) => ({
           id: c.id,
           nom: c.nom,
-          anneeScolaire: c.anneeScolaire,
+          anneeScolaireId: c.anneeScolaireId,
+          anneeScolaire: c.anneeScolaire.libelle,
           nbEleves: c._count.eleves,
           nbDisciplines: c._count.disciplines,
         }))}
+        anneesScolairesInitiales={anneesScolaires.map((a) => ({ id: a.id, libelle: a.libelle }))}
       />
     </main>
   );
