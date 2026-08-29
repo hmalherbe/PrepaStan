@@ -29,15 +29,14 @@ export default async function DetailSessionReferentPage({
   });
   if (!sessionKholle) notFound();
 
-  const estReferent = await prisma.professeurReferent.findUnique({
+  const estReferent = await prisma.professeurReferent.findFirst({
     where: {
-      classeId_disciplineId: {
-        classeId: sessionKholle.classeId,
-        disciplineId: sessionKholle.disciplineId,
-      },
+      classeId: sessionKholle.classeId,
+      disciplineId: sessionKholle.disciplineId,
+      utilisateurId: session.user.id,
     },
   });
-  if (!estReferent || estReferent.utilisateurId !== session.user.id) notFound();
+  if (!estReferent) notFound();
 
   const kholleurIds = [...new Set(sessionKholle.creneaux.map((c) => c.kholleurId))];
   const validations = await prisma.validationGrille.findMany({

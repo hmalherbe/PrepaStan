@@ -16,10 +16,11 @@ export default withAuth(
         if (!token) return false;
 
         const path = req.nextUrl.pathname;
-        if (path.startsWith("/admin")) return token.role === "ADMIN";
-        if (path.startsWith("/kholleur")) return token.role === "KHOLLEUR";
-        if (path.startsWith("/referent")) return token.role === "PROFESSEUR_REFERENT";
-        if (path.startsWith("/eleve")) return token.role === "ELEVE";
+        const roles = (token.roles as string[] | undefined) ?? [];
+        if (path.startsWith("/admin")) return roles.includes("ADMIN");
+        if (path.startsWith("/kholleur")) return roles.includes("KHOLLEUR");
+        if (path.startsWith("/referent")) return roles.includes("PROFESSEUR_REFERENT");
+        if (path.startsWith("/eleve")) return roles.includes("ELEVE");
         return true;
       },
     },

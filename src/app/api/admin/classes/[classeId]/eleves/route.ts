@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ classeI
         password: await bcrypt.hash(body.password, 12),
         nom: body.nom,
         prenom: body.prenom,
-        role: "ELEVE",
+        roles: ["ELEVE"],
       },
     });
     utilisateurId = utilisateur.id;

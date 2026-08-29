@@ -16,7 +16,7 @@ export default async function ReferentsPage() {
     }),
     prisma.discipline.findMany({ orderBy: { nom: "asc" } }),
     prisma.utilisateur.findMany({
-      where: { role: "PROFESSEUR_REFERENT" },
+      where: { roles: { has: "PROFESSEUR_REFERENT" } },
       select: { id: true, nom: true, prenom: true, email: true },
       orderBy: [{ nom: "asc" }],
     }),

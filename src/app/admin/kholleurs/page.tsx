@@ -7,7 +7,7 @@ export default async function KholleursPage() {
 
   const [kholleurs, disciplines] = await Promise.all([
     prisma.utilisateur.findMany({
-      where: { role: "KHOLLEUR" },
+      where: { roles: { has: "KHOLLEUR" } },
       include: { competences: { include: { discipline: true } }, _count: { select: { disponibilites: true } } },
       orderBy: [{ nom: "asc" }],
     }),

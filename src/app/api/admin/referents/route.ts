@@ -60,24 +60,41 @@ export async function POST(req: Request) {
 
   try {
     const referents = await prisma.$transaction(async (tx) => {
-      const utilisateurId =
-        body.utilisateurId ??
-        (
-          await tx.utilisateur.create({
-            data: {
-              email: body.email!,
-              password: await bcrypt.hash(body.password!, 12),
-              nom: body.nom!,
-              prenom: body.prenom!,
-              role: "PROFESSEUR_REFERENT",
-            },
-          })
-        ).id;
+      let utilisateurId = body.utilisateurId;
+      if (!utilisateurId) {
+        // Si l'email correspond déjà à un compte existant (ex. un kholleur),
+        // ajoute simplement le rôle PROFESSEUR_REFERENT à ce compte au lieu
+        // d'échouer : une même personne peut cumuler les deux rôles sous un
+        // seul login.
+        const existant = await tx.utilisateur.findUnique({ where: { email: body.email! } });
+        if (existant) {
+          utilisateurId = existant.id;
+          if (!existant.roles.includes("PROFESSEUR_REFERENT")) {
+            await tx.utilisateur.update({
+              where: { id: existant.id },
+              data: { roles: [...existant.roles, "PROFESSEUR_REFERENT"] },
+            });
+          }
+        } else {
+          utilisateurId = (
+            await tx.utilisateur.create({
+              data: {
+                email: body.email!,
+                password: await bcrypt.hash(body.password!, 12),
+                nom: body.nom!,
+                prenom: body.prenom!,
+                roles: ["PROFESSEUR_REFERENT"],
+              },
+            })
+          ).id;
+        }
+      }
+      const referentId = utilisateurId;
 
       return Promise.all(
         body.classeIds.map((classeId) =>
           tx.professeurReferent.create({
-            data: { utilisateurId, classeId, disciplineId: body.disciplineId },
+            data: { utilisateurId: referentId, classeId, disciplineId: body.disciplineId },
             include: { utilisateur: true, classe: true, discipline: true },
           })
         )

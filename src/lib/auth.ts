@@ -32,7 +32,7 @@ export const authOptions: NextAuthOptions = {
           email: utilisateur.email,
           nom: utilisateur.nom,
           prenom: utilisateur.prenom,
-          role: utilisateur.role,
+          roles: utilisateur.roles,
         };
       },
     }),
@@ -41,7 +41,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role;
+        token.roles = user.roles;
         token.nom = user.nom;
         token.prenom = user.prenom;
       }
@@ -49,7 +49,7 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       session.user.id = token.id;
-      session.user.role = token.role;
+      session.user.roles = token.roles;
       session.user.nom = token.nom;
       session.user.prenom = token.prenom;
       return session;
@@ -71,7 +71,7 @@ export async function requireRole(allowed: Role[]): Promise<Session | NextRespon
   if (!session) {
     return NextResponse.json({ error: "Authentification requise" }, { status: 401 });
   }
-  if (!allowed.includes(session.user.role)) {
+  if (!session.user.roles.some((r) => allowed.includes(r))) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
   return session;
@@ -84,7 +84,7 @@ export async function requireRole(allowed: Role[]): Promise<Session | NextRespon
  */
 export async function requirePageSession(allowed: Role[]): Promise<Session> {
   const session = await getServerSession(authOptions);
-  if (!session || !allowed.includes(session.user.role)) {
+  if (!session || !session.user.roles.some((r) => allowed.includes(r))) {
     redirect("/login");
   }
   return session;

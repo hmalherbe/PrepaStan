@@ -16,12 +16,14 @@ export async function POST(
   const { sessionId: sessionKholleId } = await params;
 
   const session = await prisma.sessionKholle.findUniqueOrThrow({ where: { id: sessionKholleId } });
-  const estReferent = await prisma.professeurReferent.findUnique({
+  const estReferent = await prisma.professeurReferent.findFirst({
     where: {
-      classeId_disciplineId: { classeId: session.classeId, disciplineId: session.disciplineId },
+      classeId: session.classeId,
+      disciplineId: session.disciplineId,
+      utilisateurId: professeurReferentId,
     },
   });
-  if (!estReferent || estReferent.utilisateurId !== professeurReferentId) {
+  if (!estReferent) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 

@@ -31,7 +31,7 @@ export default async function PlanningReviewPage({
   });
 
   const [kholleurs, salles] = await Promise.all([
-    prisma.utilisateur.findMany({ where: { role: "KHOLLEUR" }, orderBy: { nom: "asc" } }),
+    prisma.utilisateur.findMany({ where: { roles: { has: "KHOLLEUR" } }, orderBy: { nom: "asc" } }),
     prisma.salle.findMany({ orderBy: { nom: "asc" } }),
   ]);
 

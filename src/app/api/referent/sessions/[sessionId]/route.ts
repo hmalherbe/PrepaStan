@@ -30,13 +30,15 @@ export async function GET(
     },
   });
 
-  if (auth.user.role === "PROFESSEUR_REFERENT") {
-    const estReferent = await prisma.professeurReferent.findUnique({
+  if (auth.user.roles.includes("PROFESSEUR_REFERENT") && !auth.user.roles.includes("ADMIN")) {
+    const estReferent = await prisma.professeurReferent.findFirst({
       where: {
-        classeId_disciplineId: { classeId: session.classeId, disciplineId: session.disciplineId },
+        classeId: session.classeId,
+        disciplineId: session.disciplineId,
+        utilisateurId: auth.user.id,
       },
     });
-    if (!estReferent || estReferent.utilisateurId !== auth.user.id) {
+    if (!estReferent) {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
   }

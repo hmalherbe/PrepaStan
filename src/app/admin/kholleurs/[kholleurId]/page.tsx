@@ -18,7 +18,7 @@ export default async function DetailKholleurPage({
       disponibilites: { orderBy: [{ jourSemaine: "asc" }, { heureDebut: "asc" }] },
     },
   });
-  if (!kholleur || kholleur.role !== "KHOLLEUR") notFound();
+  if (!kholleur || !kholleur.roles.includes("KHOLLEUR")) notFound();
 
   return (
     <main className="container">

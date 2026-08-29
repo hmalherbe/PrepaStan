@@ -4,12 +4,19 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-const REDIRECTION_PAR_ROLE: Record<string, string> = {
-  ADMIN: "/admin/planification",
-  KHOLLEUR: "/kholleur/sessions",
-  PROFESSEUR_REFERENT: "/referent/sessions",
-  ELEVE: "/eleve/notes",
-};
+// Une même personne peut cumuler plusieurs rôles : on redirige vers le
+// premier écran pertinent selon cet ordre de priorité.
+const REDIRECTION_PAR_ROLE: [string, string][] = [
+  ["ADMIN", "/admin/planification"],
+  ["KHOLLEUR", "/kholleur/sessions"],
+  ["PROFESSEUR_REFERENT", "/referent/sessions"],
+  ["ELEVE", "/eleve/notes"],
+];
+
+function redirectionPourRoles(roles: string[] | undefined): string {
+  const trouve = REDIRECTION_PAR_ROLE.find(([role]) => roles?.includes(role));
+  return trouve?.[1] ?? "/";
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,7 +39,7 @@ export default function LoginPage() {
     }
 
     const session = await fetch("/api/auth/session").then((r) => r.json());
-    router.push(REDIRECTION_PAR_ROLE[session?.user?.role] ?? "/");
+    router.push(redirectionPourRoles(session?.user?.roles));
   }
 
   return (

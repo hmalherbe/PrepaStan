@@ -127,14 +127,17 @@ export async function POST(req: Request) {
     data: { classeId, semaine, disciplines: disciplineIds, quotas, lanceParId },
   });
 
-  // Assigne (ou met à jour) le professeur référent de chaque discipline pour
-  // cette classe, directement depuis l'écran de planification plutôt que de
-  // devoir passer par /admin/referents séparément.
+  // S'assure que le référent choisi pour chaque discipline fait bien partie
+  // des référents de cette classe, directement depuis l'écran de
+  // planification plutôt que de devoir passer par /admin/referents
+  // séparément. Plusieurs référents peuvent déjà exister pour la même
+  // (classe, discipline) : on ne fait qu'ajouter celui-ci s'il n'y est pas,
+  // sans toucher aux autres.
   for (const disciplineId of disciplineIds) {
     const referentId = quotas.find((q) => q.disciplineId === disciplineId)!.referentId;
     await prisma.professeurReferent.upsert({
-      where: { classeId_disciplineId: { classeId, disciplineId } },
-      update: { utilisateurId: referentId },
+      where: { classeId_disciplineId_utilisateurId: { classeId, disciplineId, utilisateurId: referentId } },
+      update: {},
       create: { classeId, disciplineId, utilisateurId: referentId },
     });
   }

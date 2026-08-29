@@ -18,12 +18,14 @@ export async function POST(
     include: { validationReferent: true },
   });
 
-  const estReferent = await prisma.professeurReferent.findUnique({
+  const estReferent = await prisma.professeurReferent.findFirst({
     where: {
-      classeId_disciplineId: { classeId: session.classeId, disciplineId: session.disciplineId },
+      classeId: session.classeId,
+      disciplineId: session.disciplineId,
+      utilisateurId: auth.user.id,
     },
   });
-  if (!estReferent || estReferent.utilisateurId !== auth.user.id) {
+  if (!estReferent) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 

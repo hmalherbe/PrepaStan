@@ -61,7 +61,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ eleveId:
             password: await bcrypt.hash(body.password, 12),
             nom: body.nom,
             prenom: body.prenom,
-            role: "ELEVE",
+            roles: ["ELEVE"],
           },
         });
         await tx.eleve.update({ where: { id: eleveId }, data: { utilisateurId: utilisateur.id } });

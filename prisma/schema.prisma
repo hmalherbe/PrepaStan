@@ -22,7 +22,9 @@ model Utilisateur {
   password String // hash bcrypt
   nom      String
   prenom   String
-  role     Role
+  // Une même personne peut cumuler plusieurs rôles (ex. khôlleur ET
+  // professeur référent) avec un seul compte de connexion.
+  roles    Role[]
 
   competences       Competence[]
   disponibilites    Disponibilite[]
@@ -124,7 +126,9 @@ model ProfesseurReferent {
   classe      Classe      @relation(fields: [classeId], references: [id])
   discipline  Discipline  @relation(fields: [disciplineId], references: [id])
 
-  @@unique([classeId, disciplineId])
+  // Plusieurs référents peuvent être assignés à la même (classe, discipline) ;
+  // seule l'assignation exacte (même personne) est empêchée en double.
+  @@unique([classeId, disciplineId, utilisateurId])
 }
 
 // ---------- Disponibilités et ressources ----------

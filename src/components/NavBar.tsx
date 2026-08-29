@@ -36,7 +36,13 @@ export function NavBar({
     return null;
   }
 
-  const liens = LIENS_PAR_ROLE[session.user.role] ?? [];
+  // Une même personne peut cumuler plusieurs rôles (ex. khôlleur ET
+  // référent) : on affiche l'union des liens de tous ses rôles, dans l'ordre
+  // ADMIN > KHOLLEUR > PROFESSEUR_REFERENT > ELEVE, sans doublon.
+  const liens = (["ADMIN", "KHOLLEUR", "PROFESSEUR_REFERENT", "ELEVE"] as const)
+    .filter((r) => session.user.roles.includes(r))
+    .flatMap((r) => LIENS_PAR_ROLE[r] ?? [])
+    .filter((lien, i, arr) => arr.findIndex((l) => l.href === lien.href) === i);
 
   // Change l'année scolaire courante pour toute l'appli (ex. les nouvelles
   // classes créées y seront rattachées) : cookie lu par les Server
@@ -76,7 +82,7 @@ export function NavBar({
             {lien.label}
           </Link>
         ))}
-        {session.user.role === "ADMIN" && (
+        {session.user.roles.includes("ADMIN") && (
           <select
             value={anneeScolaire}
             onChange={(e) => changerAnneeScolaire(e.target.value)}

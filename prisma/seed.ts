@@ -11,13 +11,13 @@ async function upsertUtilisateur(
   email: string,
   nom: string,
   prenom: string,
-  role: Role,
+  roles: Role | Role[],
   motDePasseHash: string
 ) {
   return prisma.utilisateur.upsert({
     where: { email },
     update: {},
-    create: { email, nom, prenom, role, password: motDePasseHash },
+    create: { email, nom, prenom, roles: Array.isArray(roles) ? roles : [roles], password: motDePasseHash },
   });
 }
 
@@ -96,11 +96,21 @@ async function main() {
   const kholleur1 = await upsertUtilisateur("kholleur.maths1@prepastan.local", "Bernard", "Claude", "KHOLLEUR", hashDemo);
   const kholleur2 = await upsertUtilisateur("kholleur.maths2@prepastan.local", "Roche", "Sophie", "KHOLLEUR", hashDemo);
   const kholleur3 = await upsertUtilisateur("kholleur.physique@prepastan.local", "Klein", "Marc", "KHOLLEUR", hashDemo);
-  const kholleur4 = await upsertUtilisateur("kholleur.anglais@prepastan.local", "Faure", "Julie", "KHOLLEUR", hashDemo);
+  // Compte double rôle (khôlleur ET référent, sous un seul login) : illustre
+  // le cas réel où la même personne saisit ses propres notes en Anglais puis
+  // valide, en tant que référent, les grilles de tous les khôlleurs
+  // d'Anglais pour une session donnée.
+  const kholleur4 = await upsertUtilisateur(
+    "kholleur.anglais@prepastan.local",
+    "Faure",
+    "Julie",
+    ["KHOLLEUR", "PROFESSEUR_REFERENT"],
+    hashDemo
+  );
 
   const referentMaths = await upsertUtilisateur("referent.maths@prepastan.local", "Girard", "Nicolas", "PROFESSEUR_REFERENT", hashDemo);
   const referentPhysique = await upsertUtilisateur("referent.physique@prepastan.local", "Lambert", "Hélène", "PROFESSEUR_REFERENT", hashDemo);
-  const referentAnglais = await upsertUtilisateur("referent.anglais@prepastan.local", "Petit", "Isabelle", "PROFESSEUR_REFERENT", hashDemo);
+  const referentAnglais = kholleur4;
 
   for (const [kholleurId, disciplineId] of [
     [kholleur1.id, maths.id],
@@ -124,17 +134,23 @@ async function main() {
   }
 
   await prisma.professeurReferent.upsert({
-    where: { classeId_disciplineId: { classeId: classe.id, disciplineId: maths.id } },
+    where: {
+      classeId_disciplineId_utilisateurId: { classeId: classe.id, disciplineId: maths.id, utilisateurId: referentMaths.id },
+    },
     update: {},
     create: { utilisateurId: referentMaths.id, classeId: classe.id, disciplineId: maths.id },
   });
   await prisma.professeurReferent.upsert({
-    where: { classeId_disciplineId: { classeId: classe.id, disciplineId: physique.id } },
+    where: {
+      classeId_disciplineId_utilisateurId: { classeId: classe.id, disciplineId: physique.id, utilisateurId: referentPhysique.id },
+    },
     update: {},
     create: { utilisateurId: referentPhysique.id, classeId: classe.id, disciplineId: physique.id },
   });
   await prisma.professeurReferent.upsert({
-    where: { classeId_disciplineId: { classeId: classe.id, disciplineId: anglais.id } },
+    where: {
+      classeId_disciplineId_utilisateurId: { classeId: classe.id, disciplineId: anglais.id, utilisateurId: referentAnglais.id },
+    },
     update: {},
     create: { utilisateurId: referentAnglais.id, classeId: classe.id, disciplineId: anglais.id },
   });
@@ -277,10 +293,9 @@ async function main() {
   console.log(`Kholleur Maths 1 : ${kholleur1.email} / ${MOT_DE_PASSE_DEMO}`);
   console.log(`Kholleur Maths 2 : ${kholleur2.email} / ${MOT_DE_PASSE_DEMO}`);
   console.log(`Kholleur Physique: ${kholleur3.email} / ${MOT_DE_PASSE_DEMO}`);
-  console.log(`Kholleur Anglais : ${kholleur4.email} / ${MOT_DE_PASSE_DEMO} (session semaine 2 à noter)`);
+  console.log(`Kholleur Anglais : ${kholleur4.email} / ${MOT_DE_PASSE_DEMO} (session semaine 2 à noter, ET référent Anglais à valider ensuite — compte à double rôle)`);
   console.log(`Référent Maths   : ${referentMaths.email} / ${MOT_DE_PASSE_DEMO}`);
   console.log(`Référent Physique: ${referentPhysique.email} / ${MOT_DE_PASSE_DEMO}`);
-  console.log(`Référent Anglais : ${referentAnglais.email} / ${MOT_DE_PASSE_DEMO} (à valider une fois le kholleur passé)`);
   console.log(`Élèves           : ${nomsEleves.map(([n, p]) => `${normaliserPourEmail(p)}.${normaliserPourEmail(n)}@eleve.prepastan.local`).join(", ")}`);
   console.log(`                   mot de passe commun : ${MOT_DE_PASSE_DEMO}`);
   console.log(`\nPlanification en direct : disponibilités déjà saisies pour Maths/Physique/Anglais`);
