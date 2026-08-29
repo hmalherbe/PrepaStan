@@ -37,20 +37,30 @@ export default async function PlanningReviewPage({
 
   const estBrouillon = sessions.every((s) => s.statut === "PLANIFICATION");
 
-  const creneaux = sessions.flatMap((s) =>
-    s.creneaux.map((c) => ({
-      id: c.id,
-      discipline: s.discipline.nom,
-      jour: c.date.toISOString().slice(0, 10),
-      heureDebut: c.heureDebut,
-      heureFin: c.heureFin,
-      kholleurId: c.kholleurId,
-      kholleurNom: `${c.kholleur.prenom} ${c.kholleur.nom}`,
-      salleId: c.salleId,
-      salleNom: c.salle.nom,
-      eleves: c.passages.map((p) => `${p.eleve.prenom} ${p.eleve.nom}`),
-    }))
-  );
+  const creneaux = sessions
+    .flatMap((s) =>
+      s.creneaux.map((c) => ({
+        id: c.id,
+        discipline: s.discipline.nom,
+        jour: c.date.toISOString().slice(0, 10),
+        heureDebut: c.heureDebut,
+        heureFin: c.heureFin,
+        kholleurId: c.kholleurId,
+        kholleurNom: `${c.kholleur.prenom} ${c.kholleur.nom}`,
+        salleId: c.salleId,
+        salleNom: c.salle.nom,
+        eleves: c.passages.map((p) => `${p.eleve.prenom} ${p.eleve.nom}`),
+      }))
+    )
+    // Toutes les sessions (une par discipline) sont fusionnées ici : sans ce
+    // tri, l'ordre reste groupé par discipline plutôt que par jour. Tri par
+    // jour, puis kholleur, puis heure de khôlle, tous croissants.
+    .sort(
+      (a, b) =>
+        a.jour.localeCompare(b.jour) ||
+        a.kholleurNom.localeCompare(b.kholleurNom) ||
+        a.heureDebut.localeCompare(b.heureDebut)
+    );
 
   return (
     <main className="container">
