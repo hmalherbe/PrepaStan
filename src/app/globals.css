@@ -73,6 +73,22 @@ tr:last-child td {
   border-bottom: none;
 }
 
+/* Colonne "volet figé" : reste visible à gauche pendant le défilement
+   horizontal d'un tableau trop large (ex. liste des khôlleurs avec email +
+   disciplines + actions), pour garder le repère de la ligne concernée. Le
+   fond opaque est nécessaire pour masquer le contenu qui défile dessous. */
+th:first-child,
+td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--couleur-surface);
+  box-shadow: 1px 0 0 var(--couleur-bordure);
+}
+
+th:first-child {
+  background: #f0f0f4;
+}
+
 a {
   color: var(--couleur-primaire);
 }
