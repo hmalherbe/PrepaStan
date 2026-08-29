@@ -25,6 +25,10 @@ const bodySchema = z.object({
   // premier créneau, la salle et le référent de la discipline. OR-Tools
   // choisit ensuite quels élèves précis remplissent ces quotas.
   quotas: z.array(quotaSchema).min(1),
+  // Si des quotas dépassent les disponibilités déclarées d'un kholleur, le
+  // calcul est d'abord refusé avec le détail (voir plus bas) pour laisser
+  // l'admin confirmer explicitement qu'il veut lancer quand même.
+  forcerMalgreIndisponibilites: z.boolean().optional().default(false),
 });
 
 const DUREE_CRENEAU_MINUTES = 20;
@@ -43,7 +47,9 @@ export async function POST(req: Request) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
   const lanceParId = auth.user.id;
-  const { classeId, semaine, dateDebutSemaine, quotas } = bodySchema.parse(await req.json());
+  const { classeId, semaine, dateDebutSemaine, quotas, forcerMalgreIndisponibilites } = bodySchema.parse(
+    await req.json()
+  );
 
   const disciplineIds = [...new Set(quotas.map((q) => q.disciplineId))];
   const kholleurIds = [...new Set(quotas.map((q) => q.kholleurId))];
@@ -123,32 +129,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Conflit de salle : ${erreursSalle.join(" ; ")}` }, { status: 400 });
   }
 
-  const job = await prisma.planificationJob.create({
-    data: { classeId, semaine, disciplines: disciplineIds, quotas, lanceParId },
-  });
-
-  // S'assure que le référent choisi pour chaque discipline fait bien partie
-  // des référents de cette classe, directement depuis l'écran de
-  // planification plutôt que de devoir passer par /admin/referents
-  // séparément. Plusieurs référents peuvent déjà exister pour la même
-  // (classe, discipline) : on ne fait qu'ajouter celui-ci s'il n'y est pas,
-  // sans toucher aux autres.
-  for (const disciplineId of disciplineIds) {
-    const referentId = quotas.find((q) => q.disciplineId === disciplineId)!.referentId;
-    await prisma.professeurReferent.upsert({
-      where: { classeId_disciplineId_utilisateurId: { classeId, disciplineId, utilisateurId: referentId } },
-      update: {},
-      create: { classeId, disciplineId, utilisateurId: referentId },
-    });
-  }
-
   const dispoBrutes = await prisma.disponibilite.findMany({ where: { kholleurId: { in: kholleurIds } } });
   const disponibilites = expanserDisponibilites(dispoBrutes, dateDebutSemaine);
 
   // Vérification précoce : le créneau [heureDebut, heureDebut + durée] doit
   // tenir intégralement dans une disponibilité déclarée du kholleur ce
-  // jour-là — autant le dire tout de suite plutôt que de faire tourner
-  // OR-Tools pour rien.
+  // jour-là. Contrairement aux autres vérifications ci-dessus, celle-ci ne
+  // bloque pas définitivement : elle demande confirmation (l'admin peut avoir
+  // de bonnes raisons de passer outre une disponibilité non déclarée), sauf
+  // si `forcerMalgreIndisponibilites` a déjà été coché côté client.
   const erreursCapacite: string[] = [];
   for (const q of quotasDates) {
     const debut = minutes(q.heureDebut);
@@ -168,12 +157,33 @@ export async function POST(req: Request) {
       );
     }
   }
-  if (erreursCapacite.length > 0) {
-    await prisma.planificationJob.update({
-      where: { id: job.id },
-      data: { statut: "INFAISABLE", message: erreursCapacite.join(" ; "), dateFin: new Date() },
+  if (erreursCapacite.length > 0 && !forcerMalgreIndisponibilites) {
+    return NextResponse.json(
+      {
+        confirmationRequise: true,
+        error: `Certains créneaux dépassent les disponibilités déclarées : ${erreursCapacite.join(" ; ")}`,
+      },
+      { status: 409 }
+    );
+  }
+
+  const job = await prisma.planificationJob.create({
+    data: { classeId, semaine, disciplines: disciplineIds, quotas, lanceParId },
+  });
+
+  // S'assure que le référent choisi pour chaque discipline fait bien partie
+  // des référents de cette classe, directement depuis l'écran de
+  // planification plutôt que de devoir passer par /admin/referents
+  // séparément. Plusieurs référents peuvent déjà exister pour la même
+  // (classe, discipline) : on ne fait qu'ajouter celui-ci s'il n'y est pas,
+  // sans toucher aux autres.
+  for (const disciplineId of disciplineIds) {
+    const referentId = quotas.find((q) => q.disciplineId === disciplineId)!.referentId;
+    await prisma.professeurReferent.upsert({
+      where: { classeId_disciplineId_utilisateurId: { classeId, disciplineId, utilisateurId: referentId } },
+      update: {},
+      create: { classeId, disciplineId, utilisateurId: referentId },
     });
-    return NextResponse.json({ jobId: job.id }, { status: 202 });
   }
 
   const historique = await calculerHistorique(

@@ -142,7 +142,7 @@ export function GenererPlanningForm({
     effectifsOk &&
     disciplinesReferentIncoherent.length === 0;
 
-  async function lancer() {
+  async function lancer(forcerMalgreIndisponibilites = false) {
     setStatutJob("EN_COURS");
     setMessageJob(null);
 
@@ -162,10 +162,18 @@ export function GenererPlanningForm({
           salleId: q.salleId,
           referentId: q.referentId,
         })),
+        forcerMalgreIndisponibilites,
       }),
     });
     const data = await res.json();
     if (!res.ok) {
+      if (data.confirmationRequise) {
+        setStatutJob(null);
+        if (confirm(`${data.error}\n\nLancer quand même le calcul du planning ?`)) {
+          await lancer(true);
+        }
+        return;
+      }
       setStatutJob("ECHEC");
       setMessageJob(data.error ?? "Erreur lors du lancement");
       return;
