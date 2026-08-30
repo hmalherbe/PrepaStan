@@ -98,9 +98,9 @@ export function NavBar({
             ))}
           </select>
         )}
-        <span style={{ color: "#777", fontSize: "0.9rem" }}>
+        <Link href="/compte" onClick={() => setOuvert(false)} style={{ color: "#777", fontSize: "0.9rem" }}>
           {session.user.prenom} {session.user.nom}
-        </span>
+        </Link>
         <button className="discret" onClick={() => signOut({ callbackUrl: "/login" })}>
           Se déconnecter
         </button>
