@@ -20,6 +20,10 @@ class Historique(BaseModel):
     chargeKholleur: dict[str, int] = {}
     # eleveId -> nombre de fois déjà affecté à un créneau tardif.
     tardifEleve: dict[str, int] = {}
+    # eleveId -> "LV1" ou "LV2" selon la langue de son dernier passage en
+    # langue vivante (toutes disciplines langues confondues) ; alimente
+    # l'objectif d'alternance LV1/LV2 (voir solver.py).
+    derniereLangue: dict[str, str] = {}
 
 
 class SolveRequest(BaseModel):
@@ -35,6 +39,16 @@ class SolveRequest(BaseModel):
     # solver.py).
     quotas: list[dict[str, Any]]
     historique: Historique = Historique()
+    # Sous-ensemble des disciplines de la semaine marquées "langue vivante" :
+    # active l'éligibilité LV1/LV2 par élève et l'objectif d'alternance dans
+    # resoudre() (voir sa docstring). Vide par défaut = comportement inchangé.
+    disciplinesLangue: list[str] = []
+    # Relâche "chaque élève passe exactement une fois par discipline" en "au
+    # plus une fois" — sert à rejouer un historique où le total des quotas
+    # d'une discipline ne correspond pas exactement à l'effectif de la classe
+    # (voir la docstring de resoudre() dans solver.py). False par défaut :
+    # comportement inchangé pour une planification normale.
+    effectifPartiel: bool = False
     callbackUrl: str
     callbackSecret: str
 
@@ -63,6 +77,9 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
             historique_eleve_kholleur=payload.historique.eleveKholleur,
             historique_charge_kholleur=payload.historique.chargeKholleur,
             historique_tardif_eleve=payload.historique.tardifEleve,
+            disciplines_langue=set(payload.disciplinesLangue),
+            historique_derniere_langue=payload.historique.derniereLangue,
+            effectif_partiel=payload.effectifPartiel,
         )
         logger.info("Job %s résolu : statut=%s", payload.jobId, result.statut)
 

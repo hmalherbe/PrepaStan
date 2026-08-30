@@ -48,6 +48,11 @@ from ortools.sat.python import cp_model
 POIDS_EQUILIBRAGE_KHOLLEUR = 10
 POIDS_DIVERSITE_KHOLLEUR = 5
 POIDS_EQUILIBRAGE_HORAIRE = 1
+# Très supérieur aux autres : l'alternance LV1/LV2 est une consigne explicite
+# de l'établissement (pas juste un objectif de confort), mais reste "soft"
+# plutôt que dure pour ne jamais rendre une semaine infaisable si les quotas
+# historiques ne permettent pas une alternance parfaite pour tout le monde.
+POIDS_ALTERNANCE_LANGUE = 1000
 
 # Un créneau démarrant à partir de cette heure est considéré "tardif" pour
 # l'objectif d'équilibrage des horaires de passage.
@@ -105,12 +110,29 @@ def resoudre(
     historique_eleve_kholleur: dict[str, int] | None = None,
     historique_charge_kholleur: dict[str, int] | None = None,
     historique_tardif_eleve: dict[str, int] | None = None,
+    disciplines_langue: set[str] | None = None,
+    historique_derniere_langue: dict[str, str] | None = None,
+    effectif_partiel: bool = False,
     max_temps_secondes: float = 30.0,
     duree_creneau_minutes: int = 20,
 ) -> SolveResult:
+    """`disciplines_langue` : sous-ensemble de disciplines de la semaine
+    marquées "langue vivante" (Discipline.estLangueVivante côté app). Pour
+    ces disciplines-là uniquement, un élève n'est éligible que si elle/il
+    figure dans son propre `lv1DisciplineId`/`lv2DisciplineId` (clés
+    optionnelles sur chaque élève de `eleves`) : un élève dont la LV2 est
+    Espagnol ne peut jamais être affecté à une khôlle d'Italien, même si son
+    quota n'est pas rempli par ailleurs. Quand LV1 et LV2 sont toutes deux
+    khôllées la même semaine, l'élève doit passer exactement une fois parmi
+    les deux (jamais les deux, jamais aucune) ; `historique_derniere_langue`
+    (élève -> "LV1"/"LV2" du dernier passage en langue) alimente l'objectif
+    d'alternance ci-dessous.
+    """
     historique_eleve_kholleur = historique_eleve_kholleur or {}
     historique_charge_kholleur = historique_charge_kholleur or {}
     historique_tardif_eleve = historique_tardif_eleve or {}
+    disciplines_langue = disciplines_langue or set()
+    historique_derniere_langue = historique_derniere_langue or {}
     disciplines_semaine = sorted({q["disciplineId"] for q in quotas})
 
     slots = generer_slots_candidats(quotas, duree_creneau_minutes)
@@ -125,7 +147,15 @@ def resoudre(
     intervals_salle: dict[str, list[cp_model.IntervalVar]] = {}
 
     for e in eleves:
+        mes_langues = {e.get("lv1DisciplineId"), e.get("lv2DisciplineId")}
         for s_idx, slot in enumerate(slots):
+            # Une discipline "langue" n'est proposée qu'aux élèves dont c'est
+            # justement la LV1 ou la LV2 : on ne crée même pas la variable de
+            # présence pour les autres, plutôt que de la contraindre à 0 —
+            # plus simple, et ça garde `presence` fidèle aux affectations
+            # réellement possibles pour les contraintes de quota ci-dessous.
+            if slot.discipline_id in disciplines_langue and slot.discipline_id not in mes_langues:
+                continue
             key = (e["id"], s_idx)
             b = model.NewBoolVar(f"x_{e['id']}_{s_idx}")
             presence[key] = b
@@ -149,15 +179,41 @@ def resoudre(
     for ivs in intervals_salle.values():
         model.AddNoOverlap(ivs)
 
-    # Chaque élève passe exactement une fois par discipline demandée cette semaine.
+    # Chaque élève passe exactement une fois par discipline demandée cette
+    # semaine — sauf les disciplines "langue", regroupées juste après : un
+    # élève dont LV1 et LV2 sont toutes deux khôllées cette semaine-là doit
+    # en passer exactement une (l'une OU l'autre), pas une de chaque.
+    #
+    # `effectif_partiel=True` relâche ce "exactement" en "au plus" : sert à
+    # rejouer un historique réel où le total des quotas d'une discipline ne
+    # correspond pas exactement à l'effectif de la classe (ex. import de
+    # plannings passés où quelques élèves manquent sans qu'on sache
+    # lesquels). Dans le cas normal (total quota == effectif), le résultat
+    # est identique à "== 1" : la contrainte de remplissage des quotas
+    # ci-dessous force de toute façon le compte à correspondre.
     for e in eleves:
         for discipline_id in disciplines_semaine:
+            if discipline_id in disciplines_langue:
+                continue
             vars_ed = [
                 presence[(e["id"], s_idx)]
                 for s_idx, slot in enumerate(slots)
                 if slot.discipline_id == discipline_id
             ]
-            model.Add(sum(vars_ed) == 1)
+            model.Add(sum(vars_ed) <= 1) if effectif_partiel else model.Add(sum(vars_ed) == 1)
+
+    for e in eleves:
+        mes_langues_offertes = {
+            d for d in disciplines_langue if d in (e.get("lv1DisciplineId"), e.get("lv2DisciplineId"))
+        }
+        if not mes_langues_offertes:
+            continue
+        vars_langue = [
+            presence[(e["id"], s_idx)]
+            for s_idx, slot in enumerate(slots)
+            if slot.discipline_id in mes_langues_offertes
+        ]
+        model.Add(sum(vars_langue) <= 1) if effectif_partiel else model.Add(sum(vars_langue) == 1)
 
     # Chaque quota doit être intégralement rempli : le nombre total de
     # (élève, créneau du quota) retenus doit égaler nombreEleves. Combiné à
@@ -207,8 +263,32 @@ def resoudre(
                 termes_horaire.append(deja_tardif * var)
     horaire_penalite = sum(termes_horaire) if termes_horaire else 0
 
+    # --- Objectif 4 : alternance LV1/LV2 d'une semaine sur l'autre ---------
+    # Ne s'applique qu'aux élèves ayant à la fois une LV1 et une LV2 (donc en
+    # pratique seulement en L1). Pénalise le fait de repasser dans la même
+    # langue (LV1 ou LV2) que la dernière fois, quand ce choix existe cette
+    # semaine (l'autre langue est aussi khôllée) — voir la contrainte dure
+    # "une seule langue par semaine" ci-dessus, qui garantit qu'il y a bien
+    # un choix binaire à faire dans ce cas.
+    termes_alternance = []
+    for e in eleves:
+        lv1, lv2 = e.get("lv1DisciplineId"), e.get("lv2DisciplineId")
+        dernier = historique_derniere_langue.get(e["id"])
+        if not lv1 or not lv2 or not dernier:
+            continue
+        for s_idx, slot in enumerate(slots):
+            if slot.discipline_id not in (lv1, lv2):
+                continue
+            type_slot = "LV1" if slot.discipline_id == lv1 else "LV2"
+            if type_slot == dernier:
+                key = (e["id"], s_idx)
+                if key in presence:
+                    termes_alternance.append(presence[key])
+    alternance_penalite = sum(termes_alternance) if termes_alternance else 0
+
     model.Minimize(
-        POIDS_EQUILIBRAGE_KHOLLEUR * charge_max
+        POIDS_ALTERNANCE_LANGUE * alternance_penalite
+        + POIDS_EQUILIBRAGE_KHOLLEUR * charge_max
         + POIDS_DIVERSITE_KHOLLEUR * diversite_penalite
         + POIDS_EQUILIBRAGE_HORAIRE * horaire_penalite
     )

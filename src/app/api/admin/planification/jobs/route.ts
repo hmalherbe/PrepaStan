@@ -29,6 +29,11 @@ const bodySchema = z.object({
   // calcul est d'abord refusé avec le détail (voir plus bas) pour laisser
   // l'admin confirmer explicitement qu'il veut lancer quand même.
   forcerMalgreIndisponibilites: z.boolean().optional().default(false),
+  // Autorise un total de quotas inférieur à l'effectif pour une discipline
+  // (des élèves n'auront alors aucun créneau cette semaine-là) — utile pour
+  // rejouer un historique réel incomplet (absences non documentées). Un
+  // total SUPÉRIEUR à l'effectif reste toujours une erreur, drapeau ou pas.
+  permettreEffectifPartiel: z.boolean().optional().default(false),
 });
 
 const DUREE_CRENEAU_MINUTES = 20;
@@ -47,26 +52,52 @@ export async function POST(req: Request) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
   const lanceParId = auth.user.id;
-  const { classeId, semaine, dateDebutSemaine, quotas, forcerMalgreIndisponibilites } = bodySchema.parse(
-    await req.json()
-  );
+  const { classeId, semaine, dateDebutSemaine, quotas, forcerMalgreIndisponibilites, permettreEffectifPartiel } =
+    bodySchema.parse(await req.json());
 
   const disciplineIds = [...new Set(quotas.map((q) => q.disciplineId))];
   const kholleurIds = [...new Set(quotas.map((q) => q.kholleurId))];
 
   const eleves = await prisma.eleve.findMany({ where: { classeId } });
 
-  // Chaque discipline présente dans les quotas doit être intégralement
-  // couverte : la somme des quotas doit égaler exactement l'effectif de la
-  // classe, sinon certains élèves n'auraient pas de créneau (ou il y en
-  // aurait trop) pour cette discipline cette semaine.
+  // Sous-ensemble des disciplines de cette semaine marquées "langue vivante" :
+  // seuls les élèves dont c'est la LV1 ou la LV2 y sont éligibles (voir
+  // resoudre() côté solveur), donc leur effectif attendu n'est pas celui de
+  // toute la classe mais celui du sous-groupe concerné — calculé plus bas.
+  const disciplinesLangue = (
+    await prisma.discipline.findMany({ where: { id: { in: disciplineIds }, estLangueVivante: true } })
+  ).map((d) => d.id);
+
+  // Chaque discipline non-langue présente dans les quotas doit être
+  // intégralement couverte : la somme des quotas doit égaler exactement
+  // l'effectif de la classe, sinon certains élèves n'auraient pas de créneau
+  // (ou il y en aurait trop) pour cette discipline cette semaine.
   const erreursEffectif: string[] = [];
   for (const disciplineId of disciplineIds) {
+    if (disciplinesLangue.includes(disciplineId)) continue;
     const total = quotas.filter((q) => q.disciplineId === disciplineId).reduce((s, q) => s + q.nombreEleves, 0);
-    if (total !== eleves.length) {
+    if (total > eleves.length || (total < eleves.length && !permettreEffectifPartiel)) {
       const discipline = await prisma.discipline.findUnique({ where: { id: disciplineId } });
       erreursEffectif.push(
         `${discipline?.nom ?? disciplineId} : ${total} élève(s) affecté(s) au total, attendu ${eleves.length}`
+      );
+    }
+  }
+  // Pour le groupe des disciplines "langue" de la semaine (Anglais/LV1 et
+  // Espagnol/Italien/Allemand/LV2 pouvant coexister), la somme des quotas
+  // doit égaler le nombre d'élèves éligibles à au moins l'une d'entre elles
+  // (chacun n'en passe qu'une, quelle que soit sa LV1 ou sa LV2).
+  if (disciplinesLangue.length > 0) {
+    const totalLangue = quotas
+      .filter((q) => disciplinesLangue.includes(q.disciplineId))
+      .reduce((s, q) => s + q.nombreEleves, 0);
+    const elevesEligibles = eleves.filter(
+      (e) => (e.lv1Id && disciplinesLangue.includes(e.lv1Id)) || (e.lv2Id && disciplinesLangue.includes(e.lv2Id))
+    ).length;
+    if (totalLangue > elevesEligibles || (totalLangue < elevesEligibles && !permettreEffectifPartiel)) {
+      erreursEffectif.push(
+        `Langues (${disciplinesLangue.length} discipline(s)) : ${totalLangue} élève(s) affecté(s) au total, ` +
+          `attendu ${elevesEligibles} (élèves dont c'est la LV1 ou la LV2)`
       );
     }
   }
@@ -191,6 +222,7 @@ export async function POST(req: Request) {
     kholleurIds,
     disciplineIds
   );
+  const derniereLangue = await calculerDerniereLangue(eleves);
 
   const solverUrl = process.env.PLANNING_SOLVER_URL;
   if (!solverUrl) {
@@ -206,9 +238,11 @@ export async function POST(req: Request) {
         classeId,
         semaine,
         dateDebutSemaine,
-        eleves,
+        eleves: eleves.map((e) => ({ ...e, lv1DisciplineId: e.lv1Id, lv2DisciplineId: e.lv2Id })),
         quotas: quotasDates,
-        historique,
+        historique: { ...historique, derniereLangue },
+        disciplinesLangue,
+        effectifPartiel: permettreEffectifPartiel,
         callbackUrl: `${process.env.NEXTAUTH_URL}/api/internal/planification/callback`,
         callbackSecret: process.env.PLANNING_CALLBACK_SECRET,
       }),
@@ -335,4 +369,44 @@ async function calculerHistorique(eleveIds: string[], kholleurIds: string[], dis
   const chargeKholleur = Object.fromEntries(chargeParKholleur.map((c) => [c.kholleurId, c._count.id]));
 
   return { eleveKholleur, chargeKholleur, tardifEleve };
+}
+
+// Pour chaque élève ayant LV1 ET LV2, retrouve la langue (LV1 ou LV2) de son
+// tout dernier passage en discipline "langue vivante" publié (toutes
+// disciplines langues confondues, pas seulement celles de cette semaine) :
+// nourrit l'objectif d'alternance du solveur. Sans LV1/LV2 renseignées (cas
+// des L2), l'élève est ignoré — l'alternance ne les concerne pas.
+async function calculerDerniereLangue(
+  eleves: { id: string; lv1Id: string | null; lv2Id: string | null }[]
+): Promise<Record<string, "LV1" | "LV2">> {
+  const eleveIds = eleves.filter((e) => e.lv1Id && e.lv2Id).map((e) => e.id);
+  if (eleveIds.length === 0) return {};
+
+  const passages = await prisma.passage.findMany({
+    where: {
+      eleveId: { in: eleveIds },
+      creneau: { sessionKholle: { discipline: { estLangueVivante: true }, statut: { not: "PLANIFICATION" } } },
+    },
+    select: {
+      eleveId: true,
+      creneau: { select: { sessionKholle: { select: { disciplineId: true, dateDebut: true } } } },
+    },
+  });
+
+  const eleveParId = new Map(eleves.map((e) => [e.id, e]));
+  const plusRecent = new Map<string, Date>();
+  const resultat: Record<string, "LV1" | "LV2"> = {};
+
+  for (const p of passages) {
+    const date = p.creneau.sessionKholle.dateDebut;
+    if ((plusRecent.get(p.eleveId)?.getTime() ?? -Infinity) >= date.getTime()) continue;
+    const eleve = eleveParId.get(p.eleveId)!;
+    const disciplineId = p.creneau.sessionKholle.disciplineId;
+    const type = disciplineId === eleve.lv1Id ? "LV1" : disciplineId === eleve.lv2Id ? "LV2" : null;
+    if (!type) continue;
+    plusRecent.set(p.eleveId, date);
+    resultat[p.eleveId] = type;
+  }
+
+  return resultat;
 }
