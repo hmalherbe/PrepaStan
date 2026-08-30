@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any
 
@@ -73,7 +74,14 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
     # process — d'où le try/except explicite pour au moins la rendre visible
     # au lieu de laisser le job appelant bloqué indéfiniment sur EN_COURS.
     try:
-        result = resoudre(
+        # resoudre() est un calcul CP-SAT synchrone et purement CPU (pas
+        # d'I/O) : l'appeler directement ici bloquerait toute la boucle
+        # asyncio pendant toute sa durée, rendant le service (y compris
+        # /health et un nouveau POST /solve) totalement injoignable le temps
+        # du calcul. `asyncio.to_thread` le déporte sur un thread séparé pour
+        # que le service reste réactif pendant qu'un calcul est en cours.
+        result = await asyncio.to_thread(
+            resoudre,
             eleves=payload.eleves,
             quotas=payload.quotas,
             historique_eleve_kholleur=payload.historique.eleveKholleur,
