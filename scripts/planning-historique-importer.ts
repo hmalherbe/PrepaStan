@@ -79,7 +79,11 @@ async function connexionAdmin(): Promise<string> {
         `(npm run dev) est-il bien lancé et accessible sur ${BASE_URL} ?`
     );
   }
-  const csrfCookie = csrfRes.headers.getSetCookie().find((c) => c.startsWith("next-auth.csrf-token="))?.split(";")[0];
+  // En HTTPS (production), NextAuth préfixe automatiquement ses cookies
+  // (`__Host-next-auth.csrf-token`, `__Secure-next-auth.session-token`) pour
+  // renforcer leur sécurité — d'où `.includes()` plutôt qu'un nom exact, qui
+  // ne matchait qu'en local (http://).
+  const csrfCookie = csrfRes.headers.getSetCookie().find((c) => c.includes("csrf-token="))?.split(";")[0];
   if (!csrfCookie) {
     throw new Error(
       `Aucun cookie CSRF reçu depuis ${BASE_URL}/api/auth/csrf — vérifiez que le serveur Next.js tourne bien ` +
@@ -96,7 +100,7 @@ async function connexionAdmin(): Promise<string> {
   });
   const sessionCookie = loginRes.headers
     .getSetCookie()
-    .find((c) => c.startsWith("next-auth.session-token="))
+    .find((c) => c.includes("session-token="))
     ?.split(";")[0];
   if (!sessionCookie) throw new Error("Échec de connexion admin : vérifiez SEED_ADMIN_EMAIL/PASSWORD");
   return `${csrfCookie}; ${sessionCookie}`;
