@@ -253,12 +253,16 @@ export async function POST(req: Request) {
         callbackUrl: `${process.env.INTERNAL_APP_URL ?? process.env.NEXTAUTH_URL}/api/internal/planification/callback`,
         callbackSecret: process.env.PLANNING_CALLBACK_SECRET,
       }),
-      // Le endpoint /solve répond quasi instantanément (il ne fait que
-      // planifier une tâche de fond) : un délai court suffit largement et
-      // transforme un éventuel blocage réseau silencieux (ex. résolution
-      // "localhost" capricieuse sous Windows) en erreur claire plutôt qu'un
-      // job qui reste EN_COURS indéfiniment sans aucun message.
-      signal: AbortSignal.timeout(10_000),
+      // Le endpoint /solve répond en principe quasi instantanément (il ne
+      // fait que planifier une tâche de fond) : ce délai transforme un
+      // éventuel blocage réseau silencieux (ex. résolution "localhost"
+      // capricieuse sous Windows) en erreur claire plutôt qu'un job qui
+      // reste EN_COURS indéfiniment sans aucun message. Sur un serveur à
+      // faible nombre de coeurs, le solveur peut cependant rester
+      // momentanément peu réactif juste après avoir fini un calcul CP-SAT
+      // précédent (le processus Python reprend la main progressivement) :
+      // 30s laisse cette marge sans pour autant masquer un vrai blocage.
+      signal: AbortSignal.timeout(30_000),
     });
     if (!solveRes.ok) {
       throw new Error(`Le microservice a répondu ${solveRes.status}`);

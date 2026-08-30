@@ -20,6 +20,12 @@ const prisma = new PrismaClient();
 const BASE_URL = process.env.PREPASTAN_URL ?? "http://localhost:3000";
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@prepastan.local";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "changeme";
+// Rejoue uniquement certaines semaines (ex. après un échec ponctuel de
+// soumission au solveur) sans retoucher celles déjà publiées avec succès —
+// format "Classe:semaine" séparés par des virgules, ex. "L2:47,L1:48,L2:48".
+const SEMAINES_A_REJOUER = process.env.SEMAINES_A_REJOUER?.split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 type LigneSource = {
   date: string; // "YYYY-MM-DD"
@@ -251,8 +257,13 @@ async function construireJobs(): Promise<JobSemaine[]> {
 
 async function main() {
   console.log("Construction des jobs à partir des fichiers sources...");
-  const jobs = await construireJobs();
-  console.log(`${jobs.length} semaines à générer (L1+L2 confondues).\n`);
+  let jobs = await construireJobs();
+
+  if (SEMAINES_A_REJOUER && SEMAINES_A_REJOUER.length > 0) {
+    jobs = jobs.filter((j) => SEMAINES_A_REJOUER.includes(`${j.classeNom}:${j.semaine}`));
+    console.log(`Rejeu ciblé (SEMAINES_A_REJOUER) : ${jobs.length} semaine(s) sélectionnée(s).`);
+  }
+  console.log(`${jobs.length} semaine(s) à générer.\n`);
 
   if (process.env.DRY_RUN === "1") {
     for (const j of jobs) {
