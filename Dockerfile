@@ -18,6 +18,9 @@ WORKDIR /app
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Le projet n'a pas de dossier public/ (aucun asset statique), mais Next.js
+# standalone et l'étape suivante s'attendent à ce qu'il existe.
+RUN mkdir -p ./public
 RUN npx prisma generate
 RUN npm run build
 
