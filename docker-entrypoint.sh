@@ -6,6 +6,11 @@
 # redémarrage.
 set -e
 
-npx prisma migrate deploy
+# Exécuté directement via le fichier réel du paquet (et non via le lien
+# symbolique node_modules/.bin/prisma ou npx) : le CLI Prisma résout le
+# chemin de ses fichiers annexes (ex. prisma_schema_build_bg.wasm) à partir
+# de __dirname, qui suit le lien symbolique tel quel dans ce conteneur au
+# lieu d'être résolu vers son vrai dossier.
+node ./node_modules/prisma/build/index.js migrate deploy
 
 exec "$@"
