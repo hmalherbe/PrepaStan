@@ -5,10 +5,10 @@ import { GenererPlanningForm } from "@/components/admin/GenererPlanningForm";
 export default async function PlanificationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ classeId?: string; semaine?: string }>;
+  searchParams: Promise<{ classeId?: string }>;
 }) {
   await requirePageSession(["ADMIN"]);
-  const { classeId: classeIdParam, semaine: semaineParam } = await searchParams;
+  const { classeId: classeIdParam } = await searchParams;
 
   const [classes, salles] = await Promise.all([
     prisma.classe.findMany({
@@ -67,7 +67,6 @@ export default async function PlanificationPage({
         classes={classesAvecDisciplines}
         salles={salles.map((s) => ({ id: s.id, nom: s.nom }))}
         classeIdInitiale={classeIdParam}
-        semaineInitiale={semaineParam ? Number(semaineParam) : undefined}
       />
     </main>
   );

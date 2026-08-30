@@ -35,22 +35,33 @@ function nouvelleCle() {
   return `q${compteurCle}`;
 }
 
+// Numéro de semaine ISO 8601 (jeudi de la semaine contenant `dateISO`) : sert
+// uniquement d'identifiant pour distinguer les plannings successifs d'une
+// même classe, calculé à partir du "Lundi de la semaine à planifier" plutôt
+// que saisi à la main, pour éviter tout risque d'incohérence entre les deux.
+function semaineIso(dateISO: string): number {
+  const d = new Date(`${dateISO}T00:00:00Z`);
+  const jourISO = (d.getUTCDay() + 6) % 7; // lundi = 0 ... dimanche = 6
+  const jeudi = new Date(d);
+  jeudi.setUTCDate(d.getUTCDate() - jourISO + 3);
+  const premierJanvier = Date.UTC(jeudi.getUTCFullYear(), 0, 1);
+  return Math.ceil(((jeudi.getTime() - premierJanvier) / 86_400_000 + 1) / 7);
+}
+
 export function GenererPlanningForm({
   classes,
   salles,
   classeIdInitiale,
-  semaineInitiale,
 }: {
   classes: Classe[];
   salles: Salle[];
   classeIdInitiale?: string;
-  semaineInitiale?: number;
 }) {
   const router = useRouter();
 
   const [classeId, setClasseId] = useState(classeIdInitiale ?? classes[0]?.id ?? "");
-  const [semaine, setSemaine] = useState(semaineInitiale ?? 1);
   const [dateDebutSemaine, setDateDebutSemaine] = useState("");
+  const semaine = useMemo(() => (dateDebutSemaine ? semaineIso(dateDebutSemaine) : null), [dateDebutSemaine]);
   const [quotas, setQuotas] = useState<Quota[]>([]);
   const [jobId, setJobId] = useState<string | null>(null);
   const [statutJob, setStatutJob] = useState<string | null>(null);
@@ -143,6 +154,7 @@ export function GenererPlanningForm({
     disciplinesReferentIncoherent.length === 0;
 
   async function lancer(forcerMalgreIndisponibilites = false) {
+    if (semaine === null) return;
     setStatutJob("EN_COURS");
     setMessageJob(null);
 
@@ -227,17 +239,6 @@ export function GenererPlanningForm({
         </label>
 
         <label>
-          Semaine
-          <input
-            type="number"
-            min={1}
-            value={semaine}
-            onChange={(e) => setSemaine(Number(e.target.value))}
-            disabled={enCours}
-          />
-        </label>
-
-        <label>
           Lundi de la semaine à planifier
           <input
             type="date"
@@ -247,6 +248,12 @@ export function GenererPlanningForm({
             required
           />
         </label>
+
+        {semaine !== null && (
+          <p style={{ color: "#777", fontSize: "0.9rem" }}>
+            Semaine {semaine} (calculée automatiquement à partir de la date ci-dessus)
+          </p>
+        )}
 
         <p style={{ marginTop: 16 }}>
           Quotas par jour / discipline / kholleur — pour chaque ligne, OR-Tools choisira quels

@@ -110,7 +110,7 @@ export function PlanningReview({
         setErreur(data.error ?? "Erreur lors de la suppression");
         return;
       }
-      router.push(`/admin/planification?classeId=${classeId}&semaine=${semaine}`);
+      router.push(`/admin/planification?classeId=${classeId}`);
     } finally {
       setActionEnCours(null);
     }
@@ -189,7 +189,7 @@ export function PlanningReview({
             {actionEnCours === "annuler" ? "Suppression…" : "Annuler"}
           </button>
         )}
-        <Link href={`/admin/planification?classeId=${classeId}&semaine=${semaine}`}>
+        <Link href={`/admin/planification?classeId=${classeId}`}>
           <button type="button" className="secondaire">
             Régénérer
           </button>
