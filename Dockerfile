@@ -36,14 +36,17 @@ COPY --from=builder /app/public ./public
 # réellement utilisées (voir next.config.mjs, output: "standalone").
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Le client Prisma généré (@prisma/client, moteur binaire inclus) est déjà
-# repéré par le traçage automatique du build standalone ci-dessus. Seul le
-# paquet CLI "prisma" ne l'est pas (jamais importé par le code, seulement
-# utilisé en ligne de commande) : copié à la main, nécessaire pour lancer
-# les migrations au démarrage (voir docker-entrypoint.sh).
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-COPY --from=builder /app/prisma ./prisma
+# Le client Prisma généré (.prisma/client, moteur binaire inclus) est déjà
+# repéré par le traçage automatique du build standalone ci-dessus. En
+# revanche, le paquet CLI "prisma" et ses dépendances (@prisma/engines,
+# fetch-engine, get-platform, debug...) ne sont jamais importés par le code
+# de l'appli, seulement utilisés en ligne de commande : ils ne sont donc pas
+# tracés, et doivent être copiés à la main pour pouvoir lancer les
+# migrations au démarrage (voir docker-entrypoint.sh).
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY docker-entrypoint.sh ./
 
 USER nextjs
