@@ -238,6 +238,99 @@ form label {
   margin: 20px 0 8px;
 }
 
+/* ---------- Graphiques en barres (statistiques) ---------- */
+/* Une seule teinte, plus ou moins foncée : encode une magnitude, jamais une
+   catégorie (voir la doc interne sur les graphiques : le séquentiel reste
+   une seule couleur du clair au foncé, jamais un arc-en-ciel). */
+.graphique-barres {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0 20px;
+}
+
+.barre-ligne {
+  display: grid;
+  grid-template-columns: minmax(120px, 200px) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.barre-piste {
+  height: 14px;
+  border-radius: 999px;
+  background: #eef0fb;
+  overflow: hidden;
+}
+
+.barre-remplissage {
+  height: 100%;
+  background: var(--couleur-primaire);
+  border-radius: 999px;
+  min-width: 3px;
+}
+
+.barre-valeur {
+  font-variant-numeric: tabular-nums;
+  color: #555;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.stat-cartes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0 20px;
+}
+
+.stat-carte {
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 8px;
+  padding: 14px 18px;
+  min-width: 140px;
+  flex: 1;
+}
+
+.stat-carte .valeur {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-carte .libelle {
+  font-size: 0.8rem;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+th.triable {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Pour un tableau potentiellement long (ex. détail élève/khôlleur/discipline
+   sur toute une classe) : garde une hauteur raisonnable avec défilement
+   vertical interne, plutôt qu'une page qui s'étire à l'infini. L'en-tête
+   reste visible pendant le défilement (utile avec le tri au clic). */
+.table-hauteur-limitee {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.table-hauteur-limitee thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+th.triable:hover {
+  color: var(--couleur-primaire);
+}
+
 @media (max-width: 640px) {
   .container {
     padding: 16px 12px 48px;
