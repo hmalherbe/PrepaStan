@@ -47,6 +47,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_module
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+# bcryptjs est inliné dans le bundle Next.js (donc utilisable normalement
+# par l'appli), mais pas présent tel quel dans node_modules : copié à la
+# main pour permettre son usage en ligne de commande (ex. création manuelle
+# du compte admin via `docker compose exec app node -e "..."`).
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
 COPY docker-entrypoint.sh ./
 
 USER nextjs
