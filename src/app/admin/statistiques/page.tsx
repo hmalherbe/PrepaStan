@@ -10,6 +10,15 @@ function rangHoraire(heureDebut: string): number {
   return Number(heureDebut.split(":")[0]);
 }
 
+function moyenne(vs: number[]): number {
+  return vs.reduce((a, b) => a + b, 0) / (vs.length || 1);
+}
+
+function ecartType(vs: number[]): number {
+  const m = moyenne(vs);
+  return Math.sqrt(moyenne(vs.map((v) => (v - m) ** 2)));
+}
+
 export default async function StatistiquesPage({
   searchParams,
 }: {
@@ -84,10 +93,13 @@ export default async function StatistiquesPage({
     .map(([id, { nom, rangs }]) => ({
       id,
       nom,
-      moyenne: rangs.reduce((a, b) => a + b, 0) / rangs.length,
+      moyenne: moyenne(rangs),
       nbPassages: rangs.length,
     }))
     .sort((a, b) => b.moyenne - a.moyenne);
+  // Écart-type entre élèves : plus il est bas, plus les heures de passage
+  // sont réparties de façon homogène d'un élève à l'autre sur l'année.
+  const ecartTypeScoreHoraire = ecartType(scoreParEleve.map((s) => s.moyenne));
 
   // ---------- Charge par khôlleur (nombre de créneaux) ----------
   const chargeParKholleur = new Map<string, { nom: string; nbCreneaux: number }>();
@@ -125,7 +137,12 @@ export default async function StatistiquesPage({
   const diversiteDisciplines = [...tauxParDiscipline.entries()]
     .map(([discipline, taux]) => ({
       discipline,
-      tauxMoyen: taux.reduce((a, b) => a + b, 0) / taux.length,
+      // Écart-type calculé sur les taux individuels élève par élève (pas sur
+      // la moyenne des disciplines) : indique si la diversité des khôlleurs
+      // est homogène entre élèves dans cette discipline, ou si certains sont
+      // nettement moins bien lotis que d'autres.
+      tauxMoyen: moyenne(taux),
+      ecartType: ecartType(taux),
     }))
     .sort((a, b) => a.tauxMoyen - b.tauxMoyen);
 
@@ -169,6 +186,7 @@ export default async function StatistiquesPage({
         nbKholleurs={chargeParKholleur.size}
         nbPassages={passages.length}
         scoreParEleve={scoreParEleve}
+        ecartTypeScoreHoraire={ecartTypeScoreHoraire}
         chargeKholleurs={chargeKholleurs}
         diversiteDisciplines={diversiteDisciplines}
         detailEleveKholleur={detailEleveKholleur}

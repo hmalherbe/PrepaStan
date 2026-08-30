@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 type ScoreEleve = { id: string; nom: string; moyenne: number; nbPassages: number };
 type ChargeKholleur = { nom: string; nbCreneaux: number };
-type DiversiteDiscipline = { discipline: string; tauxMoyen: number };
+type DiversiteDiscipline = { discipline: string; tauxMoyen: number; ecartType: number };
 type LigneDetail = { eleveNom: string; kholleurNom: string; disciplineNom: string; nbPassages: number };
 type Classe = { id: string; nom: string };
 
@@ -44,6 +44,7 @@ export function StatistiquesView({
   nbKholleurs,
   nbPassages,
   scoreParEleve,
+  ecartTypeScoreHoraire,
   chargeKholleurs,
   diversiteDisciplines,
   detailEleveKholleur,
@@ -55,6 +56,7 @@ export function StatistiquesView({
   nbKholleurs: number;
   nbPassages: number;
   scoreParEleve: ScoreEleve[];
+  ecartTypeScoreHoraire: number;
   chargeKholleurs: ChargeKholleur[];
   diversiteDisciplines: DiversiteDiscipline[];
   detailEleveKholleur: LigneDetail[];
@@ -142,6 +144,9 @@ export function StatistiquesView({
         Rang horaire moyen (14 = créneaux vers 14h, 18 = créneaux vers 18h) : plus la valeur est basse, plus l&apos;élève
         passe tôt en moyenne. Un bon équilibrage se traduit par des valeurs proches entre élèves. Échelle resserrée
         entre {minScore.toFixed(1)} et {maxScore.toFixed(1)} pour rendre les écarts visibles.
+        <br />
+        <strong>Écart-type entre élèves : {ecartTypeScoreHoraire.toFixed(2)}</strong> (plus c&apos;est bas, plus les
+        heures de passage sont réparties de façon homogène entre élèves).
       </p>
       {scoreParEleve.length === 0 ? (
         <p>Aucun passage publié pour cette classe.</p>
@@ -174,7 +179,8 @@ export function StatistiquesView({
       <h2>Diversité des khôlleurs par discipline</h2>
       <p style={{ color: "#777", fontSize: "0.85rem", marginTop: -8 }}>
         Taux moyen = nombre de khôlleurs distincts vus / nombre de passages, pour les élèves ayant eu au moins 2
-        passages dans la discipline. 100% = jamais deux fois le même khôlleur.
+        passages dans la discipline. 100% = jamais deux fois le même khôlleur. Écart-type entre parenthèses : plus
+        il est bas, plus la diversité est homogène d&apos;un élève à l&apos;autre (pas seulement bonne en moyenne).
       </p>
       {diversiteDisciplines.length === 0 ? (
         <p>Pas assez de données.</p>
@@ -186,7 +192,7 @@ export function StatistiquesView({
               label={d.discipline}
               valeur={d.tauxMoyen * 100}
               max={100}
-              formatValeur={(v) => `${v.toFixed(0)}%`}
+              formatValeur={(v) => `${v.toFixed(0)}% (σ=${(d.ecartType * 100).toFixed(0)}%)`}
             />
           ))}
         </div>
