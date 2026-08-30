@@ -68,9 +68,24 @@ function isoWeekInfo(dateStr: string): { isoWeek: number; monday: string; jourSe
 }
 
 // ---------- Authentification (cookie de session NextAuth) ----------
+// `headers.get("set-cookie")` n'est pas fiable selon la version de Node
+// (renvoie parfois null même quand le cookie est bien présent) : on utilise
+// systématiquement `getSetCookie()`, qui renvoie la liste complète.
 async function connexionAdmin(): Promise<string> {
   const csrfRes = await fetch(`${BASE_URL}/api/auth/csrf`);
-  const csrfCookie = csrfRes.headers.get("set-cookie")!.split(";")[0];
+  if (!csrfRes.ok) {
+    throw new Error(
+      `Impossible de joindre ${BASE_URL}/api/auth/csrf (statut ${csrfRes.status}) — le serveur Next.js ` +
+        `(npm run dev) est-il bien lancé et accessible sur ${BASE_URL} ?`
+    );
+  }
+  const csrfCookie = csrfRes.headers.getSetCookie().find((c) => c.startsWith("next-auth.csrf-token="))?.split(";")[0];
+  if (!csrfCookie) {
+    throw new Error(
+      `Aucun cookie CSRF reçu depuis ${BASE_URL}/api/auth/csrf — vérifiez que le serveur Next.js tourne bien ` +
+        `à cette adresse (définissez PREPASTAN_URL si ce n'est pas http://localhost:3000).`
+    );
+  }
   const { csrfToken } = await csrfRes.json();
 
   const loginRes = await fetch(`${BASE_URL}/api/auth/callback/credentials`, {
