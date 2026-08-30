@@ -23,13 +23,17 @@ Objectifs "soft" (somme pondérée, pondérations ajustables ci-dessous) :
 - équilibrer la charge cumulée des kholleurs (historique inclus)
 - maximiser la diversité des kholleurs vus par un même élève dans une
   discipline (pénalise le fait de retomber sur un kholleur déjà eu)
-- éviter qu'un élève se retrouve systématiquement sur un créneau tardif
-  (pénalise un nouveau créneau tardif proportionnellement au nombre de
-  fois où cet élève a déjà été tardif par le passé)
+- équilibrer les heures de passage : chaque créneau a un "rang horaire"
+  d'autant plus élevé qu'il commence tard dans la journée (rang = minutes
+  depuis minuit / durée d'un créneau), cumulé par élève au fil de l'année ;
+  minimise le cumul du plus mal loti, comme pour la charge des kholleurs,
+  plutôt que de juste pénaliser un seuil "tardif" binaire — un élève souvent
+  à 14h et un autre souvent à 18h ont un score très différent même si aucun
+  des deux n'a jamais dépassé un seuil arbitraire.
 
-Ces trois objectifs ont des unités différentes (nombre de créneaux vs
-nombre de répétitions vs nombre d'occurrences tardives) : leur pondération
-relative est une heuristique de départ, à ajuster empiriquement.
+Ces objectifs ont des unités différentes (nombre de créneaux vs nombre de
+répétitions vs rang horaire cumulé) : leur pondération relative est une
+heuristique de départ, à ajuster empiriquement.
 """
 
 # Nécessaire pour rester compatible Python 3.9 : sans ceci, la syntaxe
@@ -54,10 +58,6 @@ POIDS_EQUILIBRAGE_HORAIRE = 1
 # historiques ne permettent pas une alternance parfaite pour tout le monde.
 POIDS_ALTERNANCE_LANGUE = 1000
 
-# Un créneau démarrant à partir de cette heure est considéré "tardif" pour
-# l'objectif d'équilibrage des horaires de passage.
-SEUIL_TARDIF_MINUTES = 17 * 60
-
 
 @dataclass
 class Slot:
@@ -80,6 +80,16 @@ class SolveResult:
 def _minutes(hhmm: str) -> int:
     h, m = hhmm.split(":")
     return int(h) * 60 + int(m)
+
+
+def _rang_horaire(debut_minutes: int) -> int:
+    """Rang entier d'autant plus élevé que le créneau commence tard dans la
+    journée (14h → 14, 18h30 → 18, etc.) : sert de "numéro" croissant avec
+    l'horaire pour cumuler un score comparable d'une semaine à l'autre,
+    plutôt qu'un simple seuil tardif/pas tardif. Granularité à l'heure
+    (plutôt qu'à la minute ou au créneau) pour rester du même ordre de
+    grandeur que les autres objectifs (nombre de créneaux, de répétitions)."""
+    return debut_minutes // 60
 
 
 def generer_slots_candidats(quotas: list[dict], duree_creneau_minutes: int) -> list[Slot]:
@@ -109,7 +119,7 @@ def resoudre(
     quotas: list[dict],
     historique_eleve_kholleur: dict[str, int] | None = None,
     historique_charge_kholleur: dict[str, int] | None = None,
-    historique_tardif_eleve: dict[str, int] | None = None,
+    historique_score_horaire_eleve: dict[str, int] | None = None,
     disciplines_langue: set[str] | None = None,
     historique_derniere_langue: dict[str, str] | None = None,
     effectif_partiel: bool = False,
@@ -130,7 +140,7 @@ def resoudre(
     """
     historique_eleve_kholleur = historique_eleve_kholleur or {}
     historique_charge_kholleur = historique_charge_kholleur or {}
-    historique_tardif_eleve = historique_tardif_eleve or {}
+    historique_score_horaire_eleve = historique_score_horaire_eleve or {}
     disciplines_langue = disciplines_langue or set()
     historique_derniere_langue = historique_derniere_langue or {}
     disciplines_semaine = sorted({q["disciplineId"] for q in quotas})
@@ -252,16 +262,27 @@ def resoudre(
     diversite_penalite = sum(termes_diversite) if termes_diversite else 0
 
     # --- Objectif 3 : équilibrer les horaires de passage --------------------
-    # Pénalise un créneau tardif pour un élève déjà souvent tombé tard,
-    # proportionnellement au nombre de fois où c'est déjà arrivé.
-    termes_horaire = []
-    for (eleve_id, s_idx), var in presence.items():
-        slot = slots[s_idx]
-        if slot.debut_minutes >= SEUIL_TARDIF_MINUTES:
-            deja_tardif = historique_tardif_eleve.get(eleve_id, 0)
-            if deja_tardif:
-                termes_horaire.append(deja_tardif * var)
-    horaire_penalite = sum(termes_horaire) if termes_horaire else 0
+    # score_horaire_max borne le rang horaire cumulé d'un élève, historique
+    # inclus (même principe que charge_max pour les kholleurs juste
+    # au-dessus) : minimiser son maximum pousse à ne pas laisser un même
+    # élève accumuler les créneaux tardifs semaine après semaine, sans se
+    # limiter à un seuil binaire "tardif ou pas".
+    rangs_semaine = [_rang_horaire(slot.debut_minutes) for slot in slots]
+    rang_historique_max = max(historique_score_horaire_eleve.values(), default=0)
+    score_horaire_max = model.NewIntVar(
+        0, rang_historique_max + len(disciplines_semaine) * max(rangs_semaine, default=0), "score_horaire_max"
+    )
+    for e in eleves:
+        vars_e = [
+            (key, var) for key, var in presence.items() if key[0] == e["id"]
+        ]
+        if not vars_e:
+            continue
+        model.Add(
+            score_horaire_max
+            >= historique_score_horaire_eleve.get(e["id"], 0)
+            + sum(rangs_semaine[s_idx] * var for (_, s_idx), var in vars_e)
+        )
 
     # --- Objectif 4 : alternance LV1/LV2 d'une semaine sur l'autre ---------
     # Ne s'applique qu'aux élèves ayant à la fois une LV1 et une LV2 (donc en
@@ -290,7 +311,7 @@ def resoudre(
         POIDS_ALTERNANCE_LANGUE * alternance_penalite
         + POIDS_EQUILIBRAGE_KHOLLEUR * charge_max
         + POIDS_DIVERSITE_KHOLLEUR * diversite_penalite
-        + POIDS_EQUILIBRAGE_HORAIRE * horaire_penalite
+        + POIDS_EQUILIBRAGE_HORAIRE * score_horaire_max
     )
 
     solver = cp_model.CpSolver()

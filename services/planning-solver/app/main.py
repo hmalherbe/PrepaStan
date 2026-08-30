@@ -18,8 +18,10 @@ class Historique(BaseModel):
     # kholleurId -> nombre de créneaux déjà assignés, toutes classes/semaines
     # publiées confondues.
     chargeKholleur: dict[str, int] = {}
-    # eleveId -> nombre de fois déjà affecté à un créneau tardif.
-    tardifEleve: dict[str, int] = {}
+    # eleveId -> somme des rangs horaires (heure de début // 60) déjà reçus,
+    # toutes disciplines/semaines publiées confondues — alimente l'objectif
+    # d'équilibrage des horaires de passage (voir resoudre() dans solver.py).
+    scoreHoraireEleve: dict[str, int] = {}
     # eleveId -> "LV1" ou "LV2" selon la langue de son dernier passage en
     # langue vivante (toutes disciplines langues confondues) ; alimente
     # l'objectif d'alternance LV1/LV2 (voir solver.py).
@@ -76,7 +78,7 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
             quotas=payload.quotas,
             historique_eleve_kholleur=payload.historique.eleveKholleur,
             historique_charge_kholleur=payload.historique.chargeKholleur,
-            historique_tardif_eleve=payload.historique.tardifEleve,
+            historique_score_horaire_eleve=payload.historique.scoreHoraireEleve,
             disciplines_langue=set(payload.disciplinesLangue),
             historique_derniere_langue=payload.historique.derniereLangue,
             effectif_partiel=payload.effectifPartiel,

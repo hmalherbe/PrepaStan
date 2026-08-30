@@ -20,11 +20,16 @@ function stats(vs: number[], label: string) {
   }
   console.log(
     `  ${label} : moyenne=${moyenne(vs).toFixed(2)}  écart-type=${ecartType(vs).toFixed(2)}  ` +
-      `min=${Math.min(...vs)}  max=${Math.max(...vs)}  (n=${vs.length})`
+      `min=${Math.min(...vs).toFixed(2)}  max=${Math.max(...vs).toFixed(2)}  (n=${vs.length})`
   );
 }
 
-const SEUIL_TARDIF = "17:00";
+// Même calcul que _rang_horaire() côté solveur (solver.py) et rangHoraire()
+// côté API (jobs/route.ts) : un nombre d'autant plus élevé que le créneau
+// commence tard dans la journée.
+function rangHoraire(heureDebut: string): number {
+  return Number(heureDebut.split(":")[0]);
+}
 
 async function main() {
   const passages = await prisma.passage.findMany({
@@ -56,20 +61,25 @@ async function main() {
   console.log(`${passages.length} passages au total (L1+L2, hors brouillons).\n`);
 
   // ---------- 1. Équirépartition des horaires de passage ----------
+  // Rang horaire moyen par élève (14h -> 14, 18h30 -> 18) plutôt qu'un
+  // simple compte de créneaux "tardifs" (>= 17h) : deux élèves qui ne
+  // dépassent jamais 17h peuvent quand même avoir des journées très
+  // différentes (systématiquement 14h vs systématiquement 16h45), ce que le
+  // rang moyen capture et pas un seuil binaire. Un écart-type faible entre
+  // élèves = les heures de passage sont bien réparties, pas concentrées sur
+  // certains élèves.
   console.log("=== 1. Équirépartition des heures de passage ===");
-  console.log("(nombre de créneaux tardifs >= 17h reçus par élève sur toute la période)");
+  console.log("(rang horaire moyen par élève : 14 = créneaux vers 14h, 18 = créneaux vers 18h)");
   for (const classeNom of ["L1", "L2"]) {
-    const parEleve = new Map<string, number>();
-    const totalParEleve = new Map<string, number>();
+    const rangsParEleve = new Map<string, number[]>();
     for (const p of passages) {
       if (p.eleve.classe.nom !== classeNom) continue;
-      totalParEleve.set(p.eleve.id, (totalParEleve.get(p.eleve.id) ?? 0) + 1);
-      if (p.creneau.heureDebut >= SEUIL_TARDIF) {
-        parEleve.set(p.eleve.id, (parEleve.get(p.eleve.id) ?? 0) + 1);
-      }
+      const liste = rangsParEleve.get(p.eleve.id) ?? [];
+      liste.push(rangHoraire(p.creneau.heureDebut));
+      rangsParEleve.set(p.eleve.id, liste);
     }
-    const valeurs = [...totalParEleve.keys()].map((id) => parEleve.get(id) ?? 0);
-    stats(valeurs, `${classeNom} — créneaux tardifs par élève`);
+    const moyennesParEleve = [...rangsParEleve.values()].map((rangs) => moyenne(rangs));
+    stats(moyennesParEleve, `${classeNom} — rang horaire moyen par élève`);
   }
 
   // ---------- 2. Diversité des khôlleurs vus par élève ----------

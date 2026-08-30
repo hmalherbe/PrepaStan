@@ -328,9 +328,13 @@ function expanserDisponibilites(brutes: DisponibiliteBrute[], dateDebutSemaine: 
   return resultat;
 }
 
-// Au-delà de cette heure, un créneau est considéré "tardif" pour
-// l'équilibrage des horaires de passage (voir calculerHistorique ci-dessous).
-const SEUIL_TARDIF = "17:00";
+// Rang entier d'autant plus élevé que le créneau commence tard dans la
+// journée (14h -> 14, 18h30 -> 18) : même calcul que _rang_horaire() côté
+// solveur (solver.py), pour que le cumul historique et celui de la semaine
+// en cours soient sur la même échelle.
+function rangHoraire(heureDebut: string): number {
+  return Number(heureDebut.split(":")[0]);
+}
 
 // Agrège l'historique des khôlles déjà publiées (PLANIFIEE ou CLOTUREE, donc
 // hors brouillon en cours) pour nourrir les objectifs "soft" du solveur :
@@ -351,14 +355,12 @@ async function calculerHistorique(eleveIds: string[], kholleurIds: string[], dis
   });
 
   const eleveKholleur: Record<string, number> = {};
-  const tardifEleve: Record<string, number> = {};
+  const scoreHoraireEleve: Record<string, number> = {};
 
   for (const p of passagesHistoriques) {
     const cle = `${p.eleveId}|${p.creneau.sessionKholle.disciplineId}|${p.creneau.kholleurId}`;
     eleveKholleur[cle] = (eleveKholleur[cle] ?? 0) + 1;
-    if (p.creneau.heureDebut >= SEUIL_TARDIF) {
-      tardifEleve[p.eleveId] = (tardifEleve[p.eleveId] ?? 0) + 1;
-    }
+    scoreHoraireEleve[p.eleveId] = (scoreHoraireEleve[p.eleveId] ?? 0) + rangHoraire(p.creneau.heureDebut);
   }
 
   const chargeParKholleur = await prisma.creneau.groupBy({
@@ -368,7 +370,7 @@ async function calculerHistorique(eleveIds: string[], kholleurIds: string[], dis
   });
   const chargeKholleur = Object.fromEntries(chargeParKholleur.map((c) => [c.kholleurId, c._count.id]));
 
-  return { eleveKholleur, chargeKholleur, tardifEleve };
+  return { eleveKholleur, chargeKholleur, scoreHoraireEleve };
 }
 
 // Pour chaque élève ayant LV1 ET LV2, retrouve la langue (LV1 ou LV2) de son
