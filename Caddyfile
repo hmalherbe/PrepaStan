@@ -1,0 +1,9 @@
+# Reverse proxy de production : HTTPS automatique (Let's Encrypt), certificat
+# obtenu et renouvelé tout seul dès que le nom de domaine pointe bien vers ce
+# serveur (voir docker-compose.prod.yml).
+#
+# Remplacez "prepastan.fr" par votre vrai nom de domaine avant le premier
+# déploiement.
+prepastan.fr {
+	reverse_proxy app:3000
+}

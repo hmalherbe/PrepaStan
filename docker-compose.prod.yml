@@ -1,0 +1,59 @@
+# Déploiement de production (VPS + nom de domaine), à la différence du
+# docker-compose.yml de dev (qui ne conteneurise que la base et,
+# optionnellement, le solveur — l'appli Next.js tourne en `npm run dev` sur
+# la machine). Ici tout tourne en conteneurs, derrière Caddy qui gère le
+# HTTPS automatiquement (certificat Let's Encrypt).
+#
+# Usage sur le serveur :
+#   cp .env.production.example .env   # puis renseigner les vraies valeurs
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Mise à jour après un `git pull` :
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   (les migrations Prisma s'appliquent automatiquement au démarrage du
+#   conteneur "app", voir docker-entrypoint.sh)
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: prepastan
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: prepastan
+    volumes:
+      - prepastan-db-data:/var/lib/postgresql/data
+    # Pas de port publié vers l'extérieur : seule l'appli (sur le même
+    # réseau Docker interne) doit pouvoir s'y connecter.
+
+  planning-solver:
+    build: ./services/planning-solver
+    restart: unless-stopped
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+      - planning-solver
+    env_file:
+      - .env
+    # Le port 3000 n'est pas publié directement sur l'hôte : Caddy s'en
+    # charge en reverse proxy devant (voir Caddyfile).
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  prepastan-db-data:
+  caddy-data:
+  caddy-config:

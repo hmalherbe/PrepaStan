@@ -243,7 +243,14 @@ export async function POST(req: Request) {
         historique: { ...historique, derniereLangue },
         disciplinesLangue,
         effectifPartiel: permettreEffectifPartiel,
-        callbackUrl: `${process.env.NEXTAUTH_URL}/api/internal/planification/callback`,
+        // En Docker de production, le solveur doit rappeler l'appli via le
+        // réseau interne (ex. http://app:3000), pas via le nom de domaine
+        // public : selon l'hébergeur, un conteneur ne peut pas forcément se
+        // "rappeler lui-même" via l'IP publique du serveur ("hairpin NAT").
+        // INTERNAL_APP_URL n'a donc besoin d'être défini qu'en prod ; en
+        // développement (solveur et appli sur le même hôte), NEXTAUTH_URL
+        // convient déjà tel quel.
+        callbackUrl: `${process.env.INTERNAL_APP_URL ?? process.env.NEXTAUTH_URL}/api/internal/planification/callback`,
         callbackSecret: process.env.PLANNING_CALLBACK_SECRET,
       }),
       // Le endpoint /solve répond quasi instantanément (il ne fait que
