@@ -1,6 +1,7 @@
 import { requirePageSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { KholleursForm } from "@/components/admin/KholleursForm";
+import { ImportCsv } from "@/components/admin/ImportCsv";
 
 export default async function KholleursPage() {
   await requirePageSession(["ADMIN"]);
@@ -17,6 +18,11 @@ export default async function KholleursPage() {
   return (
     <main className="container">
       <h1>Kholleurs</h1>
+      <ImportCsv
+        endpoint="/api/admin/kholleurs/import"
+        colonnes="nom, prenom, email, disciplines"
+        exemple={"nom,prenom,email,disciplines\nMartin,Paul,paul.martin@exemple.fr,Maths;Physique"}
+      />
       <KholleursForm
         kholleursInitiaux={kholleurs.map((k) => ({
           id: k.id,

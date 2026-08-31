@@ -126,7 +126,7 @@ export function PlanningReview({
 
   return (
     <div>
-      <p className={`badge ${estBrouillon ? "badge-attente" : "badge-succes"}`}>
+      <p className={`badge no-print ${estBrouillon ? "badge-attente" : "badge-succes"}`}>
         {estBrouillon ? "Brouillon — non publié" : "Publié"}
       </p>
 
@@ -143,7 +143,7 @@ export function PlanningReview({
                 <th>Kholleur</th>
                 <th>Salle</th>
                 <th>Élèves</th>
-                {estBrouillon && <th></th>}
+                {estBrouillon && <th className="no-print"></th>}
               </tr>
             </thead>
             <tbody>
@@ -167,7 +167,7 @@ export function PlanningReview({
                     <td>{c.salleNom}</td>
                     <td>{c.eleves.join(", ")}</td>
                     {estBrouillon && (
-                      <td>
+                      <td className="no-print">
                         <button className="discret" onClick={() => setEnEdition(c.id)}>
                           Modifier
                         </button>
@@ -181,9 +181,9 @@ export function PlanningReview({
         </div>
       ))}
 
-      {erreur && <p className="champ-erreur">{erreur}</p>}
+      {erreur && <p className="champ-erreur no-print">{erreur}</p>}
 
-      <p style={{ marginTop: 20, display: "flex", gap: 12, alignItems: "center" }}>
+      <p className="no-print" style={{ marginTop: 20, display: "flex", gap: 12, alignItems: "center" }}>
         {estBrouillon && (
           <button className="discret" onClick={annuler} disabled={actionEnCours !== null}>
             {actionEnCours === "annuler" ? "Suppression…" : "Annuler"}
@@ -199,9 +199,12 @@ export function PlanningReview({
             {actionEnCours === "publier" ? "Publication…" : "Publier le planning"}
           </button>
         )}
+        <button type="button" className="secondaire" onClick={() => window.print()}>
+          Imprimer
+        </button>
       </p>
       {!estBrouillon && (
-        <p className="champ-erreur">
+        <p className="champ-erreur no-print">
           Ce planning est déjà publié. Le régénérer remplacera les créneaux actuels et repassera la
           session en brouillon — pensez à republier ensuite, et notez que les notes déjà saisies pour
           ces créneaux seraient perdues.

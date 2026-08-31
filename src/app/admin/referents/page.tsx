@@ -1,6 +1,7 @@
 import { requirePageSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ReferentsForm } from "@/components/admin/ReferentsForm";
+import { ImportCsv } from "@/components/admin/ImportCsv";
 
 export default async function ReferentsPage() {
   await requirePageSession(["ADMIN"]);
@@ -25,6 +26,11 @@ export default async function ReferentsPage() {
   return (
     <main className="container">
       <h1>Professeurs référents</h1>
+      <ImportCsv
+        endpoint="/api/admin/referents/import"
+        colonnes="classe, discipline, nom, prenom, email"
+        exemple={"classe,discipline,nom,prenom,email\nL1,Maths,Durand,Sophie,sophie.durand@exemple.fr"}
+      />
       <ReferentsForm
         referentsInitiaux={referents.map((r) => ({
           id: r.id,

@@ -1,6 +1,7 @@
 import { requirePageSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ElevesForm } from "@/components/admin/ElevesForm";
+import { ImportCsv } from "@/components/admin/ImportCsv";
 
 export default async function ElevesPage() {
   await requirePageSession(["ADMIN"]);
@@ -22,6 +23,11 @@ export default async function ElevesPage() {
   return (
     <main className="container">
       <h1>Étudiants</h1>
+      <ImportCsv
+        endpoint="/api/admin/eleves/import"
+        colonnes="classe, nom, prenom, lv1, lv2, email"
+        exemple={"classe,nom,prenom,lv1,lv2,email\nL1,Dupont,Marie,Anglais,Espagnol,marie.dupont@exemple.fr"}
+      />
       <ElevesForm
         elevesInitiaux={eleves.map((e) => ({
           id: e.id,

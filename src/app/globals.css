@@ -375,3 +375,23 @@ th.triable:hover {
     display: flex;
   }
 }
+
+/* Impression du planning (voir PlanningReview.tsx) : masque tout le chrome
+   applicatif (navigation, boutons d'action, badges) pour n'imprimer que le
+   contenu utile — titre de la page + tableaux des créneaux. */
+@media print {
+  .navbar,
+  .no-print {
+    display: none !important;
+  }
+
+  body,
+  main.container {
+    background: #fff;
+    color: #000;
+  }
+
+  table {
+    page-break-inside: avoid;
+  }
+}
