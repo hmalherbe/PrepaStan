@@ -8,14 +8,22 @@ export default async function NotesElevePage() {
   const eleve = await prisma.eleve.findUnique({ where: { utilisateurId: session.user.id } });
   if (!eleve) notFound();
 
+  // Les khôlles déjà passées sont listées dès leur publication (pas
+  // seulement une fois entièrement validées) pour que l'élève voie que sa
+  // khôlle a bien eu lieu, avec un statut "En attente" tant que le
+  // kholleur/référent n'a pas terminé — plutôt que de la faire disparaître
+  // entièrement jusqu'à validation complète.
   const passages = await prisma.passage.findMany({
     where: {
       eleveId: eleve.id,
-      creneau: { sessionKholle: { validationReferent: { statut: "VALIDE" } } },
+      creneau: {
+        date: { lte: new Date() },
+        sessionKholle: { statut: { not: "PLANIFICATION" } },
+      },
     },
     include: {
       note: { select: { valeur: true, appreciation: true, fichierNom: true } },
-      creneau: { include: { sessionKholle: { include: { discipline: true } } } },
+      creneau: { include: { sessionKholle: { include: { discipline: true, validationReferent: true } } } },
     },
     orderBy: [{ creneau: { date: "desc" } }],
   });
@@ -35,27 +43,38 @@ export default async function NotesElevePage() {
           </tr>
         </thead>
         <tbody>
-          {passages.map((p) => (
-            <tr key={p.id}>
-              <td>{p.creneau.sessionKholle.semaine}</td>
-              <td>{p.creneau.sessionKholle.discipline.nom}</td>
-              <td>{p.creneau.date.toLocaleDateString("fr-FR")}</td>
-              <td>{p.note?.valeur ? Number(p.note.valeur) : "—"}</td>
-              <td>{p.note?.appreciation || "—"}</td>
-              <td>
-                {p.note?.fichierNom ? (
-                  <a href={`/api/passages/${p.id}/fichier`} target="_blank" rel="noreferrer">
-                    {p.note.fichierNom}
-                  </a>
+          {passages.map((p) => {
+            const valide = p.creneau.sessionKholle.validationReferent?.statut === "VALIDE";
+            return (
+              <tr key={p.id}>
+                <td>{p.creneau.sessionKholle.semaine}</td>
+                <td>{p.creneau.sessionKholle.discipline.nom}</td>
+                <td>{p.creneau.date.toLocaleDateString("fr-FR")}</td>
+                {valide ? (
+                  <>
+                    <td>{p.note?.valeur ? Number(p.note.valeur) : "—"}</td>
+                    <td>{p.note?.appreciation || "—"}</td>
+                    <td>
+                      {p.note?.fichierNom ? (
+                        <a href={`/api/passages/${p.id}/fichier`} target="_blank" rel="noreferrer">
+                          {p.note.fichierNom}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </>
                 ) : (
-                  "—"
+                  <td colSpan={3} style={{ color: "#777" }}>
+                    En attente
+                  </td>
                 )}
-              </td>
-            </tr>
-          ))}
+              </tr>
+            );
+          })}
           {passages.length === 0 && (
             <tr>
-              <td colSpan={6}>Aucune note publiée pour le moment.</td>
+              <td colSpan={6}>Aucune khôlle passée pour le moment.</td>
             </tr>
           )}
         </tbody>

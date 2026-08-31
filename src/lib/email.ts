@@ -75,3 +75,42 @@ export async function envoyerEmailPublicationPlanning({
     console.error(`Échec de l'envoi de l'email de publication à ${destinataire} :`, err);
   }
 }
+
+// Rappel envoyé à un kholleur qui n'a pas encore validé sa grille de
+// notation pour une session déjà khôllée, passé le délai configuré dans
+// Paramètres (voir src/lib/rappelsNotation.ts). N'échoue jamais bruyamment,
+// comme envoyerEmailPublicationPlanning ci-dessus.
+export async function envoyerEmailRappelNotation({
+  destinataire,
+  nomKholleur,
+  classeNom,
+  disciplineNom,
+  semaine,
+}: {
+  destinataire: string;
+  nomKholleur: string;
+  classeNom: string;
+  disciplineNom: string;
+  semaine: number;
+}): Promise<void> {
+  if (!resend) {
+    console.warn(`RESEND_API_KEY non configuré : email de rappel non envoyé à ${destinataire}`);
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: EXPEDITEUR,
+      to: destinataire,
+      subject: `PrepaStan — Rappel : notes à saisir (${disciplineNom}, ${classeNom} semaine ${semaine})`,
+      html: `
+        <p>Bonjour ${nomKholleur},</p>
+        <p>Les notes et appréciations de vos khôlles de ${disciplineNom} pour la classe ${classeNom}
+        (semaine ${semaine}) n'ont pas encore été saisies.</p>
+        <p>Connectez-vous à PrepaStan pour compléter votre grille de notation dès que possible.</p>
+      `,
+    });
+  } catch (err) {
+    console.error(`Échec de l'envoi de l'email de rappel à ${destinataire} :`, err);
+  }
+}

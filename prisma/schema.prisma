@@ -305,3 +305,29 @@ model PlanificationJob {
   dateFin     DateTime?
   message     String?
 }
+
+// ---------- Paramètres globaux de l'application ----------
+
+// Table à une seule ligne (id toujours "singleton") : évite d'inventer un
+// magasin clé/valeur générique pour un unique réglage aujourd'hui, tout en
+// restant facile à étendre avec d'autres colonnes plus tard.
+model ParametresApplication {
+  id                           String @id @default("singleton")
+  // Nombre de jours après la khôlle avant d'envoyer un email de rappel au
+  // kholleur s'il n'a pas encore saisi note/appréciation (0 = envoi
+  // immédiat dès le lendemain de la khôlle). Voir src/lib/rappelsNotation.ts.
+  delaiEnvoiMailsNotationJours Int    @default(0)
+}
+
+// Empêche de renvoyer plusieurs fois le même rappel à un kholleur pour une
+// même session — une ligne est créée dès qu'un rappel est envoyé, jamais
+// supprimée (même si le kholleur valide ensuite : inutile de la garder pour
+// la logique d'envoi, mais elle ne gêne pas non plus).
+model RappelNotationEnvoye {
+  id              String   @id @default(cuid())
+  sessionKholleId String
+  kholleurId      String
+  dateEnvoi       DateTime @default(now())
+
+  @@unique([sessionKholleId, kholleurId])
+}

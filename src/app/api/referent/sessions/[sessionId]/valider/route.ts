@@ -27,9 +27,19 @@ export async function POST(
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
-  const grillesNonValidees = await prisma.validationGrille.count({
-    where: { sessionKholleId, statut: { not: "VALIDE" } },
+  // ValidationGrille n'est créée qu'au moment où un kholleur valide sa
+  // grille (jamais en EN_ATTENTE à l'avance) : compter les lignes non-VALIDE
+  // ne détecterait donc jamais un kholleur qui n'a simplement rien fait —
+  // il faut comparer aux kholleurs réellement affectés à cette session.
+  const kholleursAffectes = await prisma.creneau.findMany({
+    where: { sessionKholleId },
+    select: { kholleurId: true },
+    distinct: ["kholleurId"],
   });
+  const validationsFaites = await prisma.validationGrille.count({
+    where: { sessionKholleId, kholleurId: { in: kholleursAffectes.map((k) => k.kholleurId) }, statut: "VALIDE" },
+  });
+  const grillesNonValidees = kholleursAffectes.length - validationsFaites;
 
   if (grillesNonValidees > 0) {
     return NextResponse.json(
