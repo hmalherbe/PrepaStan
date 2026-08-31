@@ -9,6 +9,7 @@ import { ANNEE_SCOLAIRE_COOKIE } from "@/lib/anneeScolaire";
 const LIENS_PAR_ROLE: Record<string, { href: string; label: string }[]> = {
   ADMIN: [
     { href: "/admin/planification", label: "Planification" },
+    { href: "/admin/planification/historique", label: "Historique" },
     { href: "/admin/classes", label: "Classes" },
     { href: "/admin/eleves", label: "Étudiants" },
     { href: "/admin/disciplines", label: "Disciplines" },
