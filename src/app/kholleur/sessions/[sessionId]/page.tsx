@@ -22,7 +22,10 @@ export default async function GrilleKholleurPage({
     where: { sessionKholleId: sessionId, kholleurId },
     include: {
       salle: true,
-      passages: { include: { eleve: true, note: true }, orderBy: { ordre: "asc" } },
+      passages: {
+        include: { eleve: true, note: { select: { valeur: true, appreciation: true, fichierNom: true } } },
+        orderBy: { ordre: "asc" },
+      },
     },
     orderBy: [{ date: "asc" }, { heureDebut: "asc" }],
   });
@@ -41,6 +44,7 @@ export default async function GrilleKholleurPage({
       salle: c.salle.nom,
       valeur: p.note?.valeur ? Number(p.note.valeur) : null,
       appreciation: p.note?.appreciation ?? "",
+      fichierNom: p.note?.fichierNom ?? null,
     }))
   );
 

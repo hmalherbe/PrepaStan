@@ -11,9 +11,12 @@ type Ligne = {
   salle: string;
   valeur: number | null;
   appreciation: string;
+  fichierNom: string | null;
 };
 
 type EtatSauvegarde = "idle" | "saving" | "saved" | "error";
+
+const TYPES_FICHIER_ACCEPTES = ".pdf,.doc,.docx";
 
 export function GrilleForm({
   sessionId,
@@ -31,6 +34,8 @@ export function GrilleForm({
   const [etats, setEtats] = useState<Record<string, EtatSauvegarde>>({});
   const [erreurValidation, setErreurValidation] = useState<string | null>(null);
   const [validationEnCours, setValidationEnCours] = useState(false);
+  const [etatsFichier, setEtatsFichier] = useState<Record<string, EtatSauvegarde>>({});
+  const [erreursFichier, setErreursFichier] = useState<Record<string, string>>({});
 
   function majLigne(passageId: string, champ: "valeur" | "appreciation", val: string) {
     setLignes((prev) =>
@@ -54,6 +59,41 @@ export function GrilleForm({
       setEtats((prev) => ({ ...prev, [ligne.passageId]: "saved" }));
     } catch {
       setEtats((prev) => ({ ...prev, [ligne.passageId]: "error" }));
+    }
+  }
+
+  async function televerserFichier(passageId: string, fichier: File) {
+    setEtatsFichier((prev) => ({ ...prev, [passageId]: "saving" }));
+    setErreursFichier((prev) => ({ ...prev, [passageId]: "" }));
+    try {
+      const corps = new FormData();
+      corps.append("fichier", fichier);
+      const res = await fetch(`/api/passages/${passageId}/fichier`, { method: "POST", body: corps });
+      const data = await res.json();
+      if (!res.ok) {
+        setErreursFichier((prev) => ({ ...prev, [passageId]: data.error ?? "Erreur lors de l'envoi" }));
+        setEtatsFichier((prev) => ({ ...prev, [passageId]: "error" }));
+        return;
+      }
+      setLignes((prev) => prev.map((l) => (l.passageId === passageId ? { ...l, fichierNom: data.fichierNom } : l)));
+      setEtatsFichier((prev) => ({ ...prev, [passageId]: "saved" }));
+    } catch {
+      setEtatsFichier((prev) => ({ ...prev, [passageId]: "error" }));
+    }
+  }
+
+  async function supprimerFichier(passageId: string) {
+    setEtatsFichier((prev) => ({ ...prev, [passageId]: "saving" }));
+    try {
+      const res = await fetch(`/api/passages/${passageId}/fichier`, { method: "DELETE" });
+      if (!res.ok) {
+        setEtatsFichier((prev) => ({ ...prev, [passageId]: "error" }));
+        return;
+      }
+      setLignes((prev) => prev.map((l) => (l.passageId === passageId ? { ...l, fichierNom: null } : l)));
+      setEtatsFichier((prev) => ({ ...prev, [passageId]: "idle" }));
+    } catch {
+      setEtatsFichier((prev) => ({ ...prev, [passageId]: "error" }));
     }
   }
 
@@ -94,6 +134,7 @@ export function GrilleForm({
             <th>Salle</th>
             <th>Note</th>
             <th>Appréciation</th>
+            <th>Pièce jointe</th>
             <th></th>
           </tr>
         </thead>
@@ -129,6 +170,47 @@ export function GrilleForm({
                   onChange={(e) => majLigne(l.passageId, "appreciation", e.target.value)}
                   onBlur={() => enregistrerLigne(l)}
                 />
+              </td>
+              <td>
+                {l.fichierNom ? (
+                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <a href={`/api/passages/${l.passageId}/fichier`} target="_blank" rel="noreferrer">
+                      {l.fichierNom}
+                    </a>
+                    {!valide && (
+                      <button
+                        type="button"
+                        className="discret"
+                        onClick={() => supprimerFichier(l.passageId)}
+                        disabled={etatsFichier[l.passageId] === "saving"}
+                      >
+                        Retirer
+                      </button>
+                    )}
+                  </span>
+                ) : (
+                  !valide && (
+                    <input
+                      type="file"
+                      accept={TYPES_FICHIER_ACCEPTES}
+                      style={{ width: 160, fontSize: "0.85rem" }}
+                      disabled={etatsFichier[l.passageId] === "saving"}
+                      onChange={(e) => {
+                        const fichier = e.target.files?.[0];
+                        if (fichier) televerserFichier(l.passageId, fichier);
+                        e.target.value = "";
+                      }}
+                    />
+                  )
+                )}
+                {etatsFichier[l.passageId] === "saving" && (
+                  <div style={{ fontSize: "0.8rem", color: "#777" }}>Envoi…</div>
+                )}
+                {etatsFichier[l.passageId] === "error" && (
+                  <div className="champ-erreur" style={{ fontSize: "0.8rem" }}>
+                    {erreursFichier[l.passageId] || "Erreur"}
+                  </div>
+                )}
               </td>
               <td style={{ fontSize: "0.8rem", color: "#777" }}>
                 {etats[l.passageId] === "saving" && "Enregistrement…"}

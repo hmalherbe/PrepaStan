@@ -243,6 +243,13 @@ model Note {
   valeur       Decimal?
   appreciation String?
   dateSaisie   DateTime?
+  // Pièce jointe optionnelle (PDF ou Word) associée à cette khôlle — ex.
+  // copie annotée, grille de correction détaillée. Stockée directement en
+  // base (pas de volume de fichiers séparé à gérer en production) ; voir
+  // /api/passages/[passageId]/fichier.
+  fichierNom   String?
+  fichierType  String?
+  fichierData  Bytes?
 }
 
 enum StatutValidation {
