@@ -59,6 +59,10 @@ export function PlanningReview({
         kholleurId: champs.kholleurId,
         heureDebut: champs.heureDebut,
         heureFin: champs.heureFin,
+        // Absent si l'admin n'a pas touché ce champ : le serveur recalcule
+        // alors automatiquement à partir de la durée de préparation de la
+        // discipline (voir Paramètres). Présent = valeur imposée telle quelle.
+        heureDebutPreparation: champs.heureDebutPreparation ?? undefined,
       }),
     });
     const data = await res.json();
@@ -71,6 +75,7 @@ export function PlanningReview({
         c.id === id
           ? {
               ...c,
+              heureDebutPreparation: data.heureDebutPreparation,
               heureDebut: data.heureDebut,
               heureFin: data.heureFin,
               salleId: data.salleId,
@@ -235,10 +240,24 @@ function LigneEdition({
   const [heureFin, setHeureFin] = useState(creneau.heureFin);
   const [kholleurId, setKholleurId] = useState(creneau.kholleurId);
   const [salleId, setSalleId] = useState(creneau.salleId);
+  const [heureDebutPreparation, setHeureDebutPreparation] = useState(creneau.heureDebutPreparation ?? "");
+  // Distingue "l'admin a explicitement choisi cette heure de préparation" de
+  // "le champ affiche juste l'ancienne valeur, à recalculer côté serveur si
+  // l'heure de khôlle change" (voir sauvegarderEdition ci-dessus).
+  const [prepModifieeManuel, setPrepModifieeManuel] = useState(false);
 
   return (
     <tr>
-      <td>{creneau.heureDebutPreparation ?? "—"}</td>
+      <td>
+        <input
+          value={heureDebutPreparation}
+          onChange={(e) => {
+            setHeureDebutPreparation(e.target.value);
+            setPrepModifieeManuel(true);
+          }}
+          style={{ width: 60 }}
+        />
+      </td>
       <td style={{ display: "flex", gap: 4 }}>
         <input value={heureDebut} onChange={(e) => setHeureDebut(e.target.value)} style={{ width: 60 }} />
         <input value={heureFin} onChange={(e) => setHeureFin(e.target.value)} style={{ width: 60 }} />
@@ -264,7 +283,19 @@ function LigneEdition({
       </td>
       <td>{creneau.eleves.join(", ")}</td>
       <td style={{ display: "flex", gap: 6 }}>
-        <button onClick={() => onSauvegarder({ heureDebut, heureFin, kholleurId, salleId })}>OK</button>
+        <button
+          onClick={() =>
+            onSauvegarder({
+              heureDebut,
+              heureFin,
+              kholleurId,
+              salleId,
+              heureDebutPreparation: prepModifieeManuel ? heureDebutPreparation : undefined,
+            })
+          }
+        >
+          OK
+        </button>
         <button className="discret" onClick={onAnnuler}>
           Annuler
         </button>
