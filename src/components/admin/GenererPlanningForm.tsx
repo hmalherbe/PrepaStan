@@ -271,7 +271,7 @@ export function GenererPlanningForm({
               <th>Discipline</th>
               <th>Kholleur</th>
               <th>Nb élèves</th>
-              <th>Début</th>
+              <th>Début préparation</th>
               <th>Salle</th>
               <th>Référent</th>
               <th></th>

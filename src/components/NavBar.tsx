@@ -16,6 +16,7 @@ const LIENS_PAR_ROLE: Record<string, { href: string; label: string }[]> = {
     { href: "/admin/kholleurs", label: "Kholleurs" },
     { href: "/admin/referents", label: "Référents" },
     { href: "/admin/salles", label: "Salles" },
+    { href: "/admin/parametres", label: "Paramètres" },
     { href: "/admin/statistiques", label: "Statistiques" },
   ],
   KHOLLEUR: [{ href: "/kholleur/sessions", label: "Mes sessions" }],

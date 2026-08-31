@@ -43,6 +43,7 @@ export default async function PlanningReviewPage({
         id: c.id,
         discipline: s.discipline.nom,
         jour: c.date.toISOString().slice(0, 10),
+        heureDebutPreparation: c.heureDebutPreparation,
         heureDebut: c.heureDebut,
         heureFin: c.heureFin,
         kholleurId: c.kholleurId,

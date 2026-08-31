@@ -52,11 +52,12 @@ model Classe {
   nom             String
   anneeScolaireId String
 
-  anneeScolaire AnneeScolaire        @relation(fields: [anneeScolaireId], references: [id])
+  anneeScolaire AnneeScolaire         @relation(fields: [anneeScolaireId], references: [id])
   eleves        Eleve[]
   sessions      SessionKholle[]
   disciplines   ClasseDiscipline[]
   referents     ProfesseurReferent[]
+  parametres    ParametreDiscipline[]
 
   @@unique([nom, anneeScolaireId])
 }
@@ -90,8 +91,9 @@ model Discipline {
   sessions    SessionKholle[]
   referents   ProfesseurReferent[]
   classes     ClasseDiscipline[]
-  elevesLV1   Eleve[]              @relation("EleveLV1")
-  elevesLV2   Eleve[]              @relation("EleveLV2")
+  parametres  ParametreDiscipline[]
+  elevesLV1   Eleve[]               @relation("EleveLV1")
+  elevesLV2   Eleve[]               @relation("EleveLV2")
 }
 
 // Déclare qu'une discipline est khôllée dans une classe, indépendamment de
@@ -100,6 +102,26 @@ model ClasseDiscipline {
   id           String @id @default(cuid())
   classeId     String
   disciplineId String
+
+  classe     Classe     @relation(fields: [classeId], references: [id], onDelete: Cascade)
+  discipline Discipline @relation(fields: [disciplineId], references: [id])
+
+  @@unique([classeId, disciplineId])
+}
+
+// Durée de préparation et durée de khôlle, propres à chaque (classe,
+// discipline) : par exemple 30 min de préparation / 20 min de khôlle pour
+// une matière non langue, 20/20 pour une langue vivante — mais ces valeurs
+// peuvent différer d'une classe à l'autre pour une même discipline (voir
+// écran "Paramètres"). Une ligne manquante retombe sur une valeur par
+// défaut calculée à l'affichage (30/20 ou 20/20 selon Discipline.estLangueVivante),
+// jamais codée en dur côté solveur.
+model ParametreDiscipline {
+  id                      String @id @default(cuid())
+  classeId                String
+  disciplineId            String
+  dureePreparationMinutes Int
+  dureeKholleMinutes      Int
 
   classe     Classe     @relation(fields: [classeId], references: [id], onDelete: Cascade)
   discipline Discipline @relation(fields: [disciplineId], references: [id])
@@ -117,10 +139,10 @@ model Competence {
 }
 
 model ProfesseurReferent {
-  id           String @id @default(cuid())
+  id            String @id @default(cuid())
   utilisateurId String
-  classeId     String
-  disciplineId String
+  classeId      String
+  disciplineId  String
 
   utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
   classe      Classe      @relation(fields: [classeId], references: [id])
@@ -134,18 +156,18 @@ model ProfesseurReferent {
 // ---------- Disponibilités et ressources ----------
 
 model Disponibilite {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   kholleurId  String
   kholleur    Utilisateur @relation(fields: [kholleurId], references: [id])
-  jourSemaine Int?      // 1 (lundi) - 7 (dimanche), si récurrent
+  jourSemaine Int? // 1 (lundi) - 7 (dimanche), si récurrent
   date        DateTime? // si ponctuel, remplace/complète le récurrent
-  heureDebut  String    // "14:00"
+  heureDebut  String // "14:00"
   heureFin    String
 }
 
 model Salle {
-  id       String @id @default(cuid())
-  nom      String @unique
+  id  String @id @default(cuid())
+  nom String @unique
 
   creneaux Creneau[]
 }
@@ -160,7 +182,7 @@ enum StatutSession {
 }
 
 model SessionKholle {
-  id           String   @id @default(cuid())
+  id           String        @id @default(cuid())
   classeId     String
   disciplineId String
   semaine      Int
@@ -168,8 +190,8 @@ model SessionKholle {
   dateFin      DateTime
   statut       StatutSession @default(PLANIFICATION)
 
-  classe             Classe     @relation(fields: [classeId], references: [id])
-  discipline         Discipline @relation(fields: [disciplineId], references: [id])
+  classe             Classe              @relation(fields: [classeId], references: [id])
+  discipline         Discipline          @relation(fields: [disciplineId], references: [id])
   creneaux           Creneau[]
   validationGrilles  ValidationGrille[]
   validationReferent ValidationReferent?
@@ -178,13 +200,20 @@ model SessionKholle {
 }
 
 model Creneau {
-  id              String   @id @default(cuid())
-  sessionKholleId String
-  kholleurId      String
-  salleId         String
-  date            DateTime
-  heureDebut      String
-  heureFin        String
+  id                    String   @id @default(cuid())
+  sessionKholleId       String
+  kholleurId            String
+  salleId               String
+  date                  DateTime
+  // Heure de début de la khôlle elle-même (l'élève est alors face au
+  // khôlleur) ; heureDebutPreparation est l'heure à laquelle l'élève
+  // commence sa préparation, calculée à partir de la durée de préparation
+  // de la discipline pour cette classe (voir ParametreDiscipline).
+  // Nullable : absente pour les créneaux créés avant l'introduction de ce
+  // champ.
+  heureDebutPreparation String?
+  heureDebut            String
+  heureFin              String
 
   sessionKholle SessionKholle @relation(fields: [sessionKholleId], references: [id], onDelete: Cascade)
   kholleur      Utilisateur   @relation(fields: [kholleurId], references: [id])
@@ -222,7 +251,7 @@ enum StatutValidation {
 }
 
 model ValidationGrille {
-  id              String @id @default(cuid())
+  id              String           @id @default(cuid())
   kholleurId      String
   sessionKholleId String
   statut          StatutValidation @default(EN_ATTENTE)
@@ -234,8 +263,8 @@ model ValidationGrille {
 }
 
 model ValidationReferent {
-  id                   String @id @default(cuid())
-  sessionKholleId      String @unique
+  id                   String           @id @default(cuid())
+  sessionKholleId      String           @unique
   professeurReferentId String
   statut               StatutValidation @default(EN_ATTENTE)
   dateValidation       DateTime?
@@ -253,7 +282,7 @@ enum JobStatut {
 }
 
 model PlanificationJob {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   classeId    String
   semaine     Int
   disciplines String[]
@@ -262,10 +291,10 @@ model PlanificationJob {
   // quels élèves précis remplissent ces quotas. Conservé pour traçabilité.
   // Forme : [{ jourSemaine, disciplineId, kholleurId, nombreEleves }]
   quotas      Json
-  statut      JobStatut @default(EN_COURS)
+  statut      JobStatut   @default(EN_COURS)
   lanceParId  String
   lancePar    Utilisateur @relation(fields: [lanceParId], references: [id])
-  dateDebut   DateTime  @default(now())
+  dateDebut   DateTime    @default(now())
   dateFin     DateTime?
   message     String?
 }

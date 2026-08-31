@@ -8,6 +8,8 @@ type Creneau = {
   id: string;
   discipline: string;
   jour: string;
+  // Absente pour les créneaux créés avant l'introduction de ce champ.
+  heureDebutPreparation: string | null;
   heureDebut: string;
   heureFin: string;
   kholleurId: string;
@@ -131,14 +133,15 @@ export function PlanningReview({
       </p>
 
       {Object.entries(parJour).map(([jour, liste]) => (
-        <div key={jour}>
+        <div key={jour} className="jour-planning">
           <p className="jour-titre">
             {new Date(jour).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}
           </p>
           <table>
             <thead>
               <tr>
-                <th>Horaire</th>
+                <th>Préparation</th>
+                <th>Khôlle</th>
                 <th>Discipline</th>
                 <th>Kholleur</th>
                 <th>Salle</th>
@@ -159,6 +162,7 @@ export function PlanningReview({
                   />
                 ) : (
                   <tr key={c.id}>
+                    <td>{c.heureDebutPreparation ?? "—"}</td>
                     <td>
                       {c.heureDebut}-{c.heureFin}
                     </td>
@@ -234,6 +238,7 @@ function LigneEdition({
 
   return (
     <tr>
+      <td>{creneau.heureDebutPreparation ?? "—"}</td>
       <td style={{ display: "flex", gap: 4 }}>
         <input value={heureDebut} onChange={(e) => setHeureDebut(e.target.value)} style={{ width: 60 }} />
         <input value={heureFin} onChange={(e) => setHeureFin(e.target.value)} style={{ width: 60 }} />

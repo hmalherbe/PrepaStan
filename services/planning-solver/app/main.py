@@ -36,7 +36,9 @@ class SolveRequest(BaseModel):
     dateDebutSemaine: str
     eleves: list[dict[str, Any]]
     # Quotas fixés par l'admin : chacun fixe déjà tout sauf les élèves —
-    # [{date, disciplineId, kholleurId, salleId, heureDebut, nombreEleves}].
+    # [{date, disciplineId, kholleurId, salleId, heureDebut,
+    # dureePreparationMinutes, dureeKholleMinutes, nombreEleves}]. heureDebut
+    # est le début de la PREMIÈRE préparation (pas de la première khôlle).
     # OR-Tools choisit uniquement quels élèves précis remplissent chaque
     # quota, dans l'ordre des créneaux qui en découlent (voir resoudre() dans
     # solver.py).

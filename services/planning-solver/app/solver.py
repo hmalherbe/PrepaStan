@@ -5,11 +5,14 @@ disciplines différentes, la résolution porte sur toute la semaine d'une
 classe (toutes disciplines demandées confondues) en une seule fois.
 
 Chaque quota fixé par l'admin (jour, discipline, kholleur, salle, heure de
-début, nombre d'élèves) détermine déjà tout sauf l'identité des élèves : les
-créneaux candidats sont générés directement à partir des quotas, en découpant
-la plage [heureDebut, heureDebut + nombreEleves * durée] en créneaux
-successifs dans la salle indiquée. OR-Tools ne choisit donc que QUELS élèves
-remplissent chaque créneau ainsi généré.
+début de préparation, nombre d'élèves, durées de préparation/khôlle propres à
+la discipline) détermine déjà tout sauf l'identité des élèves : les créneaux
+candidats sont générés directement à partir des quotas — la première khôlle
+démarre `dureePreparationMinutes` après l'heure de début du quota (qui est
+donc le début de la PREMIÈRE préparation), puis les suivantes s'enchaînent
+toutes les `dureeKholleMinutes`, chaque élève ayant sa propre préparation
+juste avant sa khôlle. OR-Tools ne choisit donc que QUELS élèves remplissent
+chaque créneau ainsi généré.
 
 Contraintes dures :
 - pas de chevauchement horaire pour un même élève (un kholleur/une salle ne
@@ -65,6 +68,11 @@ class Slot:
     discipline_id: str
     salle_id: str
     jour: str  # date ISO "YYYY-MM-DD"
+    # debut_minutes/fin_minutes bornent la khôlle elle-même (élève face au
+    # khôlleur) ; debut_preparation_minutes est l'heure à laquelle l'élève
+    # commence sa préparation pour cette khôlle (toujours antérieure, voir
+    # generer_slots_candidats).
+    debut_preparation_minutes: int
     debut_minutes: int
     fin_minutes: int
     quota_index: int
@@ -92,22 +100,33 @@ def _rang_horaire(debut_minutes: int) -> int:
     return debut_minutes // 60
 
 
-def generer_slots_candidats(quotas: list[dict], duree_creneau_minutes: int) -> list[Slot]:
-    """Découpe chaque quota en `nombreEleves` créneaux successifs d'une durée
-    fixe, dans la salle et à partir de l'heure de début qu'il spécifie."""
+def generer_slots_candidats(quotas: list[dict]) -> list[Slot]:
+    """Découpe chaque quota en `nombreEleves` khôlles successives, dans la
+    salle indiquée. `heureDebut` est l'heure de début de la PREMIÈRE
+    préparation (pas de la première khôlle) : la première khôlle démarre
+    `dureePreparationMinutes` plus tard, puis les suivantes s'enchaînent
+    toutes les `dureeKholleMinutes` — chaque élève a donc sa propre
+    préparation de `dureePreparationMinutes` juste avant sa khôlle, qui
+    chevauche naturellement la khôlle de l'élève précédent (fonctionnement
+    "à la chaîne" habituel : pendant qu'un élève est interrogé, le suivant
+    prépare déjà)."""
     slots: list[Slot] = []
     for quota_index, q in enumerate(quotas):
-        debut = _minutes(q["heureDebut"])
+        debut_premiere_preparation = _minutes(q["heureDebut"])
+        duree_preparation = q["dureePreparationMinutes"]
+        duree_kholle = q["dureeKholleMinutes"]
+        premiere_kholle = debut_premiere_preparation + duree_preparation
         for i in range(q["nombreEleves"]):
-            t = debut + i * duree_creneau_minutes
+            debut_kholle = premiere_kholle + i * duree_kholle
             slots.append(
                 Slot(
                     kholleur_id=q["kholleurId"],
                     discipline_id=q["disciplineId"],
                     salle_id=q["salleId"],
                     jour=q["date"],
-                    debut_minutes=t,
-                    fin_minutes=t + duree_creneau_minutes,
+                    debut_preparation_minutes=debut_kholle - duree_preparation,
+                    debut_minutes=debut_kholle,
+                    fin_minutes=debut_kholle + duree_kholle,
                     quota_index=quota_index,
                 )
             )
@@ -124,7 +143,6 @@ def resoudre(
     historique_derniere_langue: dict[str, str] | None = None,
     effectif_partiel: bool = False,
     max_temps_secondes: float = 30.0,
-    duree_creneau_minutes: int = 20,
 ) -> SolveResult:
     """`disciplines_langue` : sous-ensemble de disciplines de la semaine
     marquées "langue vivante" (Discipline.estLangueVivante côté app). Pour
@@ -145,7 +163,7 @@ def resoudre(
     historique_derniere_langue = historique_derniere_langue or {}
     disciplines_semaine = sorted({q["disciplineId"] for q in quotas})
 
-    slots = generer_slots_candidats(quotas, duree_creneau_minutes)
+    slots = generer_slots_candidats(quotas)
     if not slots:
         return SolveResult(statut="INFAISABLE", message="Aucun quota fourni.")
 
@@ -171,16 +189,30 @@ def resoudre(
             presence[key] = b
 
             offset = _jour_offset_minutes(slot.jour)
-            iv = model.NewOptionalIntervalVar(
+            # Le khôlleur et la salle ne sont occupés que pendant la khôlle
+            # elle-même (pas pendant que l'élève prépare, ailleurs).
+            iv_kholle = model.NewOptionalIntervalVar(
                 offset + slot.debut_minutes,
                 slot.fin_minutes - slot.debut_minutes,
                 offset + slot.fin_minutes,
                 b,
                 f"iv_{e['id']}_{s_idx}",
             )
-            intervals_eleve[e["id"]].append(iv)
-            intervals_kholleur.setdefault(slot.kholleur_id, []).append(iv)
-            intervals_salle.setdefault(slot.salle_id, []).append(iv)
+            intervals_kholleur.setdefault(slot.kholleur_id, []).append(iv_kholle)
+            intervals_salle.setdefault(slot.salle_id, []).append(iv_kholle)
+
+            # L'élève, lui, est occupé dès le début de sa préparation : sans
+            # cet intervalle plus large, le solveur pourrait lui planifier
+            # une autre khôlle qui chevauche sa préparation (l'élève ne
+            # serait alors nulle part au bon moment).
+            iv_eleve = model.NewOptionalIntervalVar(
+                offset + slot.debut_preparation_minutes,
+                slot.fin_minutes - slot.debut_preparation_minutes,
+                offset + slot.fin_minutes,
+                b,
+                f"iv_eleve_{e['id']}_{s_idx}",
+            )
+            intervals_eleve[e["id"]].append(iv_eleve)
 
     for ivs in intervals_eleve.values():
         model.AddNoOverlap(ivs)
@@ -324,12 +356,18 @@ def resoudre(
             message="Impossible de satisfaire toutes les contraintes avec les quotas actuels.",
         )
 
-    par_creneau: dict[tuple, list[str]] = {}
+    par_creneau: dict[tuple, dict] = {}
     for (eleve_id, s_idx), var in presence.items():
         if solver.Value(var):
             slot = slots[s_idx]
             key = (slot.kholleur_id, slot.salle_id, slot.discipline_id, slot.jour, slot.debut_minutes, slot.fin_minutes)
-            par_creneau.setdefault(key, []).append(eleve_id)
+            groupe = par_creneau.setdefault(
+                key, {"eleveIds": [], "debut_preparation_minutes": slot.debut_preparation_minutes}
+            )
+            groupe["eleveIds"].append(eleve_id)
+
+    def _hhmm(minutes: int) -> str:
+        return f"{minutes // 60:02d}:{minutes % 60:02d}"
 
     creneaux = [
         {
@@ -337,11 +375,12 @@ def resoudre(
             "salleId": salle_id,
             "disciplineId": discipline_id,
             "date": jour,
-            "heureDebut": f"{debut // 60:02d}:{debut % 60:02d}",
-            "heureFin": f"{fin // 60:02d}:{fin % 60:02d}",
-            "eleveIds": eleve_ids,
+            "heureDebutPreparation": _hhmm(groupe["debut_preparation_minutes"]),
+            "heureDebut": _hhmm(debut),
+            "heureFin": _hhmm(fin),
+            "eleveIds": groupe["eleveIds"],
         }
-        for (k, salle_id, discipline_id, jour, debut, fin), eleve_ids in par_creneau.items()
+        for (k, salle_id, discipline_id, jour, debut, fin), groupe in par_creneau.items()
     ]
 
     return SolveResult(statut="SUCCES", creneaux=creneaux)

@@ -394,4 +394,17 @@ th.triable:hover {
   table {
     page-break-inside: avoid;
   }
+
+  /* Un jour de planning par page à l'impression (voir PlanningReview.tsx) :
+     saut de page avant chaque jour sauf le tout premier, pour ne jamais
+     couper un jour entre deux pages. */
+  .jour-planning {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .jour-planning:first-of-type {
+    break-before: auto;
+    page-break-before: avoid;
+  }
 }

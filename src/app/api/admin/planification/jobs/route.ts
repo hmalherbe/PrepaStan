@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import { dureesParDefaut } from "@/lib/parametresDiscipline";
 import { prisma } from "@/lib/prisma";
 
 const quotaSchema = z.object({
@@ -24,6 +25,10 @@ const bodySchema = z.object({
   // nombre d'élèves à lui affecter cette semaine, l'heure de début du
   // premier créneau, la salle et le référent de la discipline. OR-Tools
   // choisit ensuite quels élèves précis remplissent ces quotas.
+  // heureDebut est l'heure de début de la PREMIÈRE PRÉPARATION (pas de la
+  // première khôlle) : la durée de préparation et la durée de khôlle sont
+  // propres à chaque (classe, discipline), voir ParametreDiscipline /
+  // dureesParDefaut.
   quotas: z.array(quotaSchema).min(1),
   // Si des quotas dépassent les disponibilités déclarées d'un kholleur, le
   // calcul est d'abord refusé avec le détail (voir plus bas) pour laisser
@@ -35,8 +40,6 @@ const bodySchema = z.object({
   // total SUPÉRIEUR à l'effectif reste toujours une erreur, drapeau ou pas.
   permettreEffectifPartiel: z.boolean().optional().default(false),
 });
-
-const DUREE_CRENEAU_MINUTES = 20;
 
 // POST /api/admin/planification/jobs
 // Crée un job de planification et déclenche le microservice OR-Tools ; le
@@ -67,6 +70,31 @@ export async function POST(req: Request) {
   const disciplinesLangue = (
     await prisma.discipline.findMany({ where: { id: { in: disciplineIds }, estLangueVivante: true } })
   ).map((d) => d.id);
+
+  // Durée de préparation et durée de khôlle, propres à chaque (classe,
+  // discipline) — voir écran Paramètres. Une discipline sans ligne
+  // ParametreDiscipline retombe sur une valeur par défaut (dureesParDefaut).
+  const [toutesDisciplines, parametresDiscipline] = await Promise.all([
+    prisma.discipline.findMany({ where: { id: { in: disciplineIds } } }),
+    prisma.parametreDiscipline.findMany({ where: { classeId, disciplineId: { in: disciplineIds } } }),
+  ]);
+  const parametreParDiscipline = new Map(parametresDiscipline.map((p) => [p.disciplineId, p]));
+  const dureesParDiscipline = new Map(
+    toutesDisciplines.map((d) => {
+      const existant = parametreParDiscipline.get(d.id);
+      const defaut = dureesParDefaut(d.estLangueVivante);
+      return [
+        d.id,
+        {
+          dureePreparationMinutes: existant?.dureePreparationMinutes ?? defaut.dureePreparationMinutes,
+          dureeKholleMinutes: existant?.dureeKholleMinutes ?? defaut.dureeKholleMinutes,
+        },
+      ];
+    })
+  );
+  function dureesDe(disciplineId: string) {
+    return dureesParDiscipline.get(disciplineId) ?? dureesParDefaut(false);
+  }
 
   // Chaque discipline non-langue présente dans les quotas doit être
   // intégralement couverte : la somme des quotas doit égaler exactement
@@ -125,18 +153,27 @@ export async function POST(req: Request) {
     );
   }
 
-  const quotasDates = quotas.map((q) => ({
-    date: dateDuJourSemaine(dateDebutSemaine, q.jourSemaine),
-    disciplineId: q.disciplineId,
-    kholleurId: q.kholleurId,
-    nombreEleves: q.nombreEleves,
-    heureDebut: q.heureDebut,
-    salleId: q.salleId,
-  }));
+  const quotasDates = quotas.map((q) => {
+    const { dureePreparationMinutes, dureeKholleMinutes } = dureesDe(q.disciplineId);
+    return {
+      date: dateDuJourSemaine(dateDebutSemaine, q.jourSemaine),
+      disciplineId: q.disciplineId,
+      kholleurId: q.kholleurId,
+      nombreEleves: q.nombreEleves,
+      heureDebut: q.heureDebut,
+      salleId: q.salleId,
+      dureePreparationMinutes,
+      dureeKholleMinutes,
+    };
+  });
 
   // Une même salle ne peut pas accueillir deux quotas qui se chevauchent le
   // même jour — autant le détecter tout de suite avec un message clair
   // plutôt que de laisser OR-Tools échouer avec un "INFAISABLE" générique.
+  // La salle n'est occupée que pendant les khôlles elles-mêmes, pas pendant
+  // la préparation des élèves (ailleurs) : le bloc va donc de
+  // heureDebut + dureePreparation à heureDebut + dureePreparation +
+  // nombreEleves * dureeKholle.
   const erreursSalle: string[] = [];
   const parSalleEtDate = new Map<string, typeof quotasDates>();
   for (const q of quotasDates) {
@@ -149,7 +186,8 @@ export async function POST(req: Request) {
     const triee = [...liste].sort((a, b) => minutes(a.heureDebut) - minutes(b.heureDebut));
     for (let i = 1; i < triee.length; i++) {
       const precedent = triee[i - 1];
-      const finPrecedent = minutes(precedent.heureDebut) + precedent.nombreEleves * DUREE_CRENEAU_MINUTES;
+      const finPrecedent =
+        minutes(precedent.heureDebut) + precedent.dureePreparationMinutes + precedent.nombreEleves * precedent.dureeKholleMinutes;
       if (finPrecedent > minutes(triee[i].heureDebut)) {
         const salle = await prisma.salle.findUnique({ where: { id: triee[i].salleId } });
         erreursSalle.push(`${salle?.nom ?? triee[i].salleId} le ${triee[i].date} : deux quotas se chevauchent`);
@@ -163,16 +201,19 @@ export async function POST(req: Request) {
   const dispoBrutes = await prisma.disponibilite.findMany({ where: { kholleurId: { in: kholleurIds } } });
   const disponibilites = expanserDisponibilites(dispoBrutes, dateDebutSemaine);
 
-  // Vérification précoce : le créneau [heureDebut, heureDebut + durée] doit
-  // tenir intégralement dans une disponibilité déclarée du kholleur ce
-  // jour-là. Contrairement aux autres vérifications ci-dessus, celle-ci ne
-  // bloque pas définitivement : elle demande confirmation (l'admin peut avoir
-  // de bonnes raisons de passer outre une disponibilité non déclarée), sauf
-  // si `forcerMalgreIndisponibilites` a déjà été coché côté client.
+  // Vérification précoce : le créneau doit tenir intégralement dans une
+  // disponibilité déclarée du kholleur ce jour-là. Comme pour la salle
+  // ci-dessus, seule la période de khôlles elle-même compte (pas la
+  // préparation des élèves, où le kholleur n'est pas requis) : de
+  // heureDebut + dureePreparation à + nombreEleves * dureeKholle.
+  // Contrairement aux autres vérifications ci-dessus, celle-ci ne bloque pas
+  // définitivement : elle demande confirmation (l'admin peut avoir de bonnes
+  // raisons de passer outre une disponibilité non déclarée), sauf si
+  // `forcerMalgreIndisponibilites` a déjà été coché côté client.
   const erreursCapacite: string[] = [];
   for (const q of quotasDates) {
-    const debut = minutes(q.heureDebut);
-    const fin = debut + q.nombreEleves * DUREE_CRENEAU_MINUTES;
+    const debut = minutes(q.heureDebut) + q.dureePreparationMinutes;
+    const fin = debut + q.nombreEleves * q.dureeKholleMinutes;
     const couvert = disponibilites.some(
       (d) =>
         d.kholleurId === q.kholleurId &&
@@ -183,7 +224,7 @@ export async function POST(req: Request) {
     if (!couvert) {
       const kholleur = await prisma.utilisateur.findUnique({ where: { id: q.kholleurId } });
       erreursCapacite.push(
-        `${kholleur ? `${kholleur.prenom} ${kholleur.nom}` : q.kholleurId} le ${q.date} de ${q.heureDebut} à ` +
+        `${kholleur ? `${kholleur.prenom} ${kholleur.nom}` : q.kholleurId} le ${q.date} de ${minutesVersHeure(debut)} à ` +
           `${minutesVersHeure(fin)} (${q.nombreEleves} élèves) : hors de ses disponibilités déclarées`
       );
     }
