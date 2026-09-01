@@ -1,0 +1,74 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+
+type Ligne = {
+  classeId: string;
+  classeNom: string;
+  semaine: number;
+  periode: string;
+  disciplines: string;
+  nbKholles: number;
+  nbEleves: number;
+};
+
+export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
+  const [classeFiltre, setClasseFiltre] = useState("");
+
+  const classes = [...new Map(lignes.map((l) => [l.classeId, l.classeNom])).entries()]
+    .map(([id, nom]) => ({ id, nom }))
+    .sort((a, b) => a.nom.localeCompare(b.nom));
+
+  const lignesAffichees = classeFiltre ? lignes.filter((l) => l.classeId === classeFiltre) : lignes;
+
+  return (
+    <div>
+      <label style={{ maxWidth: 280 }}>
+        Filtrer par classe
+        <select value={classeFiltre} onChange={(e) => setClasseFiltre(e.target.value)}>
+          <option value="">Toutes les classes</option>
+          {classes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nom}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Semaine</th>
+            <th>Classe</th>
+            <th>Période</th>
+            <th>Disciplines</th>
+            <th>Khôlles dispensées</th>
+            <th>Étudiants interrogés</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lignesAffichees.map((l) => (
+            <tr key={`${l.classeId}_${l.semaine}`}>
+              <td>
+                <Link href={`/admin/planification/${l.classeId}/${l.semaine}`}>{l.semaine}</Link>
+              </td>
+              <td>{l.classeNom}</td>
+              <td>{l.periode}</td>
+              <td>{l.disciplines}</td>
+              <td>{l.nbKholles}</td>
+              <td>{l.nbEleves}</td>
+            </tr>
+          ))}
+          {lignesAffichees.length === 0 && (
+            <tr>
+              <td colSpan={6}>
+                {lignes.length === 0 ? "Aucun planning généré pour le moment." : "Aucun planning pour cette classe."}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}

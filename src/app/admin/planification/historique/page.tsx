@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { requirePageSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { HistoriquePlanningsTable } from "@/components/admin/HistoriquePlanningsTable";
 
 function formatDateUTC(d: Date): string {
   return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`;
@@ -57,42 +57,22 @@ export default async function HistoriquePlanningsPage() {
     }
   }
 
-  const lignes = [...groupes.values()].sort((a, b) => b.dateDebut.getTime() - a.dateDebut.getTime());
+  const lignes = [...groupes.values()]
+    .sort((a, b) => b.dateDebut.getTime() - a.dateDebut.getTime())
+    .map((g) => ({
+      classeId: g.classeId,
+      classeNom: g.classeNom,
+      semaine: g.semaine,
+      periode: `${formatDateUTC(g.dateDebut)} – ${formatDateUTC(dimancheDeLaSemaine(g.dateDebut))}`,
+      disciplines: [...g.disciplines].sort().join(", "),
+      nbKholles: g.nbKholles,
+      nbEleves: g.eleves.size,
+    }));
 
   return (
     <main className="container">
       <h1>Historique des plannings</h1>
-      {lignes.length === 0 && <p>Aucun planning généré pour le moment.</p>}
-      {lignes.length > 0 && (
-        <table>
-          <thead>
-            <tr>
-              <th>Semaine</th>
-              <th>Classe</th>
-              <th>Période</th>
-              <th>Disciplines</th>
-              <th>Khôlles dispensées</th>
-              <th>Étudiants interrogés</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lignes.map((g) => (
-              <tr key={`${g.classeId}_${g.semaine}`}>
-                <td>
-                  <Link href={`/admin/planification/${g.classeId}/${g.semaine}`}>{g.semaine}</Link>
-                </td>
-                <td>{g.classeNom}</td>
-                <td>
-                  {formatDateUTC(g.dateDebut)} – {formatDateUTC(dimancheDeLaSemaine(g.dateDebut))}
-                </td>
-                <td>{[...g.disciplines].sort().join(", ")}</td>
-                <td>{g.nbKholles}</td>
-                <td>{g.eleves.size}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <HistoriquePlanningsTable lignes={lignes} />
     </main>
   );
 }
