@@ -73,6 +73,21 @@ export async function POST(req: Request) {
       },
     });
 
+    // Les validations (kholleur et référent) portaient sur les anciens
+    // créneaux, qui viennent d'être supprimés : les garder laisserait une
+    // grille "validée" verrouillée pour des créneaux tout neufs que le
+    // kholleur n'a jamais vus, l'empêchant d'y saisir la moindre note.
+    await tx.validationGrille.deleteMany({
+      where: {
+        sessionKholle: { classeId: payload.classeId, semaine: payload.semaine, disciplineId: { in: disciplineIds } },
+      },
+    });
+    await tx.validationReferent.deleteMany({
+      where: {
+        sessionKholle: { classeId: payload.classeId, semaine: payload.semaine, disciplineId: { in: disciplineIds } },
+      },
+    });
+
     const lundi = new Date(`${payload.dateDebutSemaine}T00:00:00.000Z`);
     const vendredi = new Date(lundi);
     vendredi.setUTCDate(vendredi.getUTCDate() + 4);
