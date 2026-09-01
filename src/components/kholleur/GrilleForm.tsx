@@ -149,8 +149,7 @@ export function GrilleForm({
             <th>Créneau</th>
             <th>Salle</th>
             <th>Note</th>
-            <th>Appréciation</th>
-            <th>Pièce jointe</th>
+            <th style={{ width: "100%" }}>Appréciation</th>
             <th></th>
           </tr>
         </thead>
@@ -177,7 +176,7 @@ export function GrilleForm({
                   onBlur={() => enregistrerLigne(l)}
                 />
               </td>
-              <td style={{ minWidth: 240 }}>
+              <td>
                 <AppreciationEditor
                   value={l.appreciation}
                   disabled={fige}
@@ -186,13 +185,10 @@ export function GrilleForm({
                   onChoisirPieceJointe={(fichier) => televerserFichier(l.passageId, fichier)}
                   accept={TYPES_FICHIER_ACCEPTES}
                 />
-              </td>
-              <td>
-                {/* Le choix du fichier se fait via le bouton trombone de la
-                    barre d'outils ci-dessus ; cette colonne n'affiche plus
-                    que le résultat. */}
-                {l.fichierNom ? (
-                  <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {/* Résultat du choix fait via le bouton trombone de la barre
+                    d'outils ci-dessus (pas de colonne dédiée). */}
+                {l.fichierNom && (
+                  <p style={{ margin: "6px 0 0", display: "flex", gap: 8, alignItems: "center", fontSize: "0.9rem" }}>
                     <a href={`/api/passages/${l.passageId}/fichier`} target="_blank" rel="noreferrer">
                       {l.fichierNom}
                     </a>
@@ -206,9 +202,7 @@ export function GrilleForm({
                         Retirer
                       </button>
                     )}
-                  </span>
-                ) : (
-                  <span style={{ color: "#777" }}>—</span>
+                  </p>
                 )}
                 {etatsFichier[l.passageId] === "saving" && (
                   <div style={{ fontSize: "0.8rem", color: "#777" }}>Envoi…</div>
