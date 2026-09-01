@@ -406,8 +406,25 @@ th.triable:hover {
     color: #000;
   }
 
+  /* Les tableaux passent en display:block/overflow-x:auto pour défiler à
+     l'écran sur les petites largeurs (voir la règle "table" plus haut) ; à
+     l'impression il n'y a pas de scrollbar, donc le navigateur rogne le
+     contenu qui déborde de cette boîte au lieu de l'étaler sur plusieurs
+     pages — on revient à un <table> normal pour que la pagination
+     fonctionne. */
   table {
+    display: table;
+    overflow-x: visible;
+    max-width: none;
     page-break-inside: avoid;
+  }
+
+  /* La colonne figée (position: sticky) n'a de sens qu'au défilement écran ;
+     à l'impression elle peut se comporter bizarrement d'une page à l'autre. */
+  th:first-child,
+  td:first-child {
+    position: static;
+    box-shadow: none;
   }
 
   /* Un jour de planning par page à l'impression (voir PlanningReview.tsx) :
