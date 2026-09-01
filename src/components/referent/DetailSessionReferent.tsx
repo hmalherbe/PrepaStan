@@ -105,7 +105,9 @@ export function DetailSessionReferent({
                     {l.heureDebut}-{l.heureFin}
                   </td>
                   <td>{l.valeur ?? "—"}</td>
-                  <td>{l.appreciation || "—"}</td>
+                  <td>
+                    {l.appreciation ? <span dangerouslySetInnerHTML={{ __html: l.appreciation }} /> : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>

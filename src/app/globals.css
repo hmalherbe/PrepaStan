@@ -154,6 +154,57 @@ textarea:disabled {
   background: #f0f0f4;
 }
 
+/* Éditeur de texte enrichi (appréciation kholleur, voir AppreciationEditor.tsx) */
+.editeur-riche-barre {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.editeur-riche-bouton {
+  background: transparent;
+  color: var(--couleur-texte);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  min-width: 28px;
+}
+
+.editeur-riche-bouton:hover:not(:disabled) {
+  background: #f0f0f4;
+}
+
+.editeur-riche-zone {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 4px;
+  background: var(--couleur-surface);
+  color: inherit;
+  min-height: 3.2em;
+}
+
+.editeur-riche-zone:focus {
+  outline: 2px solid var(--couleur-primaire);
+  outline-offset: -1px;
+}
+
+.editeur-riche-zone[contenteditable="false"] {
+  background: #f0f0f4;
+}
+
+.editeur-riche-zone p {
+  margin: 0 0 4px;
+}
+
+.editeur-riche-zone ul,
+.editeur-riche-zone ol {
+  margin: 0 0 4px;
+  padding-left: 1.4em;
+}
+
 form label {
   display: flex;
   flex-direction: column;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AppreciationEditor, estAppreciationVide } from "./AppreciationEditor";
 
 type Ligne = {
   passageId: string;
@@ -61,7 +62,10 @@ export function GrilleForm({
       const res = await fetch(`/api/passages/${ligne.passageId}/note`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ valeur: ligne.valeur, appreciation: ligne.appreciation || null }),
+        body: JSON.stringify({
+          valeur: ligne.valeur,
+          appreciation: estAppreciationVide(ligne.appreciation) ? null : ligne.appreciation,
+        }),
       });
       if (!res.ok) throw new Error();
       setEtats((prev) => ({ ...prev, [ligne.passageId]: "saved" }));
@@ -124,7 +128,7 @@ export function GrilleForm({
     }
   }
 
-  const toutSaisi = lignes.every((l) => l.valeur !== null && l.appreciation.trim() !== "");
+  const toutSaisi = lignes.every((l) => l.valeur !== null && !estAppreciationVide(l.appreciation));
 
   return (
     <div>
@@ -173,13 +177,11 @@ export function GrilleForm({
                   onBlur={() => enregistrerLigne(l)}
                 />
               </td>
-              <td>
-                <textarea
-                  rows={2}
-                  style={{ width: "100%", minWidth: 220 }}
+              <td style={{ minWidth: 240 }}>
+                <AppreciationEditor
                   value={l.appreciation}
                   disabled={fige}
-                  onChange={(e) => majLigne(l.passageId, "appreciation", e.target.value)}
+                  onChange={(html) => majLigne(l.passageId, "appreciation", html)}
                   onBlur={() => enregistrerLigne(l)}
                 />
               </td>

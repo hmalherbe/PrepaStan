@@ -69,7 +69,9 @@ export function NotesEleveTable({ lignes }: { lignes: Ligne[] }) {
               {l.valide ? (
                 <>
                   <td>{l.valeur ?? "—"}</td>
-                  <td>{l.appreciation || "—"}</td>
+                  <td>
+                    {l.appreciation ? <span dangerouslySetInnerHTML={{ __html: l.appreciation }} /> : "—"}
+                  </td>
                   <td>
                     {l.fichierNom ? (
                       <a href={`/api/passages/${l.passageId}/fichier`} target="_blank" rel="noreferrer">
