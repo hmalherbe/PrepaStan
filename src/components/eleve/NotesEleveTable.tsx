@@ -1,5 +1,6 @@
 "use client";
 
+import "quill/dist/quill.core.css";
 import { useMemo, useState } from "react";
 
 type Ligne = {
@@ -70,7 +71,11 @@ export function NotesEleveTable({ lignes }: { lignes: Ligne[] }) {
                 <>
                   <td>{l.valeur ?? "—"}</td>
                   <td>
-                    {l.appreciation ? <span dangerouslySetInnerHTML={{ __html: l.appreciation }} /> : "—"}
+                    {l.appreciation ? (
+                      <div className="ql-editor" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: l.appreciation }} />
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td>
                     {l.fichierNom ? (

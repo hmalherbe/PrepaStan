@@ -1,20 +1,12 @@
 "use client";
 
+import "quill/dist/quill.snow.css";
 import { useEffect, useRef } from "react";
 
-type Commande = "bold" | "italic" | "insertUnorderedList" | "insertOrderedList";
-
-const BOUTONS: { commande: Commande; label: string; titre: string }[] = [
-  { commande: "bold", label: "G", titre: "Gras" },
-  { commande: "italic", label: "I", titre: "Italique" },
-  { commande: "insertUnorderedList", label: "•", titre: "Liste à puces" },
-  { commande: "insertOrderedList", label: "1.", titre: "Liste numérotée" },
-];
-
-// Une appréciation "vide" côté éditeur riche n'est pas forcément la chaîne
-// vide : le navigateur laisse parfois une balise résiduelle (ex. <br>) une
-// fois tout le texte effacé. Utilisé pour la validation (toutes les
-// appréciations saisies) et pour ne pas enregistrer un HTML vide en base.
+// Une appréciation "vide" côté éditeur riche n'est pas la chaîne vide :
+// Quill laisse toujours un <p><br></p> résiduel une fois tout le texte
+// effacé. Utilisé pour la validation (toutes les appréciations saisies) et
+// pour ne pas enregistrer un HTML vide en base.
 export function estAppreciationVide(html: string): boolean {
   return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "";
 }
@@ -30,55 +22,74 @@ export function AppreciationEditor({
   onBlur: () => void;
   disabled: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  // Grille de notation figée (grille validée ou session gelée par le
+  // référent) : simple affichage HTML, pas besoin d'instancier Quill (une
+  // grille peut compter beaucoup de lignes).
+  if (disabled) {
+    return <div className="editeur-riche-zone ql-editor" dangerouslySetInnerHTML={{ __html: value }} />;
+  }
+  return <EditeurQuill valeurInitiale={value} onChange={onChange} onBlur={onBlur} />;
+}
+
+function EditeurQuill({
+  valeurInitiale,
+  onChange,
+  onBlur,
+}: {
+  valeurInitiale: string;
+  onChange: (html: string) => void;
+  onBlur: () => void;
+}) {
+  const conteneurRef = useRef<HTMLDivElement>(null);
+  // Callbacks toujours à jour dans les écouteurs Quill, attachés une seule
+  // fois à la création de l'éditeur (voir l'effet ci-dessous).
+  const onChangeRef = useRef(onChange);
+  const onBlurRef = useRef(onBlur);
+  onChangeRef.current = onChange;
+  onBlurRef.current = onBlur;
 
   useEffect(() => {
-    const el = ref.current;
-    // Ne resynchronise l'innerHTML depuis la prop que si elle diffère
-    // réellement du contenu affiché et que l'utilisateur n'est pas en train
-    // d'y taper — sinon le curseur sauterait à chaque frappe (la prop est
-    // remise à jour par notre propre onInput ci-dessous, donc déjà à jour
-    // la plupart du temps ; ce cas ne sert qu'au montage initial et aux
-    // changements venus d'ailleurs).
-    if (el && document.activeElement !== el && el.innerHTML !== value) {
-      el.innerHTML = value;
-    }
-  }, [value]);
+    const conteneur = conteneurRef.current;
+    if (!conteneur) return;
+    let annule = false;
 
-  function executer(commande: Commande) {
-    ref.current?.focus();
-    document.execCommand(commande);
-    onChange(ref.current?.innerHTML ?? "");
-  }
+    // Import dynamique : Quill touche au DOM dès son chargement, ce qui est
+    // incompatible avec le rendu serveur (le composant est bien "use
+    // client", mais Next.js exécute quand même un premier rendu côté
+    // serveur pour le HTML initial).
+    import("quill").then(({ default: Quill }) => {
+      if (annule) return;
+      const quill = new Quill(conteneur, {
+        theme: "snow",
+        modules: {
+          toolbar: [["bold", "italic"], [{ list: "ordered" }, { list: "bullet" }]],
+        },
+      });
+      quill.root.innerHTML = valeurInitiale;
+      quill.on("text-change", () => onChangeRef.current(quill.root.innerHTML));
+      quill.on("selection-change", (range) => {
+        if (range === null) onBlurRef.current();
+      });
+    });
+
+    return () => {
+      annule = true;
+    };
+    // valeurInitiale volontairement absente des deps : ne sert qu'à
+    // initialiser l'éditeur au montage, qui reste ensuite seul maître de
+    // son contenu (comme un <input defaultValue>) — le refaire à chaque
+    // frappe recréerait l'éditeur et ferait sauter le curseur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
+    // Quill insère sa barre d'outils comme frère précédent du conteneur,
+    // en manipulant le DOM directement — le wrapper isole cette insertion
+    // dans un sous-arbre que React ne re-réconciliera jamais différemment
+    // (un seul enfant déclaré, jamais changé), pour ne pas perturber le
+    // diffing React du <td> parent.
     <div>
-      {!disabled && (
-        <div className="editeur-riche-barre">
-          {BOUTONS.map((b) => (
-            <button
-              key={b.commande}
-              type="button"
-              className="editeur-riche-bouton"
-              title={b.titre}
-              // Empêche le bouton de voler le focus (et donc la sélection en
-              // cours dans la zone éditable) avant que la commande ne s'exécute.
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => executer(b.commande)}
-            >
-              {b.label}
-            </button>
-          ))}
-        </div>
-      )}
-      <div
-        ref={ref}
-        className="editeur-riche-zone"
-        contentEditable={!disabled}
-        suppressContentEditableWarning
-        onInput={() => onChange(ref.current?.innerHTML ?? "")}
-        onBlur={onBlur}
-      />
+      <div ref={conteneurRef} className="editeur-riche-zone" />
     </div>
   );
 }

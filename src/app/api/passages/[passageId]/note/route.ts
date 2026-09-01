@@ -10,13 +10,23 @@ const bodySchema = z.object({
 });
 
 // L'appréciation vient de l'éditeur riche du kholleur (voir
-// AppreciationEditor.tsx, qui produit du HTML via document.execCommand) :
-// on ne fait confiance qu'aux balises qu'il peut réellement produire, sans
-// attribut, avant stockage — l'appréciation est ensuite affichée telle
-// quelle (dangerouslySetInnerHTML) au référent et à l'élève.
+// AppreciationEditor.tsx, un éditeur Quill dont la barre d'outils ne propose
+// que gras/italique/listes) : on ne fait confiance qu'aux balises qu'il peut
+// réellement produire avant stockage — l'appréciation est ensuite affichée
+// telle quelle (dangerouslySetInnerHTML, avec le CSS de Quill) au référent
+// et à l'élève.
+// data-list sur <li> et <span class="ql-ui"> : Quill représente aussi bien
+// une liste à puces qu'une liste numérotée avec un <ol> (!) — même balise
+// pour les deux — et distingue visuellement les deux uniquement via cet
+// attribut plus ce span (son CSS y injecte la puce ou le numéro en ::before,
+// voir quill.core.css). Les retirer transformerait silencieusement toute
+// liste à puces en liste numérotée à l'affichage. Ni un attribut data-* ni
+// une classe fixe ne peuvent exécuter de script, donc les autoriser ne
+// réintroduit aucun risque XSS.
 const OPTIONS_SANITIZE_APPRECIATION: sanitizeHtml.IOptions = {
-  allowedTags: ["b", "strong", "i", "em", "ul", "ol", "li", "br", "div", "p"],
-  allowedAttributes: {},
+  allowedTags: ["b", "strong", "i", "em", "ul", "ol", "li", "span", "br", "div", "p"],
+  allowedAttributes: { li: ["data-list"], span: ["class"] },
+  allowedClasses: { span: ["ql-ui"] },
 };
 
 // PUT /api/passages/:passageId/note

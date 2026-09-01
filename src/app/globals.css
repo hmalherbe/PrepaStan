@@ -154,53 +154,32 @@ textarea:disabled {
   background: #f0f0f4;
 }
 
-/* Éditeur de texte enrichi (appréciation kholleur, voir AppreciationEditor.tsx) */
-.editeur-riche-barre {
-  display: flex;
-  gap: 2px;
-  margin-bottom: 4px;
+/* Éditeur de texte enrichi (appréciation kholleur, voir
+   AppreciationEditor.tsx). En saisie, c'est Quill (thème "snow", CSS
+   importée dans le composant) qui gère la barre d'outils et la bordure du
+   conteneur ; on ajuste juste la hauteur minimale de la zone de texte
+   elle-même. En lecture seule (grille figée), pas de Quill : un simple bloc
+   HTML statique, avec un habillage proche d'un champ désactivé. */
+.editeur-riche-zone .ql-editor {
+  min-height: 3.2em;
 }
 
-.editeur-riche-bouton {
-  background: transparent;
-  color: var(--couleur-texte);
-  border: 1px solid var(--couleur-bordure);
-  border-radius: 4px;
-  padding: 2px 8px;
-  font-size: 0.85rem;
-  line-height: 1.6;
-  min-width: 28px;
-}
-
-.editeur-riche-bouton:hover:not(:disabled) {
-  background: #f0f0f4;
-}
-
-.editeur-riche-zone {
+.editeur-riche-zone.ql-editor {
   font: inherit;
   padding: 6px 8px;
   border: 1px solid var(--couleur-bordure);
   border-radius: 4px;
-  background: var(--couleur-surface);
+  background: #f0f0f4;
   color: inherit;
   min-height: 3.2em;
 }
 
-.editeur-riche-zone:focus {
-  outline: 2px solid var(--couleur-primaire);
-  outline-offset: -1px;
-}
-
-.editeur-riche-zone[contenteditable="false"] {
-  background: #f0f0f4;
-}
-
-.editeur-riche-zone p {
+.editeur-riche-zone.ql-editor p {
   margin: 0 0 4px;
 }
 
-.editeur-riche-zone ul,
-.editeur-riche-zone ol {
+.editeur-riche-zone.ql-editor ul,
+.editeur-riche-zone.ql-editor ol {
   margin: 0 0 4px;
   padding-left: 1.4em;
 }

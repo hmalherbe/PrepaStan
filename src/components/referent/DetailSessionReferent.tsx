@@ -1,5 +1,6 @@
 "use client";
 
+import "quill/dist/quill.core.css";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -106,7 +107,11 @@ export function DetailSessionReferent({
                   </td>
                   <td>{l.valeur ?? "—"}</td>
                   <td>
-                    {l.appreciation ? <span dangerouslySetInnerHTML={{ __html: l.appreciation }} /> : "—"}
+                    {l.appreciation ? (
+                      <div className="ql-editor" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: l.appreciation }} />
+                    ) : (
+                      "—"
+                    )}
                   </td>
                 </tr>
               ))}
