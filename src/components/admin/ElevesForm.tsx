@@ -39,8 +39,19 @@ export function ElevesForm({
   const [enCours, setEnCours] = useState(false);
   const [enEdition, setEnEdition] = useState<string | null>(null);
   const [erreurEdition, setErreurEdition] = useState<string | null>(null);
+  const [classeFiltre, setClasseFiltre] = useState("");
+  const [lv1Filtre, setLv1Filtre] = useState("");
+  const [lv2Filtre, setLv2Filtre] = useState("");
 
   const lv2InvalideAjout = Boolean(lv1Id && lv2Id && lv1Id === lv2Id);
+
+  const auMoinsUnLv2 = eleves.some((e) => e.lv2Id);
+  const elevesAffiches = eleves.filter(
+    (e) =>
+      (!classeFiltre || e.classeId === classeFiltre) &&
+      (!lv1Filtre || e.lv1Id === lv1Filtre) &&
+      (!lv2Filtre || e.lv2Id === lv2Filtre)
+  );
 
   async function ajouter(e: React.FormEvent) {
     e.preventDefault();
@@ -150,6 +161,44 @@ export function ElevesForm({
 
   return (
     <div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <label style={{ maxWidth: 220 }}>
+          Filtrer par classe
+          <select value={classeFiltre} onChange={(e) => setClasseFiltre(e.target.value)}>
+            <option value="">Toutes les classes</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nom}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ maxWidth: 220 }}>
+          Filtrer par LV1
+          <select value={lv1Filtre} onChange={(e) => setLv1Filtre(e.target.value)}>
+            <option value="">Toutes les LV1</option>
+            {languesVivantes.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.nom}
+              </option>
+            ))}
+          </select>
+        </label>
+        {auMoinsUnLv2 && (
+          <label style={{ maxWidth: 220 }}>
+            Filtrer par LV2
+            <select value={lv2Filtre} onChange={(e) => setLv2Filtre(e.target.value)}>
+              <option value="">Toutes les LV2</option>
+              {languesVivantes.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nom}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+
       <table>
         <thead>
           <tr>
@@ -163,7 +212,7 @@ export function ElevesForm({
           </tr>
         </thead>
         <tbody>
-          {eleves.map((e) =>
+          {elevesAffiches.map((e) =>
             enEdition === e.id ? (
               <LigneEdition
                 key={e.id}
@@ -192,9 +241,9 @@ export function ElevesForm({
               </tr>
             )
           )}
-          {eleves.length === 0 && (
+          {elevesAffiches.length === 0 && (
             <tr>
-              <td colSpan={7}>Aucun élève pour le moment.</td>
+              <td colSpan={7}>{eleves.length === 0 ? "Aucun élève pour le moment." : "Aucun élève pour ces filtres."}</td>
             </tr>
           )}
         </tbody>
