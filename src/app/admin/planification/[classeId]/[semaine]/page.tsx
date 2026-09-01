@@ -65,11 +65,16 @@ export default async function PlanningReviewPage({
 
   return (
     <main className="container">
-      <h1>
+      {/* Masqué à l'impression (voir PlanningReview.tsx) : ce titre partagerait
+          sinon le budget vertical de la 1re page avec le premier jour imprimé
+          — repris à l'identique dans le titre de chaque jour, pour que tous
+          les jours (y compris le premier) disposent d'une page pleine. */}
+      <h1 className="no-print">
         {classe.nom} · Semaine {semaine}
       </h1>
       <PlanningReview
         classeId={classeId}
+        classeNom={classe.nom}
         semaine={semaine}
         dateDebutSemaine={sessions[0]?.dateDebut.toISOString().slice(0, 10) ?? ""}
         creneauxInitiaux={creneaux}

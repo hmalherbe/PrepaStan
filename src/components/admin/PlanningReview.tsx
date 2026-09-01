@@ -23,6 +23,7 @@ type Option = { id: string; nom: string };
 
 export function PlanningReview({
   classeId,
+  classeNom,
   semaine,
   dateDebutSemaine,
   creneauxInitiaux,
@@ -32,6 +33,10 @@ export function PlanningReview({
   salles,
 }: {
   classeId: string;
+  // Repris dans le titre de chaque jour (voir .jour-titre) : le <h1> de la
+  // page est masqué à l'impression pour ne pas empiéter sur le budget
+  // vertical du premier jour, donc cette info doit être portée ailleurs.
+  classeNom: string;
   semaine: number;
   // Lundi de cette semaine ("YYYY-MM-DD") : pré-remplit la date sur l'écran
   // de génération quand on clique "Régénérer", pour ne pas avoir à la
@@ -145,6 +150,7 @@ export function PlanningReview({
       {Object.entries(parJour).map(([jour, liste]) => (
         <div key={jour} className="jour-planning">
           <p className="jour-titre">
+            <span className="print-only">{classeNom} · Semaine {semaine} — </span>
             {new Date(jour).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}
           </p>
           <table>

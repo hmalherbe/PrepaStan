@@ -394,16 +394,34 @@ th.triable:hover {
 /* Impression du planning (voir PlanningReview.tsx) : masque tout le chrome
    applicatif (navigation, boutons d'action, badges) pour n'imprimer que le
    contenu utile — titre de la page + tableaux des créneaux. */
+/* Inverse de .no-print : contenu qui n'a de sens que sur papier (ex. rappel
+   classe/semaine répété dans le titre de chaque jour, voir
+   PlanningReview.tsx), superflu et donc masqué à l'écran par défaut —
+   réaffiché dans le bloc @media print ci-dessous. */
+.print-only {
+  display: none;
+}
+
 @media print {
   .navbar,
   .no-print {
     display: none !important;
   }
 
+  .print-only {
+    display: inline;
+  }
+
   body,
   main.container {
     background: #fff;
     color: #000;
+  }
+
+  /* Marges par défaut du navigateur réduites pour maximiser la hauteur
+     utile de chaque page (voir le pavé de la table plus bas). */
+  @page {
+    margin: 12mm 10mm;
   }
 
   /* Les tableaux passent en display:block/overflow-x:auto pour défiler à
@@ -416,7 +434,31 @@ th.triable:hover {
     display: table;
     overflow-x: visible;
     max-width: none;
+  }
+
+  /* Pas de page-break-inside: avoid sur la table elle-même : sur un jour
+     exceptionnellement chargé qui dépasse une pleine page même resserré, ça
+     forcerait toute la table (même la partie qui tiendrait sur la page en
+     cours) sur la page suivante, laissant une page quasiment vide avant.
+     On évite seulement de couper une ligne en deux entre deux pages. */
+  tr {
     page-break-inside: avoid;
+  }
+
+  /* Cellules resserrées : sur un jour chargé (plusieurs matières khôllées
+     le même jour pour la classe), la table peut compter 25-30 lignes —
+     la taille par défaut (confortable pour un écran) ne laisserait tenir
+     qu'une quinzaine de lignes par page. */
+  th,
+  td {
+    padding: 3px 6px;
+    font-size: 0.72rem;
+    line-height: 1.2;
+  }
+
+  .jour-titre {
+    margin: 0 0 6px;
+    font-size: 1rem;
   }
 
   /* La colonne figée (position: sticky) n'a de sens qu'au défilement écran ;
@@ -429,7 +471,9 @@ th.triable:hover {
 
   /* Un jour de planning par page à l'impression (voir PlanningReview.tsx) :
      saut de page avant chaque jour sauf le tout premier, pour ne jamais
-     couper un jour entre deux pages. */
+     couper un jour entre deux pages. Le <h1> de la page est masqué (voir
+     page.tsx) pour que le premier jour dispose d'une page pleine comme les
+     suivants, au lieu de partager son budget vertical avec ce titre. */
   .jour-planning {
     break-before: page;
     page-break-before: always;
