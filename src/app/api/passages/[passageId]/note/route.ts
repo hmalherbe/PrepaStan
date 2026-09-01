@@ -6,17 +6,13 @@ import { prisma } from "@/lib/prisma";
 
 const bodySchema = z.object({
   valeur: z.number().min(0).max(20).nullable(),
-  // Large pour laisser passer plusieurs images (voir TAILLE_MAX_IMG_SRC
-  // ci-dessous, appliquée par image individuellement), mais borné : refuse
-  // net un envoi anormalement volumineux plutôt que de laisser grossir la
-  // base sans limite.
-  appreciation: z.string().max(10_000_000).nullable(),
+  appreciation: z.string().nullable(),
 });
 
 // L'appréciation vient de l'éditeur riche du kholleur (voir
 // AppreciationEditor.tsx, un éditeur Quill dont la barre d'outils propose
-// gras/italique/souligné/barré/listes/effacer la mise en forme/image) : on
-// ne fait confiance qu'aux balises qu'il peut réellement produire avant
+// gras/italique/souligné/barré/listes/effacer la mise en forme) : on ne
+// fait confiance qu'aux balises qu'il peut réellement produire avant
 // stockage — l'appréciation est ensuite affichée telle quelle
 // (dangerouslySetInnerHTML, avec le CSS de Quill) au référent et à l'élève.
 // data-list sur <li> et <span class="ql-ui"> : Quill représente aussi bien
@@ -27,27 +23,10 @@ const bodySchema = z.object({
 // liste à puces en liste numérotée à l'affichage. Ni un attribut data-* ni
 // une classe fixe ne peuvent exécuter de script, donc les autoriser ne
 // réintroduit aucun risque XSS.
-const REGEX_IMG_SRC_SUR = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/]+=*$/;
-// ~1,5 Mo décodés : l'éditeur compresse déjà chaque image côté client (voir
-// comprimerImage dans AppreciationEditor.tsx), cette limite ne sert qu'à
-// rejeter un envoi qui contournerait l'interface pour poster une image
-// directement à l'API.
-const TAILLE_MAX_IMG_SRC = 2_000_000;
-
 const OPTIONS_SANITIZE_APPRECIATION: sanitizeHtml.IOptions = {
-  allowedTags: ["b", "strong", "i", "em", "u", "s", "ul", "ol", "li", "span", "img", "br", "div", "p"],
-  allowedAttributes: { li: ["data-list"], span: ["class"], img: ["src"] },
+  allowedTags: ["b", "strong", "i", "em", "u", "s", "ul", "ol", "li", "span", "br", "div", "p"],
+  allowedAttributes: { li: ["data-list"], span: ["class"] },
   allowedClasses: { span: ["ql-ui"] },
-  // src="data:image/...;base64,..." uniquement : pas d'URL externe (pas de
-  // hotlink/pixel de tracking), pas de data:image/svg+xml (une image SVG
-  // peut embarquer du script, même si <img> ne l'exécute pas dans les
-  // navigateurs actuels — autant rester sur des formats matriciels sûrs).
-  allowedSchemesByTag: { img: ["data"] },
-  exclusiveFilter: (frame) => {
-    if (frame.tag !== "img") return false;
-    const src = frame.attribs.src ?? "";
-    return !REGEX_IMG_SRC_SUR.test(src) || src.length > TAILLE_MAX_IMG_SRC;
-  },
 };
 
 // PUT /api/passages/:passageId/note

@@ -184,16 +184,6 @@ textarea:disabled {
   padding-left: 1.4em;
 }
 
-/* Une image insérée dans une appréciation ne doit jamais déborder de sa
-   cellule de tableau (grille kholleur, listes référent/élève) ni de la
-   zone de saisie elle-même. */
-.ql-editor img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin: 4px 0;
-}
-
 form label {
   display: flex;
   flex-direction: column;

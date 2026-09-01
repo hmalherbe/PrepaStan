@@ -11,27 +11,6 @@ export function estAppreciationVide(html: string): boolean {
   return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "";
 }
 
-const TAILLE_MAX_FICHIER_IMAGE = 8 * 1024 * 1024; // avant compression
-const DIMENSION_MAX_IMAGE = 900; // px, sur le plus grand côté
-
-// Redimensionne et recompresse l'image côté client avant de l'intégrer en
-// base64 dans le HTML (l'appréciation entière, images comprises, est
-// stockée telle quelle en base) — une photo de téléphone non compressée
-// ferait sinon plusieurs Mo par appréciation.
-async function comprimerImage(fichier: File): Promise<string> {
-  const bitmap = await createImageBitmap(fichier);
-  const ratio = Math.min(1, DIMENSION_MAX_IMAGE / Math.max(bitmap.width, bitmap.height));
-  const largeur = Math.round(bitmap.width * ratio);
-  const hauteur = Math.round(bitmap.height * ratio);
-  const canvas = document.createElement("canvas");
-  canvas.width = largeur;
-  canvas.height = hauteur;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Contexte canvas indisponible");
-  ctx.drawImage(bitmap, 0, 0, largeur, hauteur);
-  return canvas.toDataURL("image/jpeg", 0.75);
-}
-
 export function AppreciationEditor({
   value,
   onChange,
@@ -83,40 +62,11 @@ function EditeurQuill({
       const quill = new Quill(conteneur, {
         theme: "snow",
         modules: {
-          toolbar: {
-            container: [
-              ["bold", "italic", "underline", "strike"],
-              [{ list: "ordered" }, { list: "bullet" }],
-              ["clean"],
-              ["image"],
-            ],
-            handlers: {
-              // Remplace le comportement par défaut (base64 direct, sans
-              // compression) pour ne pas alourdir démesurément l'appréciation.
-              image(this: { quill: InstanceType<typeof Quill> }) {
-                const input = document.createElement("input");
-                input.type = "file";
-                input.accept = "image/*";
-                input.onchange = async () => {
-                  const fichier = input.files?.[0];
-                  if (!fichier) return;
-                  if (fichier.size > TAILLE_MAX_FICHIER_IMAGE) {
-                    alert("Image trop volumineuse (8 Mo maximum).");
-                    return;
-                  }
-                  try {
-                    const dataUrl = await comprimerImage(fichier);
-                    const range = this.quill.getSelection(true);
-                    this.quill.insertEmbed(range.index, "image", dataUrl, "user");
-                    this.quill.setSelection(range.index + 1, 0, "user");
-                  } catch {
-                    alert("Impossible de traiter cette image.");
-                  }
-                };
-                input.click();
-              },
-            },
-          },
+          toolbar: [
+            ["bold", "italic", "underline", "strike"],
+            [{ list: "ordered" }, { list: "bullet" }],
+            ["clean"],
+          ],
         },
       });
       quill.root.innerHTML = valeurInitiale;
