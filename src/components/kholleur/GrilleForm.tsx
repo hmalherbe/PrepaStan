@@ -23,14 +23,22 @@ export function GrilleForm({
   lignesInitiales,
   valideInitial,
   dateValidation,
+  gelee,
 }: {
   sessionId: string;
   lignesInitiales: Ligne[];
   valideInitial: boolean;
   dateValidation: string | null;
+  // Le référent a validé la session entière (SessionKholle.statut ===
+  // CLOTUREE) : la grille de ce kholleur ne peut alors plus jamais être
+  // rouverte (voir .../rouvrir), donc verrouillée pour de bon — au-delà de
+  // `valide`, qui ne reflète que sa propre validation et peut encore être
+  // annulée par le référent tant que la session n'est pas gelée.
+  gelee: boolean;
 }) {
   const [lignes, setLignes] = useState(lignesInitiales);
   const [valide, setValide] = useState(valideInitial);
+  const fige = valide || gelee;
   const [etats, setEtats] = useState<Record<string, EtatSauvegarde>>({});
   const [erreurValidation, setErreurValidation] = useState<string | null>(null);
   const [validationEnCours, setValidationEnCours] = useState(false);
@@ -116,14 +124,18 @@ export function GrilleForm({
     }
   }
 
-  const toutesLesNotesSaisies = lignes.every((l) => l.valeur !== null);
+  const toutSaisi = lignes.every((l) => l.valeur !== null && l.appreciation.trim() !== "");
 
   return (
     <div>
-      {valide && (
-        <p className="badge badge-succes">
-          Grille validée{dateValidation ? ` le ${new Date(dateValidation).toLocaleString("fr-FR")}` : ""}
-        </p>
+      {gelee ? (
+        <p className="badge badge-succes">Gelée — validée par le référent, verrouillée définitivement</p>
+      ) : (
+        valide && (
+          <p className="badge badge-succes">
+            Grille validée{dateValidation ? ` le ${new Date(dateValidation).toLocaleString("fr-FR")}` : ""}
+          </p>
+        )
       )}
 
       <table>
@@ -156,7 +168,7 @@ export function GrilleForm({
                   step={0.5}
                   style={{ width: 70 }}
                   value={l.valeur ?? ""}
-                  disabled={valide}
+                  disabled={fige}
                   onChange={(e) => majLigne(l.passageId, "valeur", e.target.value)}
                   onBlur={() => enregistrerLigne(l)}
                 />
@@ -166,7 +178,7 @@ export function GrilleForm({
                   rows={2}
                   style={{ width: "100%", minWidth: 220 }}
                   value={l.appreciation}
-                  disabled={valide}
+                  disabled={fige}
                   onChange={(e) => majLigne(l.passageId, "appreciation", e.target.value)}
                   onBlur={() => enregistrerLigne(l)}
                 />
@@ -177,7 +189,7 @@ export function GrilleForm({
                     <a href={`/api/passages/${l.passageId}/fichier`} target="_blank" rel="noreferrer">
                       {l.fichierNom}
                     </a>
-                    {!valide && (
+                    {!fige && (
                       <button
                         type="button"
                         className="discret"
@@ -189,7 +201,7 @@ export function GrilleForm({
                     )}
                   </span>
                 ) : (
-                  !valide && (
+                  !fige && (
                     <input
                       type="file"
                       accept={TYPES_FICHIER_ACCEPTES}
@@ -224,14 +236,14 @@ export function GrilleForm({
 
       {erreurValidation && <p className="champ-erreur">{erreurValidation}</p>}
 
-      {!valide && (
+      {!fige && (
         <p style={{ marginTop: 16 }}>
-          <button onClick={valider} disabled={!toutesLesNotesSaisies || validationEnCours}>
+          <button onClick={valider} disabled={!toutSaisi || validationEnCours}>
             {validationEnCours ? "Validation…" : "Valider ma grille"}
           </button>
-          {!toutesLesNotesSaisies && (
+          {!toutSaisi && (
             <span style={{ marginLeft: 12, color: "#777", fontSize: "0.9rem" }}>
-              Toutes les notes doivent être saisies avant validation.
+              Toutes les notes et appréciations doivent être saisies avant validation.
             </span>
           )}
         </p>

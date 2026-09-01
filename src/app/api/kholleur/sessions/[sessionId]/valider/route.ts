@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 
 // POST /api/kholleur/sessions/:sessionId/valider
 // Valide la grille du kholleur connecté pour cette session : rejette si une
-// note manque, sinon verrouille la saisie et vérifie si tous les kholleurs
-// de la session ont désormais validé (pour notifier le référent).
+// note OU une appréciation manque (les deux sont obligatoires), sinon
+// verrouille la saisie et vérifie si tous les kholleurs de la session ont
+// désormais validé (pour notifier le référent).
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ sessionId: string }> }
@@ -15,16 +16,16 @@ export async function POST(
   const kholleurId = auth.user.id;
   const { sessionId: sessionKholleId } = await params;
 
-  const passagesSansNote = await prisma.passage.count({
+  const passagesIncomplets = await prisma.passage.count({
     where: {
       creneau: { sessionKholleId, kholleurId },
-      note: { is: null },
+      OR: [{ note: { is: null } }, { note: { valeur: null } }, { note: { appreciation: null } }, { note: { appreciation: "" } }],
     },
   });
 
-  if (passagesSansNote > 0) {
+  if (passagesIncomplets > 0) {
     return NextResponse.json(
-      { error: `${passagesSansNote} note(s) manquante(s)` },
+      { error: `${passagesIncomplets} note(s) et/ou appréciation(s) manquante(s)` },
       { status: 400 }
     );
   }

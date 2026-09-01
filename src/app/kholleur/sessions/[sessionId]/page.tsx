@@ -58,6 +58,7 @@ export default async function GrilleKholleurPage({
         lignesInitiales={lignes}
         valideInitial={validation?.statut === "VALIDE"}
         dateValidation={validation?.dateValidation?.toISOString() ?? null}
+        gelee={sessionKholle.statut === "CLOTUREE"}
       />
     </main>
   );

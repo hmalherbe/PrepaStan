@@ -8,6 +8,10 @@ const LABELS: Record<string, string> = {
   PLANIFICATION: "Brouillon",
   PLANIFIEE: "Planifiée",
   CLOTUREE: "Clôturée",
+  // Synthétique (pas un statut de la base) : session dont le référent a
+  // validé la clôture — la grille du kholleur ne peut plus jamais être
+  // rouverte, voir kholleur/sessions/page.tsx et GrilleForm.tsx.
+  GELEE: "Gelée",
 };
 
 const CLASSES: Record<string, string> = {
@@ -20,6 +24,7 @@ const CLASSES: Record<string, string> = {
   PLANIFICATION: "badge-attente",
   PLANIFIEE: "badge-succes",
   CLOTUREE: "badge-succes",
+  GELEE: "badge-succes",
 };
 
 export function StatusBadge({ statut }: { statut: string }) {

@@ -38,7 +38,11 @@ export default async function KholleurSessionsPage() {
               <td>{s.classe.nom}</td>
               <td>{s.discipline.nom}</td>
               <td>
-                <StatusBadge statut={statutParSession.get(s.id) ?? "EN_ATTENTE"} />
+                {/* CLOTUREE = le référent a validé : la grille de ce
+                    kholleur ne peut plus jamais être rouverte pour cette
+                    session (voir la route .../rouvrir), donc "Gelée" prime
+                    sur son propre statut de validation. */}
+                <StatusBadge statut={s.statut === "CLOTUREE" ? "GELEE" : statutParSession.get(s.id) ?? "EN_ATTENTE"} />
               </td>
               <td>
                 <Link href={`/kholleur/sessions/${s.id}`}>Ouvrir</Link>
