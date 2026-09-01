@@ -169,6 +169,14 @@ textarea:disabled {
   resize: vertical;
 }
 
+/* Bouton "pièce jointe" de la barre d'outils (voir AppreciationEditor.tsx) :
+   son contenu est un émoji fixé en JS, pas une icône SVG comme les autres
+   boutons Quill — recentré à la même taille qu'eux. */
+.ql-toolbar .ql-attachment {
+  font-size: 15px;
+  line-height: 1;
+}
+
 .editeur-riche-zone.ql-editor {
   font: inherit;
   padding: 6px 8px;

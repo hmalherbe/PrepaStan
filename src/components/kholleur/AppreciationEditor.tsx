@@ -16,11 +16,18 @@ export function AppreciationEditor({
   onChange,
   onBlur,
   disabled,
+  onChoisirPieceJointe,
+  accept,
 }: {
   value: string;
   onChange: (html: string) => void;
   onBlur: () => void;
   disabled: boolean;
+  // Bouton "trombone" ajouté à la barre d'outils : ouvre un sélecteur de
+  // fichier et transmet le fichier choisi, sans rien insérer dans le texte
+  // (la pièce jointe est gérée à part par l'appelant, voir GrilleForm.tsx).
+  onChoisirPieceJointe: (fichier: File) => void;
+  accept: string;
 }) {
   // Grille de notation figée (grille validée ou session gelée par le
   // référent) : simple affichage HTML, pas besoin d'instancier Quill (une
@@ -28,25 +35,39 @@ export function AppreciationEditor({
   if (disabled) {
     return <div className="editeur-riche-zone ql-editor" dangerouslySetInnerHTML={{ __html: value }} />;
   }
-  return <EditeurQuill valeurInitiale={value} onChange={onChange} onBlur={onBlur} />;
+  return (
+    <EditeurQuill
+      valeurInitiale={value}
+      onChange={onChange}
+      onBlur={onBlur}
+      onChoisirPieceJointe={onChoisirPieceJointe}
+      accept={accept}
+    />
+  );
 }
 
 function EditeurQuill({
   valeurInitiale,
   onChange,
   onBlur,
+  onChoisirPieceJointe,
+  accept,
 }: {
   valeurInitiale: string;
   onChange: (html: string) => void;
   onBlur: () => void;
+  onChoisirPieceJointe: (fichier: File) => void;
+  accept: string;
 }) {
   const conteneurRef = useRef<HTMLDivElement>(null);
   // Callbacks toujours à jour dans les écouteurs Quill, attachés une seule
   // fois à la création de l'éditeur (voir l'effet ci-dessous).
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
+  const onChoisirPieceJointeRef = useRef(onChoisirPieceJointe);
   onChangeRef.current = onChange;
   onBlurRef.current = onBlur;
+  onChoisirPieceJointeRef.current = onChoisirPieceJointe;
 
   useEffect(() => {
     const conteneur = conteneurRef.current;
@@ -62,13 +83,37 @@ function EditeurQuill({
       const quill = new Quill(conteneur, {
         theme: "snow",
         modules: {
-          toolbar: [
-            ["bold", "italic", "underline", "strike"],
-            [{ list: "ordered" }, { list: "bullet" }],
-            ["clean"],
-          ],
+          toolbar: {
+            container: [
+              ["bold", "italic", "underline", "strike"],
+              [{ list: "ordered" }, { list: "bullet" }],
+              ["clean"],
+              ["attachment"],
+            ],
+            handlers: {
+              // Ne formate rien : ouvre juste un sélecteur de fichier et
+              // relaie le fichier choisi (voir onChoisirPieceJointe).
+              attachment: () => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = accept;
+                input.onchange = () => {
+                  const fichier = input.files?.[0];
+                  if (fichier) onChoisirPieceJointeRef.current(fichier);
+                };
+                input.click();
+              },
+            },
+          },
         },
       });
+      // Quill n'a pas d'icône "pièce jointe" intégrée (contrairement à
+      // gras/italique/listes/etc.) : on la fixe une fois le bouton créé.
+      const boutonPieceJointe = conteneur.parentElement?.querySelector(".ql-attachment");
+      if (boutonPieceJointe) {
+        boutonPieceJointe.innerHTML = "📎";
+        boutonPieceJointe.setAttribute("title", "Joindre un fichier (PDF, Word)");
+      }
       quill.root.innerHTML = valeurInitiale;
       quill.on("text-change", () => onChangeRef.current(quill.root.innerHTML));
       quill.on("selection-change", (range) => {
@@ -79,9 +124,9 @@ function EditeurQuill({
     return () => {
       annule = true;
     };
-    // valeurInitiale volontairement absente des deps : ne sert qu'à
-    // initialiser l'éditeur au montage, qui reste ensuite seul maître de
-    // son contenu (comme un <input defaultValue>) — le refaire à chaque
+    // valeurInitiale/accept volontairement absents des deps : ne servent
+    // qu'à initialiser l'éditeur au montage, qui reste ensuite seul maître
+    // de son contenu (comme un <input defaultValue>) — le refaire à chaque
     // frappe recréerait l'éditeur et ferait sauter le curseur.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

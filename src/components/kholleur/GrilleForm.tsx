@@ -183,9 +183,14 @@ export function GrilleForm({
                   disabled={fige}
                   onChange={(html) => majLigne(l.passageId, "appreciation", html)}
                   onBlur={() => enregistrerLigne(l)}
+                  onChoisirPieceJointe={(fichier) => televerserFichier(l.passageId, fichier)}
+                  accept={TYPES_FICHIER_ACCEPTES}
                 />
               </td>
               <td>
+                {/* Le choix du fichier se fait via le bouton trombone de la
+                    barre d'outils ci-dessus ; cette colonne n'affiche plus
+                    que le résultat. */}
                 {l.fichierNom ? (
                   <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <a href={`/api/passages/${l.passageId}/fichier`} target="_blank" rel="noreferrer">
@@ -203,19 +208,7 @@ export function GrilleForm({
                     )}
                   </span>
                 ) : (
-                  !fige && (
-                    <input
-                      type="file"
-                      accept={TYPES_FICHIER_ACCEPTES}
-                      style={{ width: 160, fontSize: "0.85rem" }}
-                      disabled={etatsFichier[l.passageId] === "saving"}
-                      onChange={(e) => {
-                        const fichier = e.target.files?.[0];
-                        if (fichier) televerserFichier(l.passageId, fichier);
-                        e.target.value = "";
-                      }}
-                    />
-                  )
+                  <span style={{ color: "#777" }}>—</span>
                 )}
                 {etatsFichier[l.passageId] === "saving" && (
                   <div style={{ fontSize: "0.8rem", color: "#777" }}>Envoi…</div>
