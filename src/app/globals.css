@@ -22,9 +22,24 @@ body {
 }
 
 .container {
-  max-width: 960px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 24px 20px 64px;
+}
+
+/* Les tableaux (souvent nombreux de colonnes : kholleurs, référents,
+   grilles de notation...) profitent de tout l'espace disponible pour
+   éviter l'ascenseur horizontal ; les champs de saisie courts (texte,
+   email, date...) restent bornés pour ne pas s'étirer inutilement sur un
+   conteneur large — sauf s'ils ont déjà une largeur explicite en ligne
+   (ex. les petits champs de note), qui prime toujours sur cette règle. */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="time"],
+input[type="number"] {
+  max-width: 420px;
 }
 
 h1 {

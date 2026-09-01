@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requirePageSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { NotesEleveTable } from "@/components/eleve/NotesEleveTable";
 
 export default async function NotesElevePage() {
   const session = await requirePageSession(["ELEVE"]);
@@ -28,57 +29,21 @@ export default async function NotesElevePage() {
     orderBy: [{ creneau: { date: "desc" } }],
   });
 
+  const lignes = passages.map((p) => ({
+    passageId: p.id,
+    semaine: p.creneau.sessionKholle.semaine,
+    discipline: p.creneau.sessionKholle.discipline.nom,
+    date: p.creneau.date.toISOString().slice(0, 10),
+    valide: p.creneau.sessionKholle.validationReferent?.statut === "VALIDE",
+    valeur: p.note?.valeur ? Number(p.note.valeur) : null,
+    appreciation: p.note?.appreciation ?? "",
+    fichierNom: p.note?.fichierNom ?? null,
+  }));
+
   return (
     <main className="container">
       <h1>Mes notes</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>Semaine</th>
-            <th>Discipline</th>
-            <th>Date</th>
-            <th>Note</th>
-            <th>Appréciation</th>
-            <th>Pièce jointe</th>
-          </tr>
-        </thead>
-        <tbody>
-          {passages.map((p) => {
-            const valide = p.creneau.sessionKholle.validationReferent?.statut === "VALIDE";
-            return (
-              <tr key={p.id}>
-                <td>{p.creneau.sessionKholle.semaine}</td>
-                <td>{p.creneau.sessionKholle.discipline.nom}</td>
-                <td>{p.creneau.date.toLocaleDateString("fr-FR")}</td>
-                {valide ? (
-                  <>
-                    <td>{p.note?.valeur ? Number(p.note.valeur) : "—"}</td>
-                    <td>{p.note?.appreciation || "—"}</td>
-                    <td>
-                      {p.note?.fichierNom ? (
-                        <a href={`/api/passages/${p.id}/fichier`} target="_blank" rel="noreferrer">
-                          {p.note.fichierNom}
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </>
-                ) : (
-                  <td colSpan={3} style={{ color: "#777" }}>
-                    En attente
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-          {passages.length === 0 && (
-            <tr>
-              <td colSpan={6}>Aucune khôlle passée pour le moment.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <NotesEleveTable lignes={lignes} />
     </main>
   );
 }

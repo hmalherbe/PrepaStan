@@ -31,6 +31,11 @@ export function KholleursForm({
   const [enCours, setEnCours] = useState(false);
   const [enEdition, setEnEdition] = useState<string | null>(null);
   const [erreurEdition, setErreurEdition] = useState<string | null>(null);
+  const [disciplineFiltre, setDisciplineFiltre] = useState("");
+
+  const kholleursAffiches = disciplineFiltre
+    ? kholleurs.filter((k) => k.disciplineIds.includes(disciplineFiltre))
+    : kholleurs;
 
   function toggleDiscipline(id: string) {
     setDisciplineIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]));
@@ -118,6 +123,18 @@ export function KholleursForm({
 
   return (
     <div>
+      <label style={{ maxWidth: 280 }}>
+        Filtrer par discipline
+        <select value={disciplineFiltre} onChange={(e) => setDisciplineFiltre(e.target.value)}>
+          <option value="">Toutes les disciplines</option>
+          {disciplines.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.nom}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <table>
         <thead>
           <tr>
@@ -130,7 +147,7 @@ export function KholleursForm({
           </tr>
         </thead>
         <tbody>
-          {kholleurs.map((k) =>
+          {kholleursAffiches.map((k) =>
             enEdition === k.id ? (
               <LigneEdition
                 key={k.id}
@@ -158,9 +175,11 @@ export function KholleursForm({
               </tr>
             )
           )}
-          {kholleurs.length === 0 && (
+          {kholleursAffiches.length === 0 && (
             <tr>
-              <td colSpan={6}>Aucun kholleur pour le moment.</td>
+              <td colSpan={6}>
+                {kholleurs.length === 0 ? "Aucun kholleur pour le moment." : "Aucun kholleur pour cette discipline."}
+              </td>
             </tr>
           )}
         </tbody>
