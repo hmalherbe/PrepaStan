@@ -162,6 +162,11 @@ textarea:disabled {
    HTML statique, avec un habillage proche d'un champ désactivé. */
 .editeur-riche-zone .ql-editor {
   min-height: 3.2em;
+  /* Quill n'a pas de poignée de redimensionnement native contrairement à un
+     <textarea> ; overflow-y:auto est déjà fixé par Quill lui-même
+     (quill.core.css), condition requise par CSS pour que "resize" ait un
+     effet — on ajoute juste la poignée. */
+  resize: vertical;
 }
 
 .editeur-riche-zone.ql-editor {
