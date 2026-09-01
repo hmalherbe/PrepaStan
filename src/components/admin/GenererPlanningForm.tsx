@@ -35,6 +35,26 @@ function nouvelleCle() {
   return `q${compteurCle}`;
 }
 
+// Conserve la saisie en cours (classe, date, quotas) le temps de la session
+// navigateur : un aller-retour vers un autre écran du menu ne doit pas faire
+// perdre un formulaire à moitié rempli. sessionStorage plutôt que
+// localStorage : un brouillon oublié ne doit pas ressurgir des semaines plus
+// tard à la prochaine visite. Effacé une fois la génération lancée avec
+// succès (voir plus bas).
+const BROUILLON_CLE = "prepastan:generer-planning:brouillon";
+
+type Brouillon = { classeId: string; dateDebutSemaine: string; quotas: Quota[] };
+
+function chargerBrouillon(): Brouillon | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const brut = sessionStorage.getItem(BROUILLON_CLE);
+    return brut ? (JSON.parse(brut) as Brouillon) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Numéro de semaine ISO 8601 (jeudi de la semaine contenant `dateISO`) : sert
 // uniquement d'identifiant pour distinguer les plannings successifs d'une
 // même classe, calculé à partir du "Lundi de la semaine à planifier" plutôt
@@ -61,14 +81,45 @@ export function GenererPlanningForm({
 }) {
   const router = useRouter();
 
-  const [classeId, setClasseId] = useState(classeIdInitiale ?? classes[0]?.id ?? "");
-  const [dateDebutSemaine, setDateDebutSemaine] = useState(dateDebutSemaineInitiale ?? "");
+  // Un lien explicite (classe/date fournies, ex. depuis "Régénérer") prime
+  // toujours sur un éventuel brouillon d'une autre semaine — on ne charge le
+  // brouillon que sur une visite "neutre" de l'écran (via le menu).
+  const [brouillonInitial] = useState<Brouillon | null>(() => {
+    if (classeIdInitiale || dateDebutSemaineInitiale) return null;
+    const b = chargerBrouillon();
+    if (b?.quotas?.length) {
+      // Le compteur de clés React est global au module : après un
+      // rechargement complet de page (F5), il repart de zéro alors que le
+      // brouillon restauré contient déjà des clés "qN" — sans ce
+      // rattrapage, une nouvelle ligne ajoutée pourrait réutiliser une clé
+      // déjà prise par une ligne restaurée.
+      const maxNum = Math.max(0, ...b.quotas.map((q) => Number(q.cle.replace("q", "")) || 0));
+      if (maxNum > compteurCle) compteurCle = maxNum;
+    }
+    return b;
+  });
+
+  const [classeId, setClasseId] = useState(classeIdInitiale ?? brouillonInitial?.classeId ?? classes[0]?.id ?? "");
+  const [dateDebutSemaine, setDateDebutSemaine] = useState(
+    dateDebutSemaineInitiale ?? brouillonInitial?.dateDebutSemaine ?? ""
+  );
   const semaine = useMemo(() => (dateDebutSemaine ? semaineIso(dateDebutSemaine) : null), [dateDebutSemaine]);
-  const [quotas, setQuotas] = useState<Quota[]>([]);
+  const [quotas, setQuotas] = useState<Quota[]>(brouillonInitial?.quotas ?? []);
   const [jobId, setJobId] = useState<string | null>(null);
   const [statutJob, setStatutJob] = useState<string | null>(null);
   const [messageJob, setMessageJob] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Sauvegarde continue du brouillon (classe, date, quotas) tant que la
+  // génération n'a pas réussi — voir chargerBrouillon() plus haut.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(BROUILLON_CLE, JSON.stringify({ classeId, dateDebutSemaine, quotas }));
+    } catch {
+      // Stockage indisponible (navigation privée stricte, quota dépassé...) :
+      // sans conséquence, juste pas de restauration au prochain aller-retour.
+    }
+  }, [classeId, dateDebutSemaine, quotas]);
 
   const classe = classes.find((c) => c.id === classeId);
   const disciplines = classe?.disciplines ?? [];
@@ -204,6 +255,9 @@ export function GenererPlanningForm({
       setStatutJob(job.statut);
       if (job.statut === "SUCCES") {
         if (intervalRef.current) clearInterval(intervalRef.current);
+        try {
+          sessionStorage.removeItem(BROUILLON_CLE);
+        } catch {}
         router.push(`/admin/planification/${classeId}/${semaine}`);
       } else if (job.statut === "INFAISABLE" || job.statut === "ECHEC") {
         if (intervalRef.current) clearInterval(intervalRef.current);
