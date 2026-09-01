@@ -71,6 +71,7 @@ export default async function PlanningReviewPage({
       <PlanningReview
         classeId={classeId}
         semaine={semaine}
+        dateDebutSemaine={sessions[0]?.dateDebut.toISOString().slice(0, 10) ?? ""}
         creneauxInitiaux={creneaux}
         estBrouillon={estBrouillon}
         aucuneSession={sessions.length === 0}

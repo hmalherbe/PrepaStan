@@ -52,15 +52,17 @@ export function GenererPlanningForm({
   classes,
   salles,
   classeIdInitiale,
+  dateDebutSemaineInitiale,
 }: {
   classes: Classe[];
   salles: Salle[];
   classeIdInitiale?: string;
+  dateDebutSemaineInitiale?: string;
 }) {
   const router = useRouter();
 
   const [classeId, setClasseId] = useState(classeIdInitiale ?? classes[0]?.id ?? "");
-  const [dateDebutSemaine, setDateDebutSemaine] = useState("");
+  const [dateDebutSemaine, setDateDebutSemaine] = useState(dateDebutSemaineInitiale ?? "");
   const semaine = useMemo(() => (dateDebutSemaine ? semaineIso(dateDebutSemaine) : null), [dateDebutSemaine]);
   const [quotas, setQuotas] = useState<Quota[]>([]);
   const [jobId, setJobId] = useState<string | null>(null);

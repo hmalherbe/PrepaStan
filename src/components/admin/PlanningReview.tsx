@@ -24,6 +24,7 @@ type Option = { id: string; nom: string };
 export function PlanningReview({
   classeId,
   semaine,
+  dateDebutSemaine,
   creneauxInitiaux,
   estBrouillon,
   aucuneSession,
@@ -32,6 +33,10 @@ export function PlanningReview({
 }: {
   classeId: string;
   semaine: number;
+  // Lundi de cette semaine ("YYYY-MM-DD") : pré-remplit la date sur l'écran
+  // de génération quand on clique "Régénérer", pour ne pas avoir à la
+  // ressaisir à la main.
+  dateDebutSemaine: string;
   creneauxInitiaux: Creneau[];
   estBrouillon: boolean;
   aucuneSession: boolean;
@@ -117,7 +122,7 @@ export function PlanningReview({
         setErreur(data.error ?? "Erreur lors de la suppression");
         return;
       }
-      router.push(`/admin/planification?classeId=${classeId}`);
+      router.push(`/admin/planification?classeId=${classeId}&date=${dateDebutSemaine}`);
     } finally {
       setActionEnCours(null);
     }
@@ -198,7 +203,7 @@ export function PlanningReview({
             {actionEnCours === "annuler" ? "Suppression…" : "Annuler"}
           </button>
         )}
-        <Link href={`/admin/planification?classeId=${classeId}`}>
+        <Link href={`/admin/planification?classeId=${classeId}&date=${dateDebutSemaine}`}>
           <button type="button" className="secondaire">
             Régénérer
           </button>
