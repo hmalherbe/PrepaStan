@@ -19,11 +19,18 @@ export default async function HistoriquePlanningsPage() {
     include: {
       classe: { select: { nom: true } },
       discipline: { select: { nom: true } },
-      creneaux: { select: { passages: { select: { eleveId: true } } } },
+      creneaux: {
+        select: {
+          kholleurId: true,
+          kholleur: { select: { nom: true, prenom: true } },
+          passages: { select: { eleveId: true, note: { select: { valeur: true, appreciation: true } } } },
+        },
+      },
     },
     orderBy: [{ dateDebut: "desc" }],
   });
 
+  type Kholleur = { id: string; nom: string; prenom: string; total: number; termines: number };
   type Groupe = {
     classeId: string;
     classeNom: string;
@@ -32,6 +39,8 @@ export default async function HistoriquePlanningsPage() {
     disciplines: Set<string>;
     nbKholles: number;
     eleves: Set<string>;
+    toutesSessionsCloturees: boolean;
+    kholleurs: Map<string, Kholleur>;
   };
 
   const groupes = new Map<string, Groupe>();
@@ -47,27 +56,48 @@ export default async function HistoriquePlanningsPage() {
         disciplines: new Set(),
         nbKholles: 0,
         eleves: new Set(),
+        toutesSessionsCloturees: true,
+        kholleurs: new Map(),
       };
       groupes.set(cle, g);
     }
     g.disciplines.add(s.discipline.nom);
+    if (s.statut !== "CLOTUREE") g.toutesSessionsCloturees = false;
     for (const c of s.creneaux) {
       g.nbKholles += c.passages.length;
-      for (const p of c.passages) g.eleves.add(p.eleveId);
+      let k = g.kholleurs.get(c.kholleurId);
+      if (!k) {
+        k = { id: c.kholleurId, nom: c.kholleur.nom, prenom: c.kholleur.prenom, total: 0, termines: 0 };
+        g.kholleurs.set(c.kholleurId, k);
+      }
+      for (const p of c.passages) {
+        g.eleves.add(p.eleveId);
+        k.total += 1;
+        if (p.note?.valeur != null && p.note?.appreciation) k.termines += 1;
+      }
     }
   }
 
   const lignes = [...groupes.values()]
     .sort((a, b) => b.dateDebut.getTime() - a.dateDebut.getTime())
-    .map((g) => ({
-      classeId: g.classeId,
-      classeNom: g.classeNom,
-      semaine: g.semaine,
-      periode: `${formatDateUTC(g.dateDebut)} – ${formatDateUTC(dimancheDeLaSemaine(g.dateDebut))}`,
-      disciplines: [...g.disciplines].sort().join(", "),
-      nbKholles: g.nbKholles,
-      nbEleves: g.eleves.size,
-    }));
+    .map((g) => {
+      const kholleursTermines = [...g.kholleurs.values()]
+        .filter((k) => k.total > 0 && k.termines === k.total)
+        .map((k) => ({ id: k.id, nom: k.nom, prenom: k.prenom }))
+        .sort((a, b) => a.nom.localeCompare(b.nom));
+
+      return {
+        classeId: g.classeId,
+        classeNom: g.classeNom,
+        semaine: g.semaine,
+        periode: `${formatDateUTC(g.dateDebut)} – ${formatDateUTC(dimancheDeLaSemaine(g.dateDebut))}`,
+        disciplines: [...g.disciplines].sort().join(", "),
+        nbKholles: g.nbKholles,
+        nbEleves: g.eleves.size,
+        etatTermine: g.toutesSessionsCloturees,
+        kholleursTermines,
+      };
+    });
 
   return (
     <main className="container">
