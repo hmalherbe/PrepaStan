@@ -91,20 +91,38 @@ export async function POST(req: Request) {
       }
       const referentId = utilisateurId;
 
-      return Promise.all(
-        body.classeIds.map((classeId) =>
+      // Un référent existant peut déjà couvrir certaines des classes
+      // sélectionnées (ex. l'admin re-sélectionne par erreur une classe déjà
+      // assignée en ajoutant les nouvelles) : les exclure avant de créer,
+      // plutôt que de laisser la contrainte d'unicité échouer et faire
+      // échouer toute la transaction — y compris les classes réellement
+      // nouvelles du même lot.
+      const dejaAssignees = await tx.professeurReferent.findMany({
+        where: { utilisateurId: referentId, disciplineId: body.disciplineId, classeId: { in: body.classeIds } },
+        select: { classeId: true },
+      });
+      const classeIdsDejaAssignees = new Set(dejaAssignees.map((d) => d.classeId));
+      const classeIdsAAjouter = body.classeIds.filter((id) => !classeIdsDejaAssignees.has(id));
+
+      const nouveaux = await Promise.all(
+        classeIdsAAjouter.map((classeId) =>
           tx.professeurReferent.create({
             data: { utilisateurId: referentId, classeId, disciplineId: body.disciplineId },
             include: { utilisateur: true, classe: true, discipline: true },
           })
         )
       );
+      return { nouveaux, toutesDejaAssignees: classeIdsAAjouter.length === 0 };
     });
-    return NextResponse.json(referents, { status: 201 });
+
+    if (referents.toutesDejaAssignees) {
+      return NextResponse.json(
+        { error: "Ce référent est déjà assigné à toutes les classes sélectionnées pour cette discipline" },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json(referents.nouveaux, { status: 201 });
   } catch {
-    return NextResponse.json(
-      { error: "Ce référent est déjà assigné à l'une des classes sélectionnées pour cette discipline" },
-      { status: 409 }
-    );
+    return NextResponse.json({ error: "Erreur lors de l'assignation du référent" }, { status: 409 });
   }
 }

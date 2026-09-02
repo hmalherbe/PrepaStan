@@ -23,6 +23,42 @@ export default async function ReferentsPage() {
     }),
   ]);
 
+  // Un même référent peut intervenir dans plusieurs classes pour une même
+  // discipline (une ligne ProfesseurReferent par classe) : regroupées ici
+  // par (utilisateur, discipline) pour que la colonne "Classe" les affiche
+  // toutes ensemble au lieu d'une ligne par classe.
+  const groupesParCle = new Map<
+    string,
+    {
+      cle: string;
+      utilisateurId: string;
+      nom: string;
+      prenom: string;
+      email: string;
+      disciplineId: string;
+      discipline: string;
+      classes: { id: string; classeId: string; nom: string }[];
+    }
+  >();
+  for (const r of referents) {
+    const cle = `${r.utilisateurId}_${r.disciplineId}`;
+    let g = groupesParCle.get(cle);
+    if (!g) {
+      g = {
+        cle,
+        utilisateurId: r.utilisateurId,
+        nom: r.utilisateur.nom,
+        prenom: r.utilisateur.prenom,
+        email: r.utilisateur.email,
+        disciplineId: r.disciplineId,
+        discipline: r.discipline.nom,
+        classes: [],
+      };
+      groupesParCle.set(cle, g);
+    }
+    g.classes.push({ id: r.id, classeId: r.classeId, nom: r.classe.nom });
+  }
+
   return (
     <main className="container">
       <h1>Professeurs référents</h1>
@@ -32,16 +68,7 @@ export default async function ReferentsPage() {
         exemple={"classe,discipline,nom,prenom,email\nL1,Maths,Durand,Sophie,sophie.durand@exemple.fr"}
       />
       <ReferentsForm
-        referentsInitiaux={referents.map((r) => ({
-          id: r.id,
-          nom: r.utilisateur.nom,
-          prenom: r.utilisateur.prenom,
-          email: r.utilisateur.email,
-          classeId: r.classeId,
-          classe: r.classe.nom,
-          disciplineId: r.disciplineId,
-          discipline: r.discipline.nom,
-        }))}
+        referentsInitiaux={[...groupesParCle.values()]}
         classes={classes.map((c) => ({
           id: c.id,
           nom: c.nom,

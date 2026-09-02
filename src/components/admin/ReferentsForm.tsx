@@ -2,15 +2,19 @@
 
 import { useState } from "react";
 
-type Referent = {
-  id: string;
+type ClasseAssignee = { id: string; classeId: string; nom: string };
+type ReferentGroupe = {
+  cle: string; // utilisateurId_disciplineId
+  utilisateurId: string;
   nom: string;
   prenom: string;
   email: string;
-  classeId: string;
-  classe: string;
   disciplineId: string;
   discipline: string;
+  // Un même référent peut intervenir dans plusieurs classes pour une même
+  // discipline (voir page.tsx, qui regroupe les lignes ProfesseurReferent) :
+  // une entrée par classe assignée, chacune retirable individuellement.
+  classes: ClasseAssignee[];
 };
 type Discipline = { id: string; nom: string };
 type Classe = { id: string; nom: string; disciplines: Discipline[] };
@@ -22,7 +26,7 @@ export function ReferentsForm({
   disciplines,
   comptesExistants,
 }: {
-  referentsInitiaux: Referent[];
+  referentsInitiaux: ReferentGroupe[];
   classes: Classe[];
   disciplines: Discipline[];
   comptesExistants: CompteExistant[];
@@ -50,12 +54,24 @@ export function ReferentsForm({
   // assignée (table ClasseDiscipline) — voir écran Classes ou Disciplines.
   const classesEligibles = classes.filter((c) => c.disciplines.some((d) => d.id === disciplineId));
 
+  // Si le compte existant sélectionné est déjà référent de cette discipline
+  // dans certaines classes, on le signale plutôt que de laisser resélectionner
+  // une classe déjà assignée (l'API l'ignorerait silencieusement).
+  const groupeExistant =
+    modeCompte === "existant"
+      ? referents.find((r) => r.utilisateurId === utilisateurId && r.disciplineId === disciplineId)
+      : undefined;
+  const classeIdsDejaAssignees = new Set(groupeExistant?.classes.map((c) => c.classeId) ?? []);
+
   const referentsAffiches = referents
-    .filter((r) => !classeFiltre || r.classeId === classeFiltre)
+    .map((r) => ({ ...r, classes: [...r.classes].sort((a, b) => a.nom.localeCompare(b.nom)) }))
+    .filter((r) => !classeFiltre || r.classes.some((c) => c.classeId === classeFiltre))
     .filter((r) => !disciplineFiltre || r.disciplineId === disciplineFiltre)
     .sort(
       (a, b) =>
-        a.classe.localeCompare(b.classe) || a.discipline.localeCompare(b.discipline) || a.nom.localeCompare(b.nom)
+        (a.classes[0]?.nom ?? "").localeCompare(b.classes[0]?.nom ?? "") ||
+        a.discipline.localeCompare(b.discipline) ||
+        a.nom.localeCompare(b.nom)
     );
 
   function toggleClasse(id: string) {
@@ -81,18 +97,43 @@ export function ReferentsForm({
         setErreur(data.error ?? "Erreur lors de la création");
         return;
       }
-      const lignes = data as { id: string; utilisateur: CompteExistant; classeId: string }[];
-      const nouveauxReferents = lignes.map((r) => ({
-        id: r.id,
-        nom: r.utilisateur.nom,
-        prenom: r.utilisateur.prenom,
-        email: r.utilisateur.email,
-        classeId: r.classeId,
-        classe: classes.find((c) => c.id === r.classeId)?.nom ?? "",
-        disciplineId,
-        discipline: disciplines.find((d) => d.id === disciplineId)?.nom ?? "",
-      }));
-      setReferents((prev) => [...prev, ...nouveauxReferents]);
+      const lignes = data as { id: string; utilisateurId: string; classeId: string; utilisateur: CompteExistant }[];
+      if (lignes.length === 0) {
+        setNom("");
+        setPrenom("");
+        setEmail("");
+        setPassword("");
+        setClasseIds([]);
+        return;
+      }
+      setReferents((prev) => {
+        // Purement immutable : le Mode Strict de React invoque une fonction
+        // passée à setState deux fois en développement pour détecter les
+        // effets de bord — muter groupe.classes en place ferait fuiter le
+        // premier appel (normalement jeté) dans le second, doublant les
+        // classes ajoutées.
+        let suivant = prev;
+        for (const l of lignes) {
+          const cle = `${l.utilisateurId}_${disciplineId}`;
+          const classeAssignee = { id: l.id, classeId: l.classeId, nom: classes.find((c) => c.id === l.classeId)?.nom ?? "" };
+          suivant = suivant.some((r) => r.cle === cle)
+            ? suivant.map((r) => (r.cle === cle ? { ...r, classes: [...r.classes, classeAssignee] } : r))
+            : [
+                ...suivant,
+                {
+                  cle,
+                  utilisateurId: l.utilisateurId,
+                  nom: l.utilisateur.nom,
+                  prenom: l.utilisateur.prenom,
+                  email: l.utilisateur.email,
+                  disciplineId,
+                  discipline: disciplines.find((d) => d.id === disciplineId)?.nom ?? "",
+                  classes: [classeAssignee],
+                },
+              ];
+        }
+        return suivant;
+      });
       if (modeCompte === "nouveau" && lignes[0]) {
         setComptes((prev) => [...prev, lignes[0].utilisateur]);
       }
@@ -106,29 +147,42 @@ export function ReferentsForm({
     }
   }
 
-  async function supprimer(referentId: string) {
-    if (!confirm("Retirer cette assignation de référent ?")) return;
-    const res = await fetch(`/api/admin/referents/${referentId}`, { method: "DELETE" });
+  // Retire une seule classe (une ligne ProfesseurReferent) d'un groupe.
+  async function retirerClasse(groupeCle: string, classeAssigneeId: string) {
+    const res = await fetch(`/api/admin/referents/${classeAssigneeId}`, { method: "DELETE" });
     if (!res.ok) return;
-    setReferents((prev) => prev.filter((r) => r.id !== referentId));
+    setReferents((prev) =>
+      prev
+        .map((r) => (r.cle === groupeCle ? { ...r, classes: r.classes.filter((c) => c.id !== classeAssigneeId) } : r))
+        .filter((r) => r.classes.length > 0)
+    );
+  }
+
+  // Retire le référent de toutes les classes affichées dans le groupe (pour
+  // cette discipline).
+  async function retirerGroupe(groupe: ReferentGroupe) {
+    if (!confirm(`Retirer ${groupe.prenom} ${groupe.nom} de toutes les classes listées pour ${groupe.discipline} ?`)) {
+      return;
+    }
+    await Promise.all(groupe.classes.map((c) => fetch(`/api/admin/referents/${c.id}`, { method: "DELETE" })));
+    setReferents((prev) => prev.filter((r) => r.cle !== groupe.cle));
   }
 
   async function sauvegarderEdition(
-    referentId: string,
-    patch: {
-      nom: string;
-      prenom: string;
-      email: string;
-      password?: string;
-      classeId: string;
-      disciplineId: string;
-    }
+    groupe: ReferentGroupe,
+    patch: { nom: string; prenom: string; email: string; password?: string }
   ) {
     setErreurEdition(null);
-    const res = await fetch(`/api/admin/referents/${referentId}`, {
+    // L'API met à jour le compte utilisateur (partagé par toutes les classes
+    // du groupe) via n'importe laquelle de ses lignes ProfesseurReferent ;
+    // classe/discipline de cette ligne sont renvoyées inchangées, seules
+    // les infos personnelles sont éditées ici (voir retirer/ajouter pour
+    // gérer les classes).
+    const premiereLigne = groupe.classes[0];
+    const res = await fetch(`/api/admin/referents/${premiereLigne.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
+      body: JSON.stringify({ ...patch, classeId: premiereLigne.classeId, disciplineId: groupe.disciplineId }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -137,18 +191,7 @@ export function ReferentsForm({
     }
     setReferents((prev) =>
       prev.map((r) =>
-        r.id === referentId
-          ? {
-              ...r,
-              nom: patch.nom,
-              prenom: patch.prenom,
-              email: patch.email,
-              classeId: patch.classeId,
-              classe: classes.find((c) => c.id === patch.classeId)?.nom ?? "",
-              disciplineId: patch.disciplineId,
-              discipline: disciplines.find((d) => d.id === patch.disciplineId)?.nom ?? "",
-            }
-          : r
+        r.cle === groupe.cle ? { ...r, nom: patch.nom, prenom: patch.prenom, email: patch.email } : r
       )
     );
     setEnEdition(null);
@@ -193,26 +236,45 @@ export function ReferentsForm({
         </thead>
         <tbody>
           {referentsAffiches.map((r) =>
-            enEdition === r.id ? (
+            enEdition === r.cle ? (
               <LigneEdition
-                key={r.id}
+                key={r.cle}
                 referent={r}
-                classes={classes}
-                disciplines={disciplines}
                 onAnnuler={() => setEnEdition(null)}
-                onSauvegarder={(patch) => sauvegarderEdition(r.id, patch)}
+                onSauvegarder={(patch) => sauvegarderEdition(r, patch)}
               />
             ) : (
-              <tr key={r.id}>
-                <td>{r.classe}</td>
+              <tr key={r.cle}>
+                <td>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {r.classes.map((c) => (
+                      <span
+                        key={c.id}
+                        className="badge"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+                      >
+                        {c.nom}
+                        <button
+                          type="button"
+                          className="discret"
+                          style={{ padding: "0 4px", lineHeight: 1 }}
+                          onClick={() => retirerClasse(r.cle, c.id)}
+                          title={`Retirer de ${c.nom}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </td>
                 <td>{r.discipline}</td>
                 <td>{r.nom}</td>
                 <td>{r.prenom}</td>
                 <td style={{ display: "flex", gap: 8 }}>
-                  <button className="discret" onClick={() => setEnEdition(r.id)}>
+                  <button className="discret" onClick={() => setEnEdition(r.cle)}>
                     Modifier
                   </button>
-                  <button className="discret" onClick={() => supprimer(r.id)}>
+                  <button className="discret" onClick={() => retirerGroupe(r)}>
                     Retirer
                   </button>
                 </td>
@@ -304,13 +366,27 @@ export function ReferentsForm({
           </select>
         </label>
 
+        {/* Un même référent peut intervenir dans plusieurs classes : les
+            cocher toutes ici plutôt que de répéter l'ajout classe par classe. */}
         <p>Classe(s) concernée(s) :</p>
-        {classesEligibles.map((c) => (
-          <label key={c.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" checked={classeIds.includes(c.id)} onChange={() => toggleClasse(c.id)} />
-            {c.nom}
-          </label>
-        ))}
+        {classesEligibles.map((c) => {
+          const dejaAssignee = classeIdsDejaAssignees.has(c.id);
+          return (
+            <label
+              key={c.id}
+              style={{ flexDirection: "row", alignItems: "center", gap: 8, opacity: dejaAssignee ? 0.5 : 1 }}
+            >
+              <input
+                type="checkbox"
+                checked={classeIds.includes(c.id)}
+                onChange={() => toggleClasse(c.id)}
+                disabled={dejaAssignee}
+              />
+              {c.nom}
+              {dejaAssignee && " (déjà assigné)"}
+            </label>
+          );
+        })}
         {disciplineId && classesEligibles.length === 0 && (
           <span style={{ color: "#777", fontSize: "0.85rem" }}>
             Aucune classe n&apos;a cette discipline assignée (voir l&apos;écran Classes ou Disciplines).
@@ -332,38 +408,26 @@ export function ReferentsForm({
 
 function LigneEdition({
   referent,
-  classes,
-  disciplines,
   onAnnuler,
   onSauvegarder,
 }: {
-  referent: Referent;
-  classes: Classe[];
-  disciplines: Discipline[];
+  referent: ReferentGroupe;
   onAnnuler: () => void;
-  onSauvegarder: (patch: {
-    nom: string;
-    prenom: string;
-    email: string;
-    password?: string;
-    classeId: string;
-    disciplineId: string;
-  }) => void;
+  onSauvegarder: (patch: { nom: string; prenom: string; email: string; password?: string }) => void;
 }) {
   const [nom, setNom] = useState(referent.nom);
   const [prenom, setPrenom] = useState(referent.prenom);
   const [email, setEmail] = useState(referent.email);
   const [password, setPassword] = useState("");
-  const [classeId, setClasseId] = useState(referent.classeId);
-  const [disciplineId, setDisciplineId] = useState(referent.disciplineId);
-
-  const classeChoisie = classes.find((c) => c.id === classeId);
-  const disciplinesDisponibles = classeChoisie?.disciplines ?? [];
 
   return (
     <tr>
       <td colSpan={5}>
         <div className="carte" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <p style={{ margin: 0, fontSize: "0.85rem", color: "#777" }}>
+            {referent.discipline} — {referent.classes.map((c) => c.nom).join(", ")} (pour changer les classes,
+            utilisez les × et le formulaire d&apos;ajout ci-dessous)
+          </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" style={{ flex: 1 }} />
             <input
@@ -387,38 +451,8 @@ function LigneEdition({
               style={{ flex: 1 }}
             />
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <select
-              value={classeId}
-              onChange={(e) => {
-                setClasseId(e.target.value);
-                setDisciplineId("");
-              }}
-            >
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nom}
-                </option>
-              ))}
-            </select>
-            <select value={disciplineId} onChange={(e) => setDisciplineId(e.target.value)}>
-              <option value="" disabled>
-                Choisir…
-              </option>
-              {disciplinesDisponibles.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.nom}
-                </option>
-              ))}
-            </select>
-          </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={() =>
-                onSauvegarder({ nom, prenom, email, password: password || undefined, classeId, disciplineId })
-              }
-              disabled={!disciplineId}
-            >
+            <button onClick={() => onSauvegarder({ nom, prenom, email, password: password || undefined })}>
               OK
             </button>
             <button className="discret" onClick={onAnnuler}>
