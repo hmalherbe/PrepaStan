@@ -23,14 +23,35 @@ export default async function HistoriquePlanningsPage() {
         select: {
           kholleurId: true,
           kholleur: { select: { nom: true, prenom: true } },
-          passages: { select: { eleveId: true, note: { select: { valeur: true, appreciation: true } } } },
+          passages: { select: { eleveId: true } },
         },
       },
+      validationGrilles: { select: { kholleurId: true, statut: true } },
     },
     orderBy: [{ dateDebut: "desc" }],
   });
 
-  type Kholleur = { id: string; nom: string; prenom: string; total: number; termines: number };
+  // Une seule requête pour tous les référents des (classe, discipline)
+  // concernées, plutôt qu'une requête par session.
+  const pairesClasseDiscipline = [...new Set(sessions.map((s) => `${s.classeId}|${s.disciplineId}`))].map((p) => {
+    const [classeId, disciplineId] = p.split("|");
+    return { classeId, disciplineId };
+  });
+  const referentsRows = pairesClasseDiscipline.length
+    ? await prisma.professeurReferent.findMany({
+        where: { OR: pairesClasseDiscipline },
+        include: { utilisateur: { select: { id: true, nom: true, prenom: true } } },
+      })
+    : [];
+  const referentsParPaire = new Map<string, { id: string; nom: string; prenom: string }[]>();
+  for (const r of referentsRows) {
+    const cle = `${r.classeId}_${r.disciplineId}`;
+    const liste = referentsParPaire.get(cle) ?? [];
+    liste.push({ id: r.utilisateur.id, nom: r.utilisateur.nom, prenom: r.utilisateur.prenom });
+    referentsParPaire.set(cle, liste);
+  }
+
+  type Personne = { id: string; nom: string; prenom: string; discipline: string; valide: boolean };
   type Groupe = {
     classeId: string;
     classeNom: string;
@@ -39,8 +60,9 @@ export default async function HistoriquePlanningsPage() {
     disciplines: Set<string>;
     nbKholles: number;
     eleves: Set<string>;
-    toutesSessionsCloturees: boolean;
-    kholleurs: Map<string, Kholleur>;
+    // clé = `${kholleurId}_${disciplineId}` ou `${referentId}_${disciplineId}`
+    kholleurs: Map<string, Personne>;
+    referents: Map<string, Personne>;
   };
 
   const groupes = new Map<string, Groupe>();
@@ -56,36 +78,47 @@ export default async function HistoriquePlanningsPage() {
         disciplines: new Set(),
         nbKholles: 0,
         eleves: new Set(),
-        toutesSessionsCloturees: true,
         kholleurs: new Map(),
+        referents: new Map(),
       };
       groupes.set(cle, g);
     }
     g.disciplines.add(s.discipline.nom);
-    if (s.statut !== "CLOTUREE") g.toutesSessionsCloturees = false;
+
+    const statutParKholleur = new Map(s.validationGrilles.map((v) => [v.kholleurId, v.statut]));
     for (const c of s.creneaux) {
       g.nbKholles += c.passages.length;
-      let k = g.kholleurs.get(c.kholleurId);
-      if (!k) {
-        k = { id: c.kholleurId, nom: c.kholleur.nom, prenom: c.kholleur.prenom, total: 0, termines: 0 };
-        g.kholleurs.set(c.kholleurId, k);
+      for (const p of c.passages) g.eleves.add(p.eleveId);
+
+      const cleKholleur = `${c.kholleurId}_${s.disciplineId}`;
+      if (!g.kholleurs.has(cleKholleur)) {
+        g.kholleurs.set(cleKholleur, {
+          id: c.kholleurId,
+          nom: c.kholleur.nom,
+          prenom: c.kholleur.prenom,
+          discipline: s.discipline.nom,
+          valide: statutParKholleur.get(c.kholleurId) === "VALIDE",
+        });
       }
-      for (const p of c.passages) {
-        g.eleves.add(p.eleveId);
-        k.total += 1;
-        if (p.note?.valeur != null && p.note?.appreciation) k.termines += 1;
-      }
+    }
+
+    const referentsDiscipline = referentsParPaire.get(`${s.classeId}_${s.disciplineId}`) ?? [];
+    for (const r of referentsDiscipline) {
+      const cleReferent = `${r.id}_${s.disciplineId}`;
+      g.referents.set(cleReferent, {
+        id: r.id,
+        nom: r.nom,
+        prenom: r.prenom,
+        discipline: s.discipline.nom,
+        valide: s.statut === "CLOTUREE",
+      });
     }
   }
 
   const lignes = [...groupes.values()]
     .sort((a, b) => b.dateDebut.getTime() - a.dateDebut.getTime())
     .map((g) => {
-      const kholleursTermines = [...g.kholleurs.values()]
-        .filter((k) => k.total > 0 && k.termines === k.total)
-        .map((k) => ({ id: k.id, nom: k.nom, prenom: k.prenom }))
-        .sort((a, b) => a.nom.localeCompare(b.nom));
-
+      const tri = (a: Personne, b: Personne) => a.nom.localeCompare(b.nom) || a.discipline.localeCompare(b.discipline);
       return {
         classeId: g.classeId,
         classeNom: g.classeNom,
@@ -94,8 +127,9 @@ export default async function HistoriquePlanningsPage() {
         disciplines: [...g.disciplines].sort().join(", "),
         nbKholles: g.nbKholles,
         nbEleves: g.eleves.size,
-        etatTermine: g.toutesSessionsCloturees,
-        kholleursTermines,
+        nbDisciplines: g.disciplines.size,
+        kholleurs: [...g.kholleurs.values()].sort(tri),
+        referents: [...g.referents.values()].sort(tri),
       };
     });
 

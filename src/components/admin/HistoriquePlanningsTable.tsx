@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment, useState } from "react";
 
-type Kholleur = { id: string; nom: string; prenom: string };
+type Personne = { id: string; nom: string; prenom: string; discipline: string };
 
 type Ligne = {
   classeId: string;
@@ -13,13 +13,50 @@ type Ligne = {
   disciplines: string;
   nbKholles: number;
   nbEleves: number;
-  etatTermine: boolean;
-  kholleursTermines: Kholleur[];
+  nbDisciplines: number;
+  kholleurs: (Personne & { valide: boolean })[];
+  referents: (Personne & { valide: boolean })[];
 };
+
+// Un bouton "n validé(s)" / "m non validé(s)" qui déroule la liste
+// nom + discipline des personnes concernées quand on clique dessus.
+function BoutonEtat({
+  label,
+  personnes,
+  ouvert,
+  onToggle,
+}: {
+  label: string;
+  personnes: Personne[];
+  ouvert: boolean;
+  onToggle: () => void;
+}) {
+  if (personnes.length === 0) {
+    return <span style={{ color: "#777" }}>0 {label}</span>;
+  }
+  return (
+    <button type="button" className="discret" onClick={onToggle} aria-expanded={ouvert}>
+      {personnes.length} {label}
+    </button>
+  );
+}
+
+function ListePersonnes({ personnes }: { personnes: Personne[] }) {
+  return <>{personnes.map((p) => `${p.prenom} ${p.nom} (${p.discipline})`).join(", ")}</>;
+}
 
 export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
   const [classeFiltre, setClasseFiltre] = useState("");
-  const [ligneOuverte, setLigneOuverte] = useState<string | null>(null);
+  const [ouverts, setOuverts] = useState<Set<string>>(new Set());
+
+  function toggle(cle: string) {
+    setOuverts((prev) => {
+      const suivant = new Set(prev);
+      if (suivant.has(cle)) suivant.delete(cle);
+      else suivant.add(cle);
+      return suivant;
+    });
+  }
 
   const classes = [...new Map(lignes.map((l) => [l.classeId, l.classeNom])).entries()]
     .map(([id, nom]) => ({ id, nom }))
@@ -56,7 +93,16 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
         <tbody>
           {lignesAffichees.map((l) => {
             const cle = `${l.classeId}_${l.semaine}`;
-            const ouverte = ligneOuverte === cle;
+            const kholleursValides = l.kholleurs.filter((k) => k.valide);
+            const kholleursNonValides = l.kholleurs.filter((k) => !k.valide);
+            const referentsValides = l.referents.filter((r) => r.valide);
+            const referentsNonValides = l.referents.filter((r) => !r.valide);
+
+            const cleKV = `${cle}_kv`;
+            const cleKNV = `${cle}_knv`;
+            const cleRV = `${cle}_rv`;
+            const cleRNV = `${cle}_rnv`;
+
             return (
               <Fragment key={cle}>
                 <tr>
@@ -69,26 +115,78 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
                   <td>{l.nbKholles}</td>
                   <td>{l.nbEleves}</td>
                   <td>
-                    {l.etatTermine ? (
-                      "Terminé"
-                    ) : l.kholleursTermines.length === 0 ? (
-                      "0 kholleur"
+                    <div>
+                      Kholleurs :{" "}
+                      <BoutonEtat
+                        label="validé(s)"
+                        personnes={kholleursValides}
+                        ouvert={ouverts.has(cleKV)}
+                        onToggle={() => toggle(cleKV)}
+                      />{" "}
+                      /{" "}
+                      <BoutonEtat
+                        label="non validé(s)"
+                        personnes={kholleursNonValides}
+                        ouvert={ouverts.has(cleKNV)}
+                        onToggle={() => toggle(cleKNV)}
+                      />
+                    </div>
+                    {l.nbDisciplines > 1 ? (
+                      <div>
+                        Référents :{" "}
+                        <BoutonEtat
+                          label="validé(s)"
+                          personnes={referentsValides}
+                          ouvert={ouverts.has(cleRV)}
+                          onToggle={() => toggle(cleRV)}
+                        />{" "}
+                        /{" "}
+                        <BoutonEtat
+                          label="non validé(s)"
+                          personnes={referentsNonValides}
+                          ouvert={ouverts.has(cleRNV)}
+                          onToggle={() => toggle(cleRNV)}
+                        />
+                      </div>
                     ) : (
-                      <button
-                        type="button"
-                        className="discret"
-                        onClick={() => setLigneOuverte(ouverte ? null : cle)}
-                      >
-                        {l.kholleursTermines.length} kholleur{l.kholleursTermines.length > 1 ? "s" : ""}
-                      </button>
+                      <div>
+                        Référent :{" "}
+                        {l.referents.length === 0
+                          ? "—"
+                          : l.referents.every((r) => r.valide)
+                            ? "validé"
+                            : "non validé"}
+                      </div>
                     )}
                   </td>
                 </tr>
-                {ouverte && !l.etatTermine && l.kholleursTermines.length > 0 && (
+                {ouverts.has(cleKV) && kholleursValides.length > 0 && (
                   <tr>
                     <td colSpan={7}>
-                      <strong>Ont saisi notes et appréciations :</strong>{" "}
-                      {l.kholleursTermines.map((k) => `${k.prenom} ${k.nom}`).join(", ")}
+                      <strong>Kholleurs ayant validé :</strong> <ListePersonnes personnes={kholleursValides} />
+                    </td>
+                  </tr>
+                )}
+                {ouverts.has(cleKNV) && kholleursNonValides.length > 0 && (
+                  <tr>
+                    <td colSpan={7}>
+                      <strong>Kholleurs n&apos;ayant pas validé :</strong>{" "}
+                      <ListePersonnes personnes={kholleursNonValides} />
+                    </td>
+                  </tr>
+                )}
+                {ouverts.has(cleRV) && referentsValides.length > 0 && (
+                  <tr>
+                    <td colSpan={7}>
+                      <strong>Référents ayant validé :</strong> <ListePersonnes personnes={referentsValides} />
+                    </td>
+                  </tr>
+                )}
+                {ouverts.has(cleRNV) && referentsNonValides.length > 0 && (
+                  <tr>
+                    <td colSpan={7}>
+                      <strong>Référents n&apos;ayant pas validé :</strong>{" "}
+                      <ListePersonnes personnes={referentsNonValides} />
                     </td>
                   </tr>
                 )}
