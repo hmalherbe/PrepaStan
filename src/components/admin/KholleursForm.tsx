@@ -33,9 +33,11 @@ export function KholleursForm({
   const [erreurEdition, setErreurEdition] = useState<string | null>(null);
   const [disciplineFiltre, setDisciplineFiltre] = useState("");
 
-  const kholleursAffiches = disciplineFiltre
-    ? kholleurs.filter((k) => k.disciplineIds.includes(disciplineFiltre))
-    : kholleurs;
+  const kholleursAffiches = kholleurs
+    .filter((k) => !disciplineFiltre || k.disciplineIds.includes(disciplineFiltre))
+    .sort(
+      (a, b) => a.disciplines.join(", ").localeCompare(b.disciplines.join(", ")) || a.nom.localeCompare(b.nom)
+    );
 
   function toggleDiscipline(id: string) {
     setDisciplineIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]));
@@ -138,10 +140,10 @@ export function KholleursForm({
       <table>
         <thead>
           <tr>
+            <th>Disciplines</th>
             <th>Nom</th>
             <th>Prénom</th>
             <th>Email</th>
-            <th>Disciplines</th>
             <th>Disponibilités</th>
             <th></th>
           </tr>
@@ -158,10 +160,10 @@ export function KholleursForm({
               />
             ) : (
               <tr key={k.id}>
+                <td>{k.disciplines.join(", ")}</td>
                 <td>{k.nom}</td>
                 <td>{k.prenom}</td>
                 <td>{k.email}</td>
-                <td>{k.disciplines.join(", ")}</td>
                 <td>{k.nbDisponibilites}</td>
                 <td style={{ display: "flex", gap: 8 }}>
                   <button className="discret" onClick={() => setEnEdition(k.id)}>

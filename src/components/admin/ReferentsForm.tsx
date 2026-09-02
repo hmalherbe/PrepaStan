@@ -184,10 +184,10 @@ export function ReferentsForm({
       <table>
         <thead>
           <tr>
-            <th>Nom</th>
-            <th>Prénom</th>
             <th>Classe</th>
             <th>Discipline</th>
+            <th>Nom</th>
+            <th>Prénom</th>
             <th></th>
           </tr>
         </thead>
@@ -204,10 +204,10 @@ export function ReferentsForm({
               />
             ) : (
               <tr key={r.id}>
-                <td>{r.nom}</td>
-                <td>{r.prenom}</td>
                 <td>{r.classe}</td>
                 <td>{r.discipline}</td>
+                <td>{r.nom}</td>
+                <td>{r.prenom}</td>
                 <td style={{ display: "flex", gap: 8 }}>
                   <button className="discret" onClick={() => setEnEdition(r.id)}>
                     Modifier
