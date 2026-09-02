@@ -1,0 +1,38 @@
+name: Tests solveur de planning
+
+# Ne se déclenche que si des fichiers du microservice solveur changent —
+# inutile de relancer OR-Tools pour une modification de l'app Next.js.
+"on":
+  push:
+    branches: [main]
+    paths:
+      - "services/planning-solver/**"
+      - ".github/workflows/planning-solver-tests.yml"
+  pull_request:
+    paths:
+      - "services/planning-solver/**"
+      - ".github/workflows/planning-solver-tests.yml"
+
+defaults:
+  run:
+    working-directory: services/planning-solver
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Même version que python:3.12-slim dans le Dockerfile du solveur, pour
+      # que "les tests passent en CI" garantisse aussi "ça marche en prod".
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: services/planning-solver/requirements-dev.txt
+
+      - name: Installer les dépendances
+        run: pip install -r requirements-dev.txt
+
+      - name: Lancer la suite de tests
+        run: pytest tests/ -v
