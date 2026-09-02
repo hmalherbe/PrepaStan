@@ -43,10 +43,20 @@ export function ReferentsForm({
   const [enCours, setEnCours] = useState(false);
   const [enEdition, setEnEdition] = useState<string | null>(null);
   const [erreurEdition, setErreurEdition] = useState<string | null>(null);
+  const [classeFiltre, setClasseFiltre] = useState("");
+  const [disciplineFiltre, setDisciplineFiltre] = useState("");
 
   // Une classe n'est proposable que si la discipline choisie lui est déjà
   // assignée (table ClasseDiscipline) — voir écran Classes ou Disciplines.
   const classesEligibles = classes.filter((c) => c.disciplines.some((d) => d.id === disciplineId));
+
+  const referentsAffiches = referents
+    .filter((r) => !classeFiltre || r.classeId === classeFiltre)
+    .filter((r) => !disciplineFiltre || r.disciplineId === disciplineFiltre)
+    .sort(
+      (a, b) =>
+        a.classe.localeCompare(b.classe) || a.discipline.localeCompare(b.discipline) || a.nom.localeCompare(b.nom)
+    );
 
   function toggleClasse(id: string) {
     setClasseIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
@@ -146,6 +156,31 @@ export function ReferentsForm({
 
   return (
     <div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <label style={{ maxWidth: 220 }}>
+          Filtrer par classe
+          <select value={classeFiltre} onChange={(e) => setClasseFiltre(e.target.value)}>
+            <option value="">Toutes les classes</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nom}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ maxWidth: 220 }}>
+          Filtrer par discipline
+          <select value={disciplineFiltre} onChange={(e) => setDisciplineFiltre(e.target.value)}>
+            <option value="">Toutes les disciplines</option>
+            {disciplines.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.nom}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       <table>
         <thead>
           <tr>
@@ -157,7 +192,7 @@ export function ReferentsForm({
           </tr>
         </thead>
         <tbody>
-          {referents.map((r) =>
+          {referentsAffiches.map((r) =>
             enEdition === r.id ? (
               <LigneEdition
                 key={r.id}
@@ -184,9 +219,11 @@ export function ReferentsForm({
               </tr>
             )
           )}
-          {referents.length === 0 && (
+          {referentsAffiches.length === 0 && (
             <tr>
-              <td colSpan={5}>Aucun référent pour le moment.</td>
+              <td colSpan={5}>
+                {referents.length === 0 ? "Aucun référent pour le moment." : "Aucun référent pour ce filtre."}
+              </td>
             </tr>
           )}
         </tbody>

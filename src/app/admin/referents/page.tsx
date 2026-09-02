@@ -9,7 +9,7 @@ export default async function ReferentsPage() {
   const [referents, classes, disciplines, comptesExistants] = await Promise.all([
     prisma.professeurReferent.findMany({
       include: { utilisateur: true, discipline: true, classe: true },
-      orderBy: [{ classe: { nom: "asc" } }],
+      orderBy: [{ classe: { nom: "asc" } }, { discipline: { nom: "asc" } }, { utilisateur: { nom: "asc" } }],
     }),
     prisma.classe.findMany({
       include: { disciplines: { include: { discipline: true } } },
