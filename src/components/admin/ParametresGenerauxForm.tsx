@@ -8,16 +8,25 @@ export function ParametresGenerauxForm({
   modeleKholleurInitial,
   modeleReferentInitial,
   modeleEleveInitial,
+  envoiKholleurInitial,
+  envoiReferentInitial,
+  envoiEleveInitial,
 }: {
   delaiInitial: number;
   modeleKholleurInitial: string;
   modeleReferentInitial: string;
   modeleEleveInitial: string;
+  envoiKholleurInitial: boolean;
+  envoiReferentInitial: boolean;
+  envoiEleveInitial: boolean;
 }) {
   const [delai, setDelai] = useState(delaiInitial);
   const [modeleKholleur, setModeleKholleur] = useState(modeleKholleurInitial);
   const [modeleReferent, setModeleReferent] = useState(modeleReferentInitial);
   const [modeleEleve, setModeleEleve] = useState(modeleEleveInitial);
+  const [envoiKholleur, setEnvoiKholleur] = useState(envoiKholleurInitial);
+  const [envoiReferent, setEnvoiReferent] = useState(envoiReferentInitial);
+  const [envoiEleve, setEnvoiEleve] = useState(envoiEleveInitial);
   const [enCours, setEnCours] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -33,6 +42,9 @@ export function ParametresGenerauxForm({
           modeleEmailKholleur: modeleKholleur,
           modeleEmailReferent: modeleReferent,
           modeleEmailEleve: modeleEleve,
+          envoiEmailKholleur: envoiKholleur,
+          envoiEmailReferent: envoiReferent,
+          envoiEmailEleve: envoiEleve,
         }),
       });
       if (!res.ok) {
@@ -75,16 +87,22 @@ export function ParametresGenerauxForm({
         label="Kholleurs — à la publication du planning"
         value={modeleKholleur}
         onChange={setModeleKholleur}
+        actif={envoiKholleur}
+        onActifChange={setEnvoiKholleur}
       />
       <PlaceholderTextarea
         label="Professeurs référents — quand toutes les grilles de la session sont validées"
         value={modeleReferent}
         onChange={setModeleReferent}
+        actif={envoiReferent}
+        onActifChange={setEnvoiReferent}
       />
       <PlaceholderTextarea
         label="Élèves — quand le référent clôture la session (note disponible)"
         value={modeleEleve}
         onChange={setModeleEleve}
+        actif={envoiEleve}
+        onActifChange={setEnvoiEleve}
       />
 
       <button type="button" onClick={enregistrer} disabled={enCours}>

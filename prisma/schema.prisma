@@ -339,6 +339,11 @@ model ParametresApplication {
   modeleEmailKholleur String?
   modeleEmailReferent String?
   modeleEmailEleve    String?
+  // Case à cocher par rôle destinataire : permet de désactiver l'envoi sans
+  // perdre le modèle personnalisé déjà saisi.
+  envoiEmailKholleur Boolean @default(true)
+  envoiEmailReferent Boolean @default(true)
+  envoiEmailEleve    Boolean @default(true)
 }
 
 // Empêche de renvoyer plusieurs fois le même rappel à un kholleur pour une

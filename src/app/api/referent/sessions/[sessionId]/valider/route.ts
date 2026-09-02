@@ -69,6 +69,10 @@ export async function POST(
     prisma.parametresApplication.findUnique({ where: { id: "singleton" } }),
   ]);
 
+  if (parametres?.envoiEmailEleve === false) {
+    return NextResponse.json({ ok: true });
+  }
+
   await Promise.allSettled(
     eleves
       .filter((eleve): eleve is typeof eleve & { utilisateur: NonNullable<(typeof eleve)["utilisateur"]> } =>

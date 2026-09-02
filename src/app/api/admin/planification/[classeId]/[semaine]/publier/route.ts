@@ -51,6 +51,10 @@ export async function POST(
 
   const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
 
+  if (parametres?.envoiEmailKholleur === false) {
+    return NextResponse.json({ sessionsPubliees: sessionIds.length });
+  }
+
   await Promise.allSettled(
     [...creneauxParKholleur.values()].map((creneauxKholleur) => {
       const kholleur = creneauxKholleur[0].kholleur;

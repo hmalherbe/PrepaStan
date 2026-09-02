@@ -67,6 +67,10 @@ export async function POST(
         prisma.parametresApplication.findUnique({ where: { id: "singleton" } }),
       ]);
 
+      if (parametres?.envoiEmailReferent === false) {
+        return NextResponse.json({ ok: true });
+      }
+
       await Promise.allSettled(
         referents.map((referent) =>
           envoyerEmailGrillesValidees({

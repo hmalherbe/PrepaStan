@@ -12,13 +12,18 @@ export function PlaceholderTextarea({
   value,
   onChange,
   aide,
+  actif,
+  onActifChange,
 }: {
   label: string;
   value: string;
   onChange: (valeur: string) => void;
   aide?: string;
+  actif?: boolean;
+  onActifChange?: (actif: boolean) => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const desactive = actif === false;
 
   function inserer(placeholder: string) {
     const textarea = ref.current;
@@ -40,13 +45,26 @@ export function PlaceholderTextarea({
 
   return (
     <div>
-      <label>{label}</label>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <label>{label}</label>
+        {onActifChange && (
+          <label style={{ fontWeight: "normal", display: "flex", alignItems: "center", gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={actif ?? true}
+              onChange={(e) => onActifChange(e.target.checked)}
+            />
+            Envoyer cet email
+          </label>
+        )}
+      </div>
       <div style={{ display: "flex", gap: 8, margin: "4px 0" }}>
         {PLACEHOLDERS.map((placeholder) => (
           <button
             key={placeholder}
             type="button"
             className="discret"
+            disabled={desactive}
             onClick={() => inserer(placeholder)}
           >
             {placeholder}
@@ -58,7 +76,8 @@ export function PlaceholderTextarea({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={4}
-        style={{ width: "100%", resize: "vertical" }}
+        disabled={desactive}
+        style={{ width: "100%", resize: "vertical", opacity: desactive ? 0.5 : 1 }}
       />
       {aide && (
         <p style={{ color: "#777", fontSize: "0.9rem" }}>{aide}</p>

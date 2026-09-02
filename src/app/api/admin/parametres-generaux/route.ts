@@ -8,6 +8,9 @@ const bodySchema = z.object({
   modeleEmailKholleur: z.string().max(5000),
   modeleEmailReferent: z.string().max(5000),
   modeleEmailEleve: z.string().max(5000),
+  envoiEmailKholleur: z.boolean(),
+  envoiEmailReferent: z.boolean(),
+  envoiEmailEleve: z.boolean(),
 });
 
 // PUT /api/admin/parametres-generaux
