@@ -1,7 +1,6 @@
 "use client";
 
 import "quill/dist/quill.core.css";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 
@@ -30,31 +29,12 @@ export function DetailSessionReferent({
   groupes: Groupe[];
   valideInitial: boolean;
 }) {
-  const router = useRouter();
   const [valide, setValide] = useState(valideInitial);
   const [enCours, setEnCours] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
   const totalValides = groupes.filter((g) => g.statut === "VALIDE").length;
   const toutValide = groupes.length > 0 && totalValides === groupes.length;
-
-  async function rouvrir(kholleurId: string) {
-    setEnCours(kholleurId);
-    setErreur(null);
-    try {
-      const res = await fetch(`/api/referent/sessions/${sessionId}/kholleurs/${kholleurId}/rouvrir`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErreur(data.error ?? "Erreur lors de la réouverture");
-        return;
-      }
-      router.refresh();
-    } finally {
-      setEnCours(null);
-    }
-  }
 
   async function validerSession() {
     if (!confirm("Valider cette session ? Les notes deviendront visibles aux élèves.")) return;
@@ -117,14 +97,6 @@ export function DetailSessionReferent({
               ))}
             </tbody>
           </table>
-
-          {g.statut === "VALIDE" && !valide && (
-            <p style={{ marginTop: 12 }}>
-              <button className="secondaire" onClick={() => rouvrir(g.kholleurId)} disabled={enCours === g.kholleurId}>
-                {enCours === g.kholleurId ? "Réouverture…" : "Rouvrir la grille"}
-              </button>
-            </p>
-          )}
         </details>
       ))}
 
