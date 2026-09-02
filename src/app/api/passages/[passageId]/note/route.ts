@@ -30,8 +30,10 @@ const OPTIONS_SANITIZE_APPRECIATION: sanitizeHtml.IOptions = {
 };
 
 // PUT /api/passages/:passageId/note
-// Upsert de la note et de l'appréciation. Rejeté si la grille du kholleur
-// pour cette session est déjà validée.
+// Upsert de la note et de l'appréciation. Rejeté seulement une fois le
+// référent a validé la session (SessionKholle.statut === CLOTUREE) : avant
+// ça, le kholleur peut revenir sur sa grille autant de fois qu'il veut,
+// même après avoir cliqué "Valider ma grille" (voir GrilleForm.tsx).
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ passageId: string }> }
@@ -44,25 +46,16 @@ export async function PUT(
 
   const passage = await prisma.passage.findUniqueOrThrow({
     where: { id: passageId },
-    include: { creneau: true },
+    include: { creneau: { include: { sessionKholle: { select: { statut: true } } } } },
   });
 
   if (passage.creneau.kholleurId !== kholleurId) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
-  const validation = await prisma.validationGrille.findUnique({
-    where: {
-      kholleurId_sessionKholleId: {
-        kholleurId,
-        sessionKholleId: passage.creneau.sessionKholleId,
-      },
-    },
-  });
-
-  if (validation?.statut === "VALIDE") {
+  if (passage.creneau.sessionKholle.statut === "CLOTUREE") {
     return NextResponse.json(
-      { error: "Grille déjà validée, modification impossible" },
+      { error: "Session déjà validée par le référent, modification impossible" },
       { status: 409 }
     );
   }

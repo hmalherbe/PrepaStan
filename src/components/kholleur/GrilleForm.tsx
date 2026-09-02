@@ -31,15 +31,16 @@ export function GrilleForm({
   valideInitial: boolean;
   dateValidation: string | null;
   // Le référent a validé la session entière (SessionKholle.statut ===
-  // CLOTUREE) : la grille de ce kholleur ne peut alors plus jamais être
-  // rouverte (voir .../rouvrir), donc verrouillée pour de bon — au-delà de
-  // `valide`, qui ne reflète que sa propre validation et peut encore être
-  // annulée par le référent tant que la session n'est pas gelée.
+  // CLOTUREE) : seul ce moment gèle réellement la grille. Avant ça, le
+  // kholleur peut revenir dessus autant de fois qu'il veut, même après
+  // avoir cliqué "Valider ma grille" — cliquer sur ce bouton n'est qu'un
+  // signal envoyé au référent (condition pour qu'il puisse valider la
+  // session), pas un verrou sur sa propre saisie.
   gelee: boolean;
 }) {
   const [lignes, setLignes] = useState(lignesInitiales);
   const [valide, setValide] = useState(valideInitial);
-  const fige = valide || gelee;
+  const fige = gelee;
   const [etats, setEtats] = useState<Record<string, EtatSauvegarde>>({});
   const [erreurValidation, setErreurValidation] = useState<string | null>(null);
   const [validationEnCours, setValidationEnCours] = useState(false);
@@ -110,7 +111,11 @@ export function GrilleForm({
   }
 
   async function valider() {
-    if (!confirm("Une fois la grille validée, vous ne pourrez plus la modifier sauf réouverture par le référent. Confirmer ?")) {
+    if (
+      !confirm(
+        "Confirmer la validation ? Le référent pourra alors valider la session — vous pourrez encore modifier la grille jusqu'à ce qu'il le fasse."
+      )
+    ) {
       return;
     }
     setValidationEnCours(true);
@@ -137,7 +142,8 @@ export function GrilleForm({
       ) : (
         valide && (
           <p className="badge badge-succes">
-            Grille validée{dateValidation ? ` le ${new Date(dateValidation).toLocaleString("fr-FR")}` : ""}
+            Grille validée{dateValidation ? ` le ${new Date(dateValidation).toLocaleString("fr-FR")}` : ""} — vous
+            pouvez encore la modifier tant que le référent n'a pas validé la session
           </p>
         )
       )}
@@ -228,7 +234,7 @@ export function GrilleForm({
       {!fige && (
         <p style={{ marginTop: 16 }}>
           <button onClick={valider} disabled={!toutSaisi || validationEnCours}>
-            {validationEnCours ? "Validation…" : "Valider ma grille"}
+            {validationEnCours ? "Validation…" : valide ? "Revalider ma grille" : "Valider ma grille"}
           </button>
           {!toutSaisi && (
             <span style={{ marginLeft: 12, color: "#777", fontSize: "0.9rem" }}>

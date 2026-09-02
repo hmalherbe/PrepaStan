@@ -16,6 +16,17 @@ export async function POST(
   const kholleurId = auth.user.id;
   const { sessionId: sessionKholleId } = await params;
 
+  const sessionKholle = await prisma.sessionKholle.findUniqueOrThrow({
+    where: { id: sessionKholleId },
+    select: { statut: true },
+  });
+  if (sessionKholle.statut === "CLOTUREE") {
+    return NextResponse.json(
+      { error: "Session déjà validée par le référent" },
+      { status: 409 }
+    );
+  }
+
   const passagesIncomplets = await prisma.passage.count({
     where: {
       creneau: { sessionKholleId, kholleurId },
