@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -69,6 +70,9 @@ export default function LoginPage() {
           {enCours ? "Connexion..." : "Se connecter"}
         </button>
       </form>
+      <p>
+        <Link href="/mot-de-passe-oublie">Mot de passe oublié ?</Link>
+      </p>
     </main>
   );
 }

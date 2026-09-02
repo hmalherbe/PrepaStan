@@ -26,15 +26,32 @@ model Utilisateur {
   // professeur référent) avec un seul compte de connexion.
   roles    Role[]
 
-  competences       Competence[]
-  disponibilites    Disponibilite[]
-  referentsMatiere  ProfesseurReferent[]
-  creneaux          Creneau[]
-  planificationJobs PlanificationJob[]
-  eleve             Eleve?
+  competences              Competence[]
+  disponibilites           Disponibilite[]
+  referentsMatiere         ProfesseurReferent[]
+  creneaux                 Creneau[]
+  planificationJobs        PlanificationJob[]
+  eleve                    Eleve?
+  tokensReinitialisation   TokenReinitialisationMotDePasse[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Mot de passe oublié : un seul token actif à la fois par utilisateur (voir
+// /api/auth/mot-de-passe-oublie, qui purge les anciens avant d'en créer un
+// nouveau). On stocke un hash SHA-256 du token, jamais le token en clair —
+// seul le lien envoyé par email le contient — pour qu'une fuite de la base
+// ne suffise pas à réinitialiser un mot de passe à la place de quelqu'un.
+model TokenReinitialisationMotDePasse {
+  id            String   @id @default(cuid())
+  tokenHash     String   @unique
+  utilisateurId String
+  expiration    DateTime
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@index([utilisateurId])
 }
 
 // Entité à part (et non un simple champ texte sur Classe) : plusieurs

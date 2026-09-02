@@ -76,6 +76,43 @@ export async function envoyerEmailPublicationPlanning({
   }
 }
 
+// Mot de passe oublié, tous rôles confondus (kholleur, référent, élève,
+// admin). Le lien contient le token en clair (jamais stocké en base, voir
+// TokenReinitialisationMotDePasse). N'échoue jamais bruyamment, comme les
+// autres emails ci-dessus.
+export async function envoyerEmailReinitialisationMotDePasse({
+  destinataire,
+  nomUtilisateur,
+  lien,
+}: {
+  destinataire: string;
+  nomUtilisateur: string;
+  lien: string;
+}): Promise<void> {
+  if (!resend) {
+    console.warn(`RESEND_API_KEY non configuré : email de réinitialisation non envoyé à ${destinataire}`);
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: EXPEDITEUR,
+      to: destinataire,
+      subject: "PrepaStan — Réinitialisation de votre mot de passe",
+      html: `
+        <p>Bonjour ${nomUtilisateur},</p>
+        <p>Vous avez demandé la réinitialisation de votre mot de passe PrepaStan.
+        Cliquez sur le lien ci-dessous pour en choisir un nouveau (valable 1 heure) :</p>
+        <p><a href="${lien}">${lien}</a></p>
+        <p>Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email :
+        votre mot de passe actuel reste inchangé.</p>
+      `,
+    });
+  } catch (err) {
+    console.error(`Échec de l'envoi de l'email de réinitialisation à ${destinataire} :`, err);
+  }
+}
+
 // Rappel envoyé à un kholleur qui n'a pas encore validé sa grille de
 // notation pour une session déjà khôllée, passé le délai configuré dans
 // Paramètres (voir src/lib/rappelsNotation.ts). N'échoue jamais bruyamment,
