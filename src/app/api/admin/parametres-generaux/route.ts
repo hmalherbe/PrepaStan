@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 
 const bodySchema = z.object({
   delaiEnvoiMailsNotationJours: z.number().int().min(0).max(60),
+  modeleEmailKholleur: z.string().max(5000),
+  modeleEmailReferent: z.string().max(5000),
+  modeleEmailEleve: z.string().max(5000),
 });
 
 // PUT /api/admin/parametres-generaux

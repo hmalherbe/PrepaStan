@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { MODELES_EMAIL_PAR_DEFAUT, remplacerPlaceholders } from "@/lib/modelesEmail";
 
 // Sans clé configurée, on ne bloque jamais l'application pour un email : on
 // logue et on continue (utile en développement local sans compte Resend).
@@ -22,21 +23,49 @@ function formaterDate(date: Date): string {
   return date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 }
 
+// Le corps personnalisable (Paramètres) est du texte brut saisi dans une
+// simple textarea, jamais du HTML : on échappe les caractères spéciaux puis
+// on convertit les retours à la ligne, plutôt que d'injecter tel quel dans
+// l'email (qui casserait sinon le rendu si l'admin tape un "<" ou "&").
+function corpsPersonnaliseEnHtml(corps: string): string {
+  const echappe = corps
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+  return echappe
+    .split("\n\n")
+    .map((paragraphe) => `<p>${paragraphe.replaceAll("\n", "<br>")}</p>`)
+    .join("");
+}
+
+function resoudreCorps(
+  modelePersonnalise: string | null | undefined,
+  defaut: string,
+  destinataire: { nom: string; prenom: string }
+): string {
+  const modele = modelePersonnalise?.trim() ? modelePersonnalise : defaut;
+  return corpsPersonnaliseEnHtml(remplacerPlaceholders(modele, destinataire));
+}
+
 // Envoie au kholleur le récapitulatif de ses créneaux pour la semaine qui
 // vient d'être publiée. N'échoue jamais bruyamment : une erreur d'envoi est
 // juste loguée, pour ne pas empêcher la publication du planning côté admin.
 export async function envoyerEmailPublicationPlanning({
   destinataire,
   nomKholleur,
+  prenomKholleur,
   classeNom,
   semaine,
   creneaux,
+  corpsPersonnalise,
 }: {
   destinataire: string;
   nomKholleur: string;
+  prenomKholleur: string;
   classeNom: string;
   semaine: number;
   creneaux: CreneauEmail[];
+  corpsPersonnalise?: string | null;
 }): Promise<void> {
   if (!resend) {
     console.warn(`RESEND_API_KEY non configuré : email de publication non envoyé à ${destinataire}`);
@@ -51,15 +80,19 @@ export async function envoyerEmailPublicationPlanning({
     )
     .join("");
 
+  const corps = resoudreCorps(corpsPersonnalise, MODELES_EMAIL_PAR_DEFAUT.KHOLLEUR, {
+    nom: nomKholleur,
+    prenom: prenomKholleur,
+  });
+
   try {
     await resend.emails.send({
       from: EXPEDITEUR,
       to: destinataire,
       subject: `PrepaStan — Planning ${classeNom} semaine ${semaine} publié`,
       html: `
-        <p>Bonjour ${nomKholleur},</p>
-        <p>Le planning de la classe ${classeNom} (semaine ${semaine}) vient d'être publié.
-        Voici vos créneaux :</p>
+        ${corps}
+        <p>Voici le planning de la classe ${classeNom} (semaine ${semaine}) :</p>
         <table cellpadding="6" style="border-collapse: collapse;">
           <thead>
             <tr style="text-align:left;">
@@ -110,6 +143,101 @@ export async function envoyerEmailReinitialisationMotDePasse({
     });
   } catch (err) {
     console.error(`Échec de l'envoi de l'email de réinitialisation à ${destinataire} :`, err);
+  }
+}
+
+// Notifie un professeur référent que tous les kholleurs de sa session ont
+// validé leur grille de notation : il peut désormais valider la session à
+// son tour (voir /api/kholleur/sessions/[sessionId]/valider, qui détecte ce
+// moment). N'échoue jamais bruyamment, comme les autres emails ci-dessus.
+export async function envoyerEmailGrillesValidees({
+  destinataire,
+  nomReferent,
+  prenomReferent,
+  classeNom,
+  disciplineNom,
+  semaine,
+  corpsPersonnalise,
+}: {
+  destinataire: string;
+  nomReferent: string;
+  prenomReferent: string;
+  classeNom: string;
+  disciplineNom: string;
+  semaine: number;
+  corpsPersonnalise?: string | null;
+}): Promise<void> {
+  if (!resend) {
+    console.warn(`RESEND_API_KEY non configuré : email de grilles validées non envoyé à ${destinataire}`);
+    return;
+  }
+
+  const corps = resoudreCorps(corpsPersonnalise, MODELES_EMAIL_PAR_DEFAUT.REFERENT, {
+    nom: nomReferent,
+    prenom: prenomReferent,
+  });
+
+  try {
+    await resend.emails.send({
+      from: EXPEDITEUR,
+      to: destinataire,
+      subject: `PrepaStan — Grilles validées : ${disciplineNom}, ${classeNom} semaine ${semaine}`,
+      html: `
+        ${corps}
+        <p>Classe ${classeNom} — ${disciplineNom} — semaine ${semaine}.</p>
+        <p>Connectez-vous à PrepaStan pour valider la session.</p>
+      `,
+    });
+  } catch (err) {
+    console.error(`Échec de l'envoi de l'email de grilles validées à ${destinataire} :`, err);
+  }
+}
+
+// Notifie un élève que sa note et son appréciation sont disponibles, une
+// fois la session clôturée par le professeur référent (voir
+// /api/referent/sessions/[sessionId]/valider). N'envoyé qu'aux élèves ayant
+// un compte de connexion (Eleve.utilisateurId non nul). N'échoue jamais
+// bruyamment, comme les autres emails ci-dessus.
+export async function envoyerEmailNoteDisponible({
+  destinataire,
+  nomEleve,
+  prenomEleve,
+  classeNom,
+  disciplineNom,
+  semaine,
+  corpsPersonnalise,
+}: {
+  destinataire: string;
+  nomEleve: string;
+  prenomEleve: string;
+  classeNom: string;
+  disciplineNom: string;
+  semaine: number;
+  corpsPersonnalise?: string | null;
+}): Promise<void> {
+  if (!resend) {
+    console.warn(`RESEND_API_KEY non configuré : email de note disponible non envoyé à ${destinataire}`);
+    return;
+  }
+
+  const corps = resoudreCorps(corpsPersonnalise, MODELES_EMAIL_PAR_DEFAUT.ELEVE, {
+    nom: nomEleve,
+    prenom: prenomEleve,
+  });
+
+  try {
+    await resend.emails.send({
+      from: EXPEDITEUR,
+      to: destinataire,
+      subject: `PrepaStan — Note disponible : ${disciplineNom}, ${classeNom} semaine ${semaine}`,
+      html: `
+        ${corps}
+        <p>Classe ${classeNom} — ${disciplineNom} — semaine ${semaine}.</p>
+        <p>Connectez-vous à PrepaStan pour la consulter.</p>
+      `,
+    });
+  } catch (err) {
+    console.error(`Échec de l'envoi de l'email de note disponible à ${destinataire} :`, err);
   }
 }
 

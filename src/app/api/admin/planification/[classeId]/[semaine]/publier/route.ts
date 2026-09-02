@@ -49,15 +49,19 @@ export async function POST(
     creneauxParKholleur.set(c.kholleurId, liste);
   }
 
+  const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
+
   await Promise.allSettled(
     [...creneauxParKholleur.values()].map((creneauxKholleur) => {
       const kholleur = creneauxKholleur[0].kholleur;
       const classeNom = creneauxKholleur[0].sessionKholle.classe.nom;
       return envoyerEmailPublicationPlanning({
         destinataire: kholleur.email,
-        nomKholleur: `${kholleur.prenom} ${kholleur.nom}`,
+        nomKholleur: kholleur.nom,
+        prenomKholleur: kholleur.prenom,
         classeNom,
         semaine: Number(semaine),
+        corpsPersonnalise: parametres?.modeleEmailKholleur,
         creneaux: creneauxKholleur.map((c) => ({
           date: c.date,
           heureDebut: c.heureDebut,

@@ -1,4 +1,5 @@
 import { requirePageSession } from "@/lib/auth";
+import { MODELES_EMAIL_PAR_DEFAUT } from "@/lib/modelesEmail";
 import { dureesParDefaut } from "@/lib/parametresDiscipline";
 import { prisma } from "@/lib/prisma";
 import { ParametresDisciplineForm } from "@/components/admin/ParametresDisciplineForm";
@@ -18,12 +19,20 @@ export default async function ParametresPage({
   ]);
   const classe = classeIdParam ? classes.find((c) => c.id === classeIdParam) : classes[0];
   const delaiInitial = parametresGeneraux?.delaiEnvoiMailsNotationJours ?? 0;
+  const modeleKholleurInitial = parametresGeneraux?.modeleEmailKholleur ?? MODELES_EMAIL_PAR_DEFAUT.KHOLLEUR;
+  const modeleReferentInitial = parametresGeneraux?.modeleEmailReferent ?? MODELES_EMAIL_PAR_DEFAUT.REFERENT;
+  const modeleEleveInitial = parametresGeneraux?.modeleEmailEleve ?? MODELES_EMAIL_PAR_DEFAUT.ELEVE;
 
   if (!classe) {
     return (
       <main className="container">
         <h1>Paramètres</h1>
-        <ParametresGenerauxForm delaiInitial={delaiInitial} />
+        <ParametresGenerauxForm
+          delaiInitial={delaiInitial}
+          modeleKholleurInitial={modeleKholleurInitial}
+          modeleReferentInitial={modeleReferentInitial}
+          modeleEleveInitial={modeleEleveInitial}
+        />
         <p>Aucune classe créée pour le moment.</p>
       </main>
     );
@@ -53,7 +62,12 @@ export default async function ParametresPage({
   return (
     <main className="container">
       <h1>Paramètres</h1>
-      <ParametresGenerauxForm delaiInitial={delaiInitial} />
+      <ParametresGenerauxForm
+        delaiInitial={delaiInitial}
+        modeleKholleurInitial={modeleKholleurInitial}
+        modeleReferentInitial={modeleReferentInitial}
+        modeleEleveInitial={modeleEleveInitial}
+      />
       <h2>Durées par discipline</h2>
       <p>Durée de préparation et durée de khôlle, par discipline, pour la classe sélectionnée.</p>
       <ParametresDisciplineForm

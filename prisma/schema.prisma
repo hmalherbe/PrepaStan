@@ -334,6 +334,11 @@ model ParametresApplication {
   // kholleur s'il n'a pas encore saisi note/appréciation (0 = envoi
   // immédiat dès le lendemain de la khôlle). Voir src/lib/rappelsNotation.ts.
   delaiEnvoiMailsNotationJours Int    @default(0)
+  // Corps de mail personnalisables par rôle destinataire (publipostage avec
+  // #Nom / #Prénom, voir src/lib/modelesEmail.ts) ; null = texte par défaut.
+  modeleEmailKholleur String?
+  modeleEmailReferent String?
+  modeleEmailEleve    String?
 }
 
 // Empêche de renvoyer plusieurs fois le même rappel à un kholleur pour une

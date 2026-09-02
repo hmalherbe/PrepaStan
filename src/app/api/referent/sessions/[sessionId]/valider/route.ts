@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
+import { envoyerEmailNoteDisponible } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { compterGrillesNonValidees } from "@/lib/sessionValidation";
 
 // POST /api/referent/sessions/:sessionId/valider
 // Valide la session entière : rejette si une seule grille de kholleur n'est
@@ -15,7 +17,10 @@ export async function POST(
   const professeurReferentId = auth.user.id;
   const { sessionId: sessionKholleId } = await params;
 
-  const session = await prisma.sessionKholle.findUniqueOrThrow({ where: { id: sessionKholleId } });
+  const session = await prisma.sessionKholle.findUniqueOrThrow({
+    where: { id: sessionKholleId },
+    include: { classe: true, discipline: true },
+  });
   const estReferent = await prisma.professeurReferent.findFirst({
     where: {
       classeId: session.classeId,
@@ -27,19 +32,7 @@ export async function POST(
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
-  // ValidationGrille n'est créée qu'au moment où un kholleur valide sa
-  // grille (jamais en EN_ATTENTE à l'avance) : compter les lignes non-VALIDE
-  // ne détecterait donc jamais un kholleur qui n'a simplement rien fait —
-  // il faut comparer aux kholleurs réellement affectés à cette session.
-  const kholleursAffectes = await prisma.creneau.findMany({
-    where: { sessionKholleId },
-    select: { kholleurId: true },
-    distinct: ["kholleurId"],
-  });
-  const validationsFaites = await prisma.validationGrille.count({
-    where: { sessionKholleId, kholleurId: { in: kholleursAffectes.map((k) => k.kholleurId) }, statut: "VALIDE" },
-  });
-  const grillesNonValidees = kholleursAffectes.length - validationsFaites;
+  const grillesNonValidees = await compterGrillesNonValidees(sessionKholleId);
 
   if (grillesNonValidees > 0) {
     return NextResponse.json(
@@ -64,6 +57,35 @@ export async function POST(
       data: { statut: "CLOTUREE" },
     }),
   ]);
+
+  const [eleves, parametres] = await Promise.all([
+    prisma.eleve.findMany({
+      where: {
+        utilisateurId: { not: null },
+        passages: { some: { creneau: { sessionKholleId } } },
+      },
+      include: { utilisateur: true },
+    }),
+    prisma.parametresApplication.findUnique({ where: { id: "singleton" } }),
+  ]);
+
+  await Promise.allSettled(
+    eleves
+      .filter((eleve): eleve is typeof eleve & { utilisateur: NonNullable<(typeof eleve)["utilisateur"]> } =>
+        eleve.utilisateur !== null
+      )
+      .map((eleve) =>
+        envoyerEmailNoteDisponible({
+          destinataire: eleve.utilisateur.email,
+          nomEleve: eleve.nom,
+          prenomEleve: eleve.prenom,
+          classeNom: session.classe.nom,
+          disciplineNom: session.discipline.nom,
+          semaine: session.semaine,
+          corpsPersonnalise: parametres?.modeleEmailEleve,
+        })
+      )
+  );
 
   return NextResponse.json({ ok: true });
 }

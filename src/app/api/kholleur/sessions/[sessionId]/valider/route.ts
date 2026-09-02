@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
+import { envoyerEmailGrillesValidees } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import { compterGrillesNonValidees } from "@/lib/sessionValidation";
 
 // POST /api/kholleur/sessions/:sessionId/valider
 // Valide la grille du kholleur connecté pour cette session : rejette si une
@@ -18,7 +20,7 @@ export async function POST(
 
   const sessionKholle = await prisma.sessionKholle.findUniqueOrThrow({
     where: { id: sessionKholleId },
-    select: { statut: true },
+    include: { classe: true, discipline: true },
   });
   if (sessionKholle.statut === "CLOTUREE") {
     return NextResponse.json(
@@ -41,14 +43,45 @@ export async function POST(
     );
   }
 
+  const validationExistante = await prisma.validationGrille.findUnique({
+    where: { kholleurId_sessionKholleId: { kholleurId, sessionKholleId } },
+  });
+
   await prisma.validationGrille.upsert({
     where: { kholleurId_sessionKholleId: { kholleurId, sessionKholleId } },
     update: { statut: "VALIDE", dateValidation: new Date() },
     create: { kholleurId, sessionKholleId, statut: "VALIDE", dateValidation: new Date() },
   });
 
-  // TODO: si tous les kholleurs de la session ont validé, notifier le
-  // professeur référent (email / notification in-app).
+  // Si cette validation vient de compléter la dernière grille manquante,
+  // notifier le(s) professeur(s) référent(s) de cette (classe, discipline).
+  // Rien à faire si la grille était déjà validée avant cet appel (idempotent).
+  if (validationExistante?.statut !== "VALIDE") {
+    const grillesNonValidees = await compterGrillesNonValidees(sessionKholleId);
+    if (grillesNonValidees === 0) {
+      const [referents, parametres] = await Promise.all([
+        prisma.professeurReferent.findMany({
+          where: { classeId: sessionKholle.classeId, disciplineId: sessionKholle.disciplineId },
+          include: { utilisateur: true },
+        }),
+        prisma.parametresApplication.findUnique({ where: { id: "singleton" } }),
+      ]);
+
+      await Promise.allSettled(
+        referents.map((referent) =>
+          envoyerEmailGrillesValidees({
+            destinataire: referent.utilisateur.email,
+            nomReferent: referent.utilisateur.nom,
+            prenomReferent: referent.utilisateur.prenom,
+            classeNom: sessionKholle.classe.nom,
+            disciplineNom: sessionKholle.discipline.nom,
+            semaine: sessionKholle.semaine,
+            corpsPersonnalise: parametres?.modeleEmailReferent,
+          })
+        )
+      );
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }
