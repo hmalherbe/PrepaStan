@@ -10,7 +10,7 @@ export default async function PlanificationPage({
   await requirePageSession(["ADMIN"]);
   const { classeId: classeIdParam, date: dateParam } = await searchParams;
 
-  const [classes, salles] = await Promise.all([
+  const [classes, salles, chargeParKholleur] = await Promise.all([
     prisma.classe.findMany({
       orderBy: { nom: "asc" },
       include: {
@@ -33,7 +33,18 @@ export default async function PlanificationPage({
       },
     }),
     prisma.salle.findMany({ orderBy: { nom: "asc" } }),
+    // Nombre de créneaux déjà publiés par kholleur (tous temps confondus) :
+    // sert uniquement à trier les listes déroulantes de kholleurs ci-dessous
+    // (les moins sollicités en premier), pour inciter naturellement l'admin
+    // à mieux répartir la charge — le solveur, lui, ne choisit jamais le
+    // kholleur d'un quota (fixé par l'admin), voir solver.py.
+    prisma.creneau.groupBy({
+      by: ["kholleurId"],
+      where: { sessionKholle: { statut: { not: "PLANIFICATION" } } },
+      _count: { id: true },
+    }),
   ]);
+  const chargeParKholleurId = new Map(chargeParKholleur.map((c) => [c.kholleurId, c._count.id]));
 
   const classesAvecDisciplines = classes.map((c) => ({
     id: c.id,
@@ -50,10 +61,14 @@ export default async function PlanificationPage({
       return {
         id: cd.discipline.id,
         nom: cd.discipline.nom,
-        kholleurs: cd.discipline.competences.map((comp) => ({
-          id: comp.kholleur.id,
-          nom: `${comp.kholleur.prenom} ${comp.kholleur.nom}`,
-        })),
+        kholleurs: cd.discipline.competences
+          .map((comp) => ({
+            id: comp.kholleur.id,
+            nom: `${comp.kholleur.prenom} ${comp.kholleur.nom}`,
+            charge: chargeParKholleurId.get(comp.kholleur.id) ?? 0,
+          }))
+          .sort((a, b) => a.charge - b.charge || a.nom.localeCompare(b.nom))
+          .map(({ id, nom }) => ({ id, nom })),
         referents: [...referentsUniques.values()],
         referentActuelId: referentActuel?.utilisateurId ?? null,
       };
