@@ -1,5 +1,7 @@
 # PrepaStan
 
+[![Tests solveur de planning](https://github.com/hmalherbe/PrepaStan/actions/workflows/planning-solver-tests.yml/badge.svg)](https://github.com/hmalherbe/PrepaStan/actions/workflows/planning-solver-tests.yml)
+
 Application de gestion des khôlles en classe préparatoire : planification des
 créneaux sous contraintes, notation par les kholleurs, validation en cascade
 par les professeurs référents.
