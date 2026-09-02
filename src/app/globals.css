@@ -1,6 +1,7 @@
 :root {
   --couleur-fond: #f7f7f9;
   --couleur-texte: #1d1d1f;
+  --couleur-texte-discret: #666677;
   --couleur-bordure: #d8d8dd;
   --couleur-primaire: #2952e3;
   --couleur-primaire-fonce: #1e3fb8;
@@ -8,7 +9,43 @@
   --couleur-attente: #b8860b;
   --couleur-erreur: #c0392b;
   --couleur-surface: #ffffff;
+  --couleur-surface-alt: #f0f0f4;
+  --couleur-accent-fond: #eef0fb;
+  /* Échelle et rayons : un thème alternatif (voir [data-theme="aere"] plus
+     bas) n'a qu'à changer ces quelques variables pour aérer/arrondir toute
+     l'appli d'un coup, sans dupliquer chaque règle d'espacement. */
+  --echelle-espacement: 1;
+  --rayon: 8px;
+  --rayon-bouton: 6px;
+  --rayon-champ: 4px;
+  --ombre-carte: none;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Habillage alternatif "aéré" : mêmes règles partout dans le reste du
+   fichier (aucune classe spécifique à ajouter sur les pages), juste des
+   variables différentes — activé/désactivé via ThemeSwitcher.tsx qui pose
+   data-theme="aere" sur <html>, mémorisé en localStorage. Le thème par
+   défaut (:root ci-dessus) reste inchangé au pixel près : "revenir en
+   arrière" ne fait que retirer cet attribut. */
+[data-theme="aere"] {
+  --couleur-fond: #f5f2ff;
+  --couleur-texte: #201c3a;
+  --couleur-texte-discret: #6f6a95;
+  --couleur-bordure: #ded6f7;
+  --couleur-primaire: #6c4cf1;
+  --couleur-primaire-fonce: #5536d6;
+  --couleur-succes: #12875a;
+  --couleur-attente: #c07a06;
+  --couleur-erreur: #d1483a;
+  --couleur-surface: #ffffff;
+  --couleur-surface-alt: #f1ecfd;
+  --couleur-accent-fond: #ece4fc;
+  --echelle-espacement: 1.6;
+  --rayon: 14px;
+  --rayon-bouton: 10px;
+  --rayon-champ: 8px;
+  --ombre-carte: 0 1px 2px rgba(31, 15, 90, 0.04), 0 12px 28px -16px rgba(76, 49, 209, 0.32);
 }
 
 * {
@@ -24,7 +61,8 @@ body {
 .container {
   max-width: 1240px;
   margin: 0 auto;
-  padding: 24px 20px 64px;
+  padding: calc(var(--echelle-espacement) * 24px) calc(var(--echelle-espacement) * 20px)
+    calc(var(--echelle-espacement) * 64px);
 }
 
 /* Les tableaux (souvent nombreux de colonnes : kholleurs, référents,
@@ -44,12 +82,13 @@ input[type="number"] {
 
 h1 {
   font-size: 1.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: calc(var(--echelle-espacement) * 1rem);
+  color: var(--couleur-texte);
 }
 
 h2 {
   font-size: 1.15rem;
-  margin: 1.5rem 0 0.75rem;
+  margin: calc(var(--echelle-espacement) * 1.5rem) 0 calc(var(--echelle-espacement) * 0.75rem);
 }
 
 table {
@@ -57,7 +96,8 @@ table {
   border-collapse: collapse;
   background: var(--couleur-surface);
   border: 1px solid var(--couleur-bordure);
-  border-radius: 8px;
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre-carte);
   /* display:block (plutôt que le table-layout par défaut) permet à un
      tableau plus large que l'écran de défiler horizontalement au lieu de
      déborder de la page ; les lignes/cellules gardent leur mise en page de
@@ -71,17 +111,17 @@ table {
 th,
 td {
   text-align: left;
-  padding: 10px 12px;
+  padding: calc(var(--echelle-espacement) * 10px) calc(var(--echelle-espacement) * 12px);
   border-bottom: 1px solid var(--couleur-bordure);
   vertical-align: middle;
 }
 
 th {
-  background: #f0f0f4;
+  background: var(--couleur-surface-alt);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: #555;
+  color: var(--couleur-texte-discret);
 }
 
 tr:last-child td {
@@ -101,7 +141,7 @@ td:first-child {
 }
 
 th:first-child {
-  background: #f0f0f4;
+  background: var(--couleur-surface-alt);
 }
 
 a {
@@ -114,8 +154,8 @@ button {
   border: 1px solid var(--couleur-primaire);
   background: var(--couleur-primaire);
   color: white;
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: calc(var(--echelle-espacement) * 8px) calc(var(--echelle-espacement) * 16px);
+  border-radius: var(--rayon-bouton);
 }
 
 button:hover:not(:disabled) {
@@ -134,7 +174,7 @@ button.secondaire {
 
 button.discret {
   background: transparent;
-  color: #555;
+  color: var(--couleur-texte-discret);
   border-color: var(--couleur-bordure);
 }
 
@@ -142,16 +182,16 @@ input,
 textarea,
 select {
   font: inherit;
-  padding: 6px 8px;
+  padding: calc(var(--echelle-espacement) * 6px) calc(var(--echelle-espacement) * 8px);
   border: 1px solid var(--couleur-bordure);
-  border-radius: 4px;
+  border-radius: var(--rayon-champ);
   background: var(--couleur-surface);
   color: inherit;
 }
 
 input:disabled,
 textarea:disabled {
-  background: #f0f0f4;
+  background: var(--couleur-surface-alt);
 }
 
 /* Éditeur de texte enrichi (appréciation kholleur, voir
@@ -179,10 +219,10 @@ textarea:disabled {
 
 .editeur-riche-zone.ql-editor {
   font: inherit;
-  padding: 6px 8px;
+  padding: calc(var(--echelle-espacement) * 6px) calc(var(--echelle-espacement) * 8px);
   border: 1px solid var(--couleur-bordure);
-  border-radius: 4px;
-  background: #f0f0f4;
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-surface-alt);
   color: inherit;
   min-height: 3.2em;
 }
@@ -200,14 +240,14 @@ textarea:disabled {
 form label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
+  gap: calc(var(--echelle-espacement) * 4px);
+  margin-bottom: calc(var(--echelle-espacement) * 12px);
   font-size: 0.9rem;
 }
 
 .badge {
   display: inline-block;
-  padding: 2px 10px;
+  padding: calc(var(--echelle-espacement) * 2px) calc(var(--echelle-espacement) * 10px);
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 600;
@@ -245,7 +285,7 @@ form label {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: calc(var(--echelle-espacement) * 12px) calc(var(--echelle-espacement) * 20px);
   border-bottom: 1px solid var(--couleur-bordure);
   background: var(--couleur-surface);
   flex-wrap: wrap;
@@ -253,8 +293,18 @@ form label {
 
 .navbar nav {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: calc(var(--echelle-espacement) * 16px);
   align-items: center;
+  /* Sans ceci, un lien/bouton à l'étroit se met à retourner son propre
+     texte à la ligne (ex. "Se déconnecter" coupé en deux) plutôt que de
+     laisser toute la rangée de nav passer à la ligne suivante — plus
+     visible depuis que l'habillage aéré agrandit les boutons. */
+  row-gap: 8px;
+}
+
+.navbar nav > * {
+  white-space: nowrap;
 }
 
 .navbar nav a {
@@ -280,15 +330,16 @@ form label {
 .champ-erreur {
   color: var(--couleur-erreur);
   font-size: 0.9rem;
-  margin: 4px 0;
+  margin: calc(var(--echelle-espacement) * 4px) 0;
 }
 
 .carte {
   background: var(--couleur-surface);
   border: 1px solid var(--couleur-bordure);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre-carte);
+  padding: calc(var(--echelle-espacement) * 16px);
+  margin-bottom: calc(var(--echelle-espacement) * 16px);
 }
 
 .jour-titre {
@@ -303,22 +354,22 @@ form label {
 .graphique-barres {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin: 12px 0 20px;
+  gap: calc(var(--echelle-espacement) * 10px);
+  margin: calc(var(--echelle-espacement) * 12px) 0 calc(var(--echelle-espacement) * 20px);
 }
 
 .barre-ligne {
   display: grid;
   grid-template-columns: minmax(120px, 200px) 1fr auto;
   align-items: center;
-  gap: 10px;
+  gap: calc(var(--echelle-espacement) * 10px);
   font-size: 0.9rem;
 }
 
 .barre-piste {
   height: 14px;
   border-radius: 999px;
-  background: #eef0fb;
+  background: var(--couleur-accent-fond);
   overflow: hidden;
 }
 
@@ -331,7 +382,7 @@ form label {
 
 .barre-valeur {
   font-variant-numeric: tabular-nums;
-  color: #555;
+  color: var(--couleur-texte-discret);
   font-size: 0.85rem;
   white-space: nowrap;
 }
@@ -339,15 +390,16 @@ form label {
 .stat-cartes {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin: 12px 0 20px;
+  gap: calc(var(--echelle-espacement) * 12px);
+  margin: calc(var(--echelle-espacement) * 12px) 0 calc(var(--echelle-espacement) * 20px);
 }
 
 .stat-carte {
   background: var(--couleur-surface);
   border: 1px solid var(--couleur-bordure);
-  border-radius: 8px;
-  padding: 14px 18px;
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre-carte);
+  padding: calc(var(--echelle-espacement) * 14px) calc(var(--echelle-espacement) * 18px);
   min-width: 140px;
   flex: 1;
 }
@@ -360,7 +412,7 @@ form label {
 
 .stat-carte .libelle {
   font-size: 0.8rem;
-  color: #777;
+  color: var(--couleur-texte-discret);
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
@@ -387,6 +439,21 @@ th.triable {
 
 th.triable:hover {
   color: var(--couleur-primaire);
+}
+
+/* Bascule d'habillage (voir ThemeSwitcher.tsx), flottant en bas à droite
+   sur toutes les pages (y compris hors connexion, où NavBar ne s'affiche
+   pas) — position choisie pour ne jamais chevaucher la barre de navigation
+   en haut de page. */
+.bouton-theme {
+  position: fixed;
+  right: calc(var(--echelle-espacement) * 16px);
+  bottom: calc(var(--echelle-espacement) * 16px);
+  z-index: 100;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
 
 @media (max-width: 640px) {
@@ -431,6 +498,12 @@ th.triable:hover {
 
   .navbar nav.ouvert {
     display: flex;
+  }
+
+  .bouton-theme {
+    right: 10px;
+    bottom: 10px;
+    padding: 6px 12px;
   }
 }
 
@@ -477,6 +550,7 @@ th.triable:hover {
     display: table;
     overflow-x: visible;
     max-width: none;
+    box-shadow: none;
   }
 
   /* Pas de page-break-inside: avoid sur la table elle-même : sur un jour
