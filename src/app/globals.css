@@ -1,34 +1,9 @@
 :root {
-  --couleur-fond: #f7f7f9;
-  --couleur-texte: #1d1d1f;
-  --couleur-texte-discret: #666677;
-  --couleur-bordure: #d8d8dd;
-  --couleur-primaire: #2952e3;
-  --couleur-primaire-fonce: #1e3fb8;
-  --couleur-succes: #1a7f4e;
-  --couleur-attente: #b8860b;
-  --couleur-erreur: #c0392b;
-  --couleur-surface: #ffffff;
-  --couleur-surface-alt: #f0f0f4;
-  --couleur-accent-fond: #eef0fb;
-  /* Échelle et rayons : un thème alternatif (voir [data-theme="aere"] plus
-     bas) n'a qu'à changer ces quelques variables pour aérer/arrondir toute
-     l'appli d'un coup, sans dupliquer chaque règle d'espacement. */
-  --echelle-espacement: 1;
-  --rayon: 8px;
-  --rayon-bouton: 6px;
-  --rayon-champ: 4px;
-  --ombre-carte: none;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-/* Habillage alternatif "aéré" : mêmes règles partout dans le reste du
-   fichier (aucune classe spécifique à ajouter sur les pages), juste des
-   variables différentes — activé/désactivé via ThemeSwitcher.tsx qui pose
-   data-theme="aere" sur <html>, mémorisé en localStorage. Le thème par
-   défaut (:root ci-dessus) reste inchangé au pixel près : "revenir en
-   arrière" ne fait que retirer cet attribut. */
-[data-theme="aere"] {
+  /* Habillage "aéré" par défaut. L'ancien habillage sobre reste disponible
+     via [data-theme="classique"] juste en dessous — mêmes règles partout
+     dans le reste du fichier (aucune classe à ajouter sur les pages), juste
+     des variables différentes — basculé par ThemeSwitcher.tsx, mémorisé en
+     localStorage. */
   --couleur-fond: #f5f2ff;
   --couleur-texte: #201c3a;
   --couleur-texte-discret: #6f6a95;
@@ -41,11 +16,37 @@
   --couleur-surface: #ffffff;
   --couleur-surface-alt: #f1ecfd;
   --couleur-accent-fond: #ece4fc;
+  /* Échelle et rayons : un thème alternatif (voir [data-theme="classique"]
+     plus bas) n'a qu'à changer ces quelques variables pour resserrer toute
+     l'appli d'un coup, sans dupliquer chaque règle d'espacement. */
   --echelle-espacement: 1.6;
   --rayon: 14px;
   --rayon-bouton: 10px;
   --rayon-champ: 8px;
   --ombre-carte: 0 1px 2px rgba(31, 15, 90, 0.04), 0 12px 28px -16px rgba(76, 49, 209, 0.32);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Ancien habillage sobre, conservé tel quel au pixel près pour qui préfère
+   revenir en arrière. */
+[data-theme="classique"] {
+  --couleur-fond: #f7f7f9;
+  --couleur-texte: #1d1d1f;
+  --couleur-texte-discret: #666677;
+  --couleur-bordure: #d8d8dd;
+  --couleur-primaire: #2952e3;
+  --couleur-primaire-fonce: #1e3fb8;
+  --couleur-succes: #1a7f4e;
+  --couleur-attente: #b8860b;
+  --couleur-erreur: #c0392b;
+  --couleur-surface: #ffffff;
+  --couleur-surface-alt: #f0f0f4;
+  --couleur-accent-fond: #eef0fb;
+  --echelle-espacement: 1;
+  --rayon: 8px;
+  --rayon-bouton: 6px;
+  --rayon-champ: 4px;
+  --ombre-carte: none;
 }
 
 * {

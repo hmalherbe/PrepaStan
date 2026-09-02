@@ -20,8 +20,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="fr">
       <head>
         {/* Applique le thème mémorisé AVANT le premier rendu (voir
-            ThemeSwitcher.tsx) pour éviter un flash de l'habillage classique
-            au chargement d'une page quand "aéré" est déjà choisi. */}
+            ThemeSwitcher.tsx) pour éviter un flash de l'habillage aéré (par
+            défaut) au chargement d'une page quand "classique" est choisi. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem(${JSON.stringify(CLE_STOCKAGE_THEME)});if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}`,
