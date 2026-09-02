@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type ClasseAssignee = { id: string; classeId: string; nom: string };
 type ReferentGroupe = {
@@ -31,6 +32,7 @@ export function ReferentsForm({
   disciplines: Discipline[];
   comptesExistants: CompteExistant[];
 }) {
+  const router = useRouter();
   const [referents, setReferents] = useState(referentsInitiaux);
   const [comptes, setComptes] = useState(comptesExistants);
   const [modeCompte, setModeCompte] = useState<"nouveau" | "existant">(
@@ -46,9 +48,18 @@ export function ReferentsForm({
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [enEdition, setEnEdition] = useState<string | null>(null);
+  const [enCoursEdition, setEnCoursEdition] = useState(false);
   const [erreurEdition, setErreurEdition] = useState<string | null>(null);
   const [classeFiltre, setClasseFiltre] = useState("");
   const [disciplineFiltre, setDisciplineFiltre] = useState("");
+
+  // La modification (voir sauvegarderEdition) enchaîne plusieurs requêtes
+  // (retraits + ajouts de classes) puis un router.refresh() plutôt que de
+  // recomposer l'état à la main — resynchronise donc l'état local sur les
+  // props une fois les nouvelles données serveur arrivées.
+  useEffect(() => {
+    setReferents(referentsInitiaux);
+  }, [referentsInitiaux]);
 
   // Une classe n'est proposable que si la discipline choisie lui est déjà
   // assignée (table ClasseDiscipline) — voir écran Classes ou Disciplines.
@@ -170,31 +181,62 @@ export function ReferentsForm({
 
   async function sauvegarderEdition(
     groupe: ReferentGroupe,
-    patch: { nom: string; prenom: string; email: string; password?: string }
+    patch: { nom: string; prenom: string; email: string; password?: string; classeIds: string[] }
   ) {
     setErreurEdition(null);
-    // L'API met à jour le compte utilisateur (partagé par toutes les classes
-    // du groupe) via n'importe laquelle de ses lignes ProfesseurReferent ;
-    // classe/discipline de cette ligne sont renvoyées inchangées, seules
-    // les infos personnelles sont éditées ici (voir retirer/ajouter pour
-    // gérer les classes).
-    const premiereLigne = groupe.classes[0];
-    const res = await fetch(`/api/admin/referents/${premiereLigne.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...patch, classeId: premiereLigne.classeId, disciplineId: groupe.disciplineId }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setErreurEdition(data.error ?? "Erreur lors de la modification");
-      return;
+    setEnCoursEdition(true);
+    try {
+      // Infos personnelles (compte utilisateur partagé par toutes les classes
+      // du groupe) via n'importe laquelle de ses lignes ProfesseurReferent
+      // existantes — capturée avant tout retrait ci-dessous, donc toujours
+      // valide même si cette ligne précise est ensuite retirée.
+      const premiereLigne = groupe.classes[0];
+      const resPut = await fetch(`/api/admin/referents/${premiereLigne.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nom: patch.nom,
+          prenom: patch.prenom,
+          email: patch.email,
+          password: patch.password,
+          classeId: premiereLigne.classeId,
+          disciplineId: groupe.disciplineId,
+        }),
+      });
+      const dataPut = await resPut.json();
+      if (!resPut.ok) {
+        setErreurEdition(dataPut.error ?? "Erreur lors de la modification");
+        return;
+      }
+
+      const classeIdsActuels = new Set(groupe.classes.map((c) => c.classeId));
+      const classeIdsSelectionnes = new Set(patch.classeIds);
+      const aRetirer = groupe.classes.filter((c) => !classeIdsSelectionnes.has(c.classeId));
+      const aAjouter = patch.classeIds.filter((id) => !classeIdsActuels.has(id));
+
+      await Promise.all(aRetirer.map((c) => fetch(`/api/admin/referents/${c.id}`, { method: "DELETE" })));
+
+      if (aAjouter.length > 0) {
+        const resPost = await fetch("/api/admin/referents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ utilisateurId: groupe.utilisateurId, disciplineId: groupe.disciplineId, classeIds: aAjouter }),
+        });
+        const dataPost = await resPost.json();
+        if (!resPost.ok) {
+          setErreurEdition(dataPost.error ?? "Erreur lors de l'ajout de classe(s)");
+          return;
+        }
+      }
+
+      // Plusieurs requêtes successives (retraits + ajouts) : re-synchronise
+      // depuis le serveur plutôt que de recomposer l'état à la main, pour ne
+      // pas reproduire le bug de désynchronisation déjà rencontré ici.
+      router.refresh();
+      setEnEdition(null);
+    } finally {
+      setEnCoursEdition(false);
     }
-    setReferents((prev) =>
-      prev.map((r) =>
-        r.cle === groupe.cle ? { ...r, nom: patch.nom, prenom: patch.prenom, email: patch.email } : r
-      )
-    );
-    setEnEdition(null);
   }
 
   return (
@@ -240,6 +282,8 @@ export function ReferentsForm({
               <LigneEdition
                 key={r.cle}
                 referent={r}
+                classes={classes}
+                enCours={enCoursEdition}
                 onAnnuler={() => setEnEdition(null)}
                 onSauvegarder={(patch) => sauvegarderEdition(r, patch)}
               />
@@ -408,26 +452,42 @@ export function ReferentsForm({
 
 function LigneEdition({
   referent,
+  classes,
+  enCours,
   onAnnuler,
   onSauvegarder,
 }: {
   referent: ReferentGroupe;
+  classes: Classe[];
+  enCours: boolean;
   onAnnuler: () => void;
-  onSauvegarder: (patch: { nom: string; prenom: string; email: string; password?: string }) => void;
+  onSauvegarder: (patch: {
+    nom: string;
+    prenom: string;
+    email: string;
+    password?: string;
+    classeIds: string[];
+  }) => void;
 }) {
   const [nom, setNom] = useState(referent.nom);
   const [prenom, setPrenom] = useState(referent.prenom);
   const [email, setEmail] = useState(referent.email);
   const [password, setPassword] = useState("");
+  const [classeIds, setClasseIds] = useState<string[]>(referent.classes.map((c) => c.classeId));
+
+  // La discipline n'est pas modifiable ici (elle définit le groupe lui-même)
+  // : seules les classes ayant déjà cette discipline assignée sont proposables.
+  const classesEligibles = classes.filter((c) => c.disciplines.some((d) => d.id === referent.disciplineId));
+
+  function toggleClasse(id: string) {
+    setClasseIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
 
   return (
     <tr>
       <td colSpan={5}>
         <div className="carte" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <p style={{ margin: 0, fontSize: "0.85rem", color: "#777" }}>
-            {referent.discipline} — {referent.classes.map((c) => c.nom).join(", ")} (pour changer les classes,
-            utilisez les × et le formulaire d&apos;ajout ci-dessous)
-          </p>
+          <p style={{ margin: 0, fontSize: "0.85rem", color: "#777" }}>{referent.discipline}</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" style={{ flex: 1 }} />
             <input
@@ -451,11 +511,24 @@ function LigneEdition({
               style={{ flex: 1 }}
             />
           </div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {classesEligibles.map((c) => (
+              <label key={c.id} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <input type="checkbox" checked={classeIds.includes(c.id)} onChange={() => toggleClasse(c.id)} />
+                {c.nom}
+              </label>
+            ))}
+          </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => onSauvegarder({ nom, prenom, email, password: password || undefined })}>
-              OK
+            <button
+              onClick={() =>
+                onSauvegarder({ nom, prenom, email, password: password || undefined, classeIds })
+              }
+              disabled={enCours || classeIds.length === 0}
+            >
+              {enCours ? "Enregistrement…" : "OK"}
             </button>
-            <button className="discret" onClick={onAnnuler}>
+            <button className="discret" onClick={onAnnuler} disabled={enCours}>
               Annuler
             </button>
           </div>
