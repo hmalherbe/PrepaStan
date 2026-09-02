@@ -30,10 +30,24 @@ export default async function PlanningReviewPage({
     },
   });
 
-  const [kholleurs, salles] = await Promise.all([
+  const [kholleurs, salles, referents] = await Promise.all([
     prisma.utilisateur.findMany({ where: { roles: { has: "KHOLLEUR" } }, orderBy: { nom: "asc" } }),
     prisma.salle.findMany({ orderBy: { nom: "asc" } }),
+    prisma.professeurReferent.findMany({
+      where: { classeId, disciplineId: { in: sessions.map((s) => s.disciplineId) } },
+      include: { utilisateur: { select: { prenom: true, nom: true } } },
+    }),
   ]);
+
+  // Plusieurs référents peuvent être assignés à la même (classe, discipline)
+  // (voir ProfesseurReferent dans le schéma) : affiche tous les noms plutôt
+  // que d'en choisir un arbitrairement.
+  const referentsParDiscipline = new Map<string, string[]>();
+  for (const r of referents) {
+    const noms = referentsParDiscipline.get(r.disciplineId) ?? [];
+    noms.push(`${r.utilisateur.prenom} ${r.utilisateur.nom}`);
+    referentsParDiscipline.set(r.disciplineId, noms);
+  }
 
   const estBrouillon = sessions.every((s) => s.statut === "PLANIFICATION");
 
@@ -48,6 +62,7 @@ export default async function PlanningReviewPage({
         heureFin: c.heureFin,
         kholleurId: c.kholleurId,
         kholleurNom: `${c.kholleur.prenom} ${c.kholleur.nom}`,
+        referentNom: (referentsParDiscipline.get(s.disciplineId) ?? []).join(", ") || "—",
         salleId: c.salleId,
         salleNom: c.salle.nom,
         eleves: c.passages.map((p) => `${p.eleve.prenom} ${p.eleve.nom}`),

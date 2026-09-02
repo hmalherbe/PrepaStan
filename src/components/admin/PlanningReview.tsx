@@ -14,6 +14,9 @@ type Creneau = {
   heureFin: string;
   kholleurId: string;
   kholleurNom: string;
+  // Professeur(s) référent(s) de (classe, discipline) — fixé côté serveur,
+  // pas propre au créneau, donc jamais modifiable ici (voir LigneEdition).
+  referentNom: string;
   salleId: string;
   salleNom: string;
   eleves: string[];
@@ -160,6 +163,7 @@ export function PlanningReview({
                 <th>Khôlle</th>
                 <th>Discipline</th>
                 <th>Kholleur</th>
+                <th>Référent</th>
                 <th>Salle</th>
                 <th>Élèves</th>
                 {estBrouillon && <th className="no-print"></th>}
@@ -184,6 +188,7 @@ export function PlanningReview({
                     </td>
                     <td>{c.discipline}</td>
                     <td>{c.kholleurNom}</td>
+                    <td>{c.referentNom}</td>
                     <td>{c.salleNom}</td>
                     <td>{c.eleves.join(", ")}</td>
                     {estBrouillon && (
@@ -283,6 +288,7 @@ function LigneEdition({
           ))}
         </select>
       </td>
+      <td>{creneau.referentNom}</td>
       <td>
         <select value={salleId} onChange={(e) => setSalleId(e.target.value)}>
           {salles.map((s) => (
