@@ -67,7 +67,12 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
   }
 
   async function supprimer(classeId: string) {
-    if (!confirm("Supprimer cette classe ?")) return;
+    const classe = classes.find((c) => c.id === classeId);
+    const avertissement =
+      classe && classe.nbEleves > 0
+        ? ` Les ${classe.nbEleves} élève(s) qu'elle contient seront aussi supprimés.`
+        : "";
+    if (!confirm(`Supprimer la classe "${classe?.nom}" ?${avertissement} Cette action est irréversible.`)) return;
     const res = await fetch(`/api/admin/classes/${classeId}`, { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) {

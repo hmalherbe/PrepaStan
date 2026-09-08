@@ -53,22 +53,43 @@ export async function PUT(req: Request, { params }: { params: Promise<{ classeId
 
 // DELETE /api/admin/classes/:classeId
 // Les disciplines assignées (ClasseDiscipline) sont supprimées avec la
-// classe. En revanche, la présence d'élèves, de sessions de khôlle ou de
-// référents fait échouer la suppression (contrainte de clé étrangère) :
-// on ne veut pas perdre silencieusement un historique réel.
+// classe. Les élèves de la classe le sont aussi (voir plus bas), tant
+// qu'aucun n'a déjà de passage de khôlle enregistré — un vrai historique de
+// notes ne doit jamais être perdu silencieusement. La présence de sessions
+// de khôlle ou d'un référent assigné fait quant à elle toujours échouer la
+// suppression (contrainte de clé étrangère).
 export async function DELETE(_req: Request, { params }: { params: Promise<{ classeId: string }> }) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
   const { classeId } = await params;
 
+  const eleves = await prisma.eleve.findMany({
+    where: { classeId },
+    select: { id: true, passages: { select: { id: true }, take: 1 } },
+  });
+  const eleveAvecHistorique = eleves.find((e) => e.passages.length > 0);
+  if (eleveAvecHistorique) {
+    return NextResponse.json(
+      {
+        error:
+          "Impossible de supprimer cette classe : au moins un élève a déjà des passages de khôlle enregistrés. " +
+          "Retirez-le d'abord.",
+      },
+      { status: 409 }
+    );
+  }
+
   try {
-    await prisma.classe.delete({ where: { id: classeId } });
+    await prisma.$transaction([
+      prisma.eleve.deleteMany({ where: { classeId } }),
+      prisma.classe.delete({ where: { id: classeId } }),
+    ]);
   } catch {
     return NextResponse.json(
       {
         error:
-          "Impossible de supprimer cette classe : elle a encore des élèves, des sessions de khôlle ou un " +
-          "référent assigné. Retirez-les d'abord.",
+          "Impossible de supprimer cette classe : elle a encore des sessions de khôlle ou un référent assigné. " +
+          "Retirez-les d'abord.",
       },
       { status: 409 }
     );

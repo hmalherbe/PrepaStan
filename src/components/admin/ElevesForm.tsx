@@ -103,6 +103,32 @@ export function ElevesForm({
     }
   }
 
+  async function supprimerTous() {
+    if (eleves.length === 0) return;
+    if (
+      !confirm(
+        `Supprimer TOUS les élèves de TOUTES les classes (${eleves.length} élève(s)) ? ` +
+          "Ceux ayant déjà des passages de khôlle enregistrés seront conservés. Cette action est irréversible."
+      )
+    ) {
+      return;
+    }
+    const res = await fetch("/api/admin/eleves", { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error ?? "Erreur lors de la suppression");
+      return;
+    }
+    if (data.proteges > 0) {
+      alert(
+        `${data.supprimes} élève(s) supprimé(s). ${data.proteges} conservé(s) car ils ont déjà des passages de khôlle enregistrés.`
+      );
+    }
+    // Recharge simplement la liste depuis le serveur : plus fiable que de
+    // reconstruire côté client qui exactement a été protégé.
+    window.location.reload();
+  }
+
   async function supprimer(eleveId: string) {
     if (!confirm("Supprimer cet élève ?")) return;
     const res = await fetch(`/api/admin/eleves/${eleveId}`, { method: "DELETE" });
@@ -161,6 +187,11 @@ export function ElevesForm({
 
   return (
     <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <button type="button" className="discret" onClick={supprimerTous} disabled={eleves.length === 0}>
+          Supprimer tous les élèves ({eleves.length})
+        </button>
+      </div>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         <label style={{ maxWidth: 220 }}>
           Filtrer par classe

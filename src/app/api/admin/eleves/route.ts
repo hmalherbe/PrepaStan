@@ -18,6 +18,26 @@ export async function GET() {
   return NextResponse.json(eleves);
 }
 
+// DELETE /api/admin/eleves
+// Supprime tous les élèves, toutes classes et années scolaires confondues
+// — sauf ceux ayant déjà des passages de khôlle enregistrés (même garde-fou
+// qu'une suppression individuelle, voir [eleveId]/route.ts) : un vrai
+// historique de notes n'est jamais perdu silencieusement, même en masse.
+export async function DELETE() {
+  const auth = await requireRole(["ADMIN"]);
+  if (auth instanceof NextResponse) return auth;
+
+  const eleves = await prisma.eleve.findMany({
+    select: { id: true, passages: { select: { id: true }, take: 1 } },
+  });
+  const supprimables = eleves.filter((e) => e.passages.length === 0).map((e) => e.id);
+  const proteges = eleves.length - supprimables.length;
+
+  const { count } = await prisma.eleve.deleteMany({ where: { id: { in: supprimables } } });
+
+  return NextResponse.json({ supprimes: count, proteges });
+}
+
 const bodySchema = z
   .object({
     nom: z.string().min(1),
