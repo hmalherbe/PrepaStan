@@ -14,6 +14,10 @@ type Eleve = {
   lv2: string | null;
   aUnCompte: boolean;
   email: string | null;
+  emailContact: string | null;
+  telephone: string | null;
+  numeroParcoursup: string | null;
+  etablissementOrigine: string | null;
 };
 type Classe = { id: string; nom: string };
 type Discipline = { id: string; nom: string };
@@ -35,6 +39,10 @@ export function ElevesForm({
   const [lv2Id, setLv2Id] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [emailContact, setEmailContact] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [numeroParcoursup, setNumeroParcoursup] = useState("");
+  const [etablissementOrigine, setEtablissementOrigine] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [enEdition, setEnEdition] = useState<string | null>(null);
@@ -69,6 +77,10 @@ export function ElevesForm({
           lv2Id: lv2Id || undefined,
           email: email || undefined,
           password: password || undefined,
+          emailContact: emailContact || undefined,
+          telephone: telephone || undefined,
+          numeroParcoursup: numeroParcoursup || undefined,
+          etablissementOrigine: etablissementOrigine || undefined,
         }),
       });
       const data = await res.json();
@@ -90,6 +102,10 @@ export function ElevesForm({
           lv2: languesVivantes.find((d) => d.id === lv2Id)?.nom ?? null,
           aUnCompte: Boolean(email),
           email: email || null,
+          emailContact: emailContact || null,
+          telephone: telephone || null,
+          numeroParcoursup: numeroParcoursup || null,
+          etablissementOrigine: etablissementOrigine || null,
         },
       ]);
       setNom("");
@@ -98,6 +114,10 @@ export function ElevesForm({
       setLv2Id("");
       setEmail("");
       setPassword("");
+      setEmailContact("");
+      setTelephone("");
+      setNumeroParcoursup("");
+      setEtablissementOrigine("");
     } finally {
       setEnCours(false);
     }
@@ -150,6 +170,10 @@ export function ElevesForm({
       lv2Id?: string;
       email?: string;
       password?: string;
+      emailContact?: string;
+      telephone?: string;
+      numeroParcoursup?: string;
+      etablissementOrigine?: string;
     }
   ) {
     setErreurEdition(null);
@@ -178,6 +202,10 @@ export function ElevesForm({
               lv2: languesVivantes.find((d) => d.id === patch.lv2Id)?.nom ?? null,
               email: patch.email ?? e.email,
               aUnCompte: e.aUnCompte || Boolean(patch.email),
+              emailContact: patch.emailContact ?? null,
+              telephone: patch.telephone ?? null,
+              numeroParcoursup: patch.numeroParcoursup ?? null,
+              etablissementOrigine: patch.etablissementOrigine ?? null,
             }
           : e
       )
@@ -239,6 +267,10 @@ export function ElevesForm({
             <th>LV1</th>
             <th>LV2</th>
             <th>Compte</th>
+            <th>Email contact</th>
+            <th>Téléphone</th>
+            <th>Parcoursup</th>
+            <th>Établissement</th>
             <th></th>
           </tr>
         </thead>
@@ -261,6 +293,10 @@ export function ElevesForm({
                 <td>{e.lv1 ?? "—"}</td>
                 <td>{e.lv2 ?? "—"}</td>
                 <td>{e.aUnCompte ? "Oui" : "Non"}</td>
+                <td>{e.emailContact ?? "—"}</td>
+                <td>{e.telephone ?? "—"}</td>
+                <td>{e.numeroParcoursup ?? "—"}</td>
+                <td>{e.etablissementOrigine ?? "—"}</td>
                 <td style={{ display: "flex", gap: 8 }}>
                   <button className="discret" onClick={() => setEnEdition(e.id)}>
                     Modifier
@@ -274,7 +310,7 @@ export function ElevesForm({
           )}
           {elevesAffiches.length === 0 && (
             <tr>
-              <td colSpan={7}>{eleves.length === 0 ? "Aucun élève pour le moment." : "Aucun élève pour ces filtres."}</td>
+              <td colSpan={11}>{eleves.length === 0 ? "Aucun élève pour le moment." : "Aucun élève pour ces filtres."}</td>
             </tr>
           )}
         </tbody>
@@ -352,6 +388,22 @@ export function ElevesForm({
             />
           </label>
         )}
+        <label>
+          Email de contact (informationnel, ne crée pas de compte)
+          <input type="email" value={emailContact} onChange={(e) => setEmailContact(e.target.value)} />
+        </label>
+        <label>
+          Téléphone
+          <input value={telephone} onChange={(e) => setTelephone(e.target.value)} />
+        </label>
+        <label>
+          Numéro Parcoursup
+          <input value={numeroParcoursup} onChange={(e) => setNumeroParcoursup(e.target.value)} />
+        </label>
+        <label>
+          Établissement d&apos;origine
+          <input value={etablissementOrigine} onChange={(e) => setEtablissementOrigine(e.target.value)} />
+        </label>
         {erreur && <p className="champ-erreur">{erreur}</p>}
         <button type="submit" disabled={enCours || !classeId || lv2InvalideAjout}>
           {enCours ? "Ajout…" : "Ajouter l'étudiant"}
@@ -380,6 +432,10 @@ function LigneEdition({
     lv2Id?: string;
     email?: string;
     password?: string;
+    emailContact?: string;
+    telephone?: string;
+    numeroParcoursup?: string;
+    etablissementOrigine?: string;
   }) => void;
 }) {
   const [nom, setNom] = useState(eleve.nom);
@@ -389,12 +445,16 @@ function LigneEdition({
   const [lv2Id, setLv2Id] = useState(eleve.lv2Id ?? "");
   const [email, setEmail] = useState(eleve.email ?? "");
   const [password, setPassword] = useState("");
+  const [emailContact, setEmailContact] = useState(eleve.emailContact ?? "");
+  const [telephone, setTelephone] = useState(eleve.telephone ?? "");
+  const [numeroParcoursup, setNumeroParcoursup] = useState(eleve.numeroParcoursup ?? "");
+  const [etablissementOrigine, setEtablissementOrigine] = useState(eleve.etablissementOrigine ?? "");
 
   const lv2Invalide = Boolean(lv1Id && lv2Id && lv1Id === lv2Id);
 
   return (
     <tr>
-      <td colSpan={7}>
+      <td colSpan={11}>
         <div className="carte" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" style={{ flex: 1 }} />
@@ -452,6 +512,26 @@ function LigneEdition({
               />
             </label>
           )}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <label style={{ flex: 1 }}>
+              Email de contact
+              <input type="email" value={emailContact} onChange={(e) => setEmailContact(e.target.value)} />
+            </label>
+            <label style={{ flex: 1 }}>
+              Téléphone
+              <input value={telephone} onChange={(e) => setTelephone(e.target.value)} />
+            </label>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <label style={{ flex: 1 }}>
+              Numéro Parcoursup
+              <input value={numeroParcoursup} onChange={(e) => setNumeroParcoursup(e.target.value)} />
+            </label>
+            <label style={{ flex: 1 }}>
+              Établissement d&apos;origine
+              <input value={etablissementOrigine} onChange={(e) => setEtablissementOrigine(e.target.value)} />
+            </label>
+          </div>
           <div style={{ display: "flex", gap: 6 }}>
             <button
               onClick={() =>
@@ -463,6 +543,10 @@ function LigneEdition({
                   lv2Id: lv2Id || undefined,
                   email: email || undefined,
                   password: password || undefined,
+                  emailContact: emailContact || undefined,
+                  telephone: telephone || undefined,
+                  numeroParcoursup: numeroParcoursup || undefined,
+                  etablissementOrigine: etablissementOrigine || undefined,
                 })
               }
               disabled={lv2Invalide}

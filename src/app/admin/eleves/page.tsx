@@ -25,8 +25,11 @@ export default async function ElevesPage() {
       <h1>Étudiants</h1>
       <ImportCsv
         endpoint="/api/admin/eleves/import"
-        colonnes="classe, nom, prenom, lv1, lv2, email"
-        exemple={"classe,nom,prenom,lv1,lv2,email\nL1,Dupont,Marie,Anglais,Espagnol,marie.dupont@exemple.fr"}
+        colonnes="classe, nom, prenom, lv1, lv2, email, emailcontact, telephone, parcoursup, etablissement"
+        exemple={
+          "classe,nom,prenom,lv1,lv2,email,emailcontact,telephone,parcoursup,etablissement\n" +
+          "L1,Dupont,Marie,Anglais,Espagnol,,marie.dupont@exemple.fr,0612345678,123456,Lycée X"
+        }
       />
       <ElevesForm
         elevesInitiaux={eleves.map((e) => ({
@@ -41,6 +44,10 @@ export default async function ElevesPage() {
           lv2: e.lv2?.nom ?? null,
           aUnCompte: e.utilisateurId !== null,
           email: e.utilisateur?.email ?? null,
+          emailContact: e.emailContact,
+          telephone: e.telephone,
+          numeroParcoursup: e.numeroParcoursup,
+          etablissementOrigine: e.etablissementOrigine,
         }))}
         classes={classes.map((c) => ({ id: c.id, nom: c.nom }))}
         languesVivantes={languesVivantes.map((d) => ({ id: d.id, nom: d.nom }))}

@@ -13,11 +13,18 @@ const bodySchema = z.object({ csv: z.string().min(1) });
 
 // POST /api/admin/eleves/import
 // Colonnes attendues (insensible à la casse) : classe, nom, prenom, lv1,
-// lv2, email — lv1/lv2/email optionnels. La classe doit déjà exister pour
-// l'année scolaire actuellement sélectionnée (écran Classes). Si un email
-// est fourni, crée aussi un compte de connexion ELEVE (mot de passe par
-// défaut "demo1234", à changer ensuite via /compte) — même logique que
-// scripts/import-legacy-data.ts, mais accessible depuis l'interface admin.
+// lv2, email, emailcontact, telephone, parcoursup, etablissement — toutes
+// sauf classe/nom/prenom sont optionnelles. La classe doit déjà exister
+// pour l'année scolaire actuellement sélectionnée (écran Classes).
+//
+// "email" et "emailcontact" sont deux choses différentes : "email" crée un
+// compte de connexion ELEVE (mot de passe par défaut "demo1234", à changer
+// ensuite via /compte) — même logique que scripts/import-legacy-data.ts,
+// mais accessible depuis l'interface admin. "emailcontact" (comme
+// telephone/parcoursup/etablissement) est une simple donnée informationnelle
+// sans lien avec un compte, typique d'un export d'inscription (ex.
+// Parcoursup) où on ne veut pas forcément ouvrir l'accès tout de suite.
+//
 // Un élève déjà présent (même nom/prenom/classe) est mis à jour plutôt que
 // dupliqué.
 export async function POST(req: Request) {
@@ -104,12 +111,19 @@ export async function POST(req: Request) {
       }
     }
 
+    const donneesContact = {
+      emailContact: l.emailcontact || undefined,
+      telephone: l.telephone || undefined,
+      numeroParcoursup: l.parcoursup || undefined,
+      etablissementOrigine: l.etablissement || undefined,
+    };
+
     const existant = await prisma.eleve.findFirst({ where: { nom, prenom, classeId: classe.id } });
     if (existant) {
-      await prisma.eleve.update({ where: { id: existant.id }, data: { lv1Id, lv2Id, utilisateurId } });
+      await prisma.eleve.update({ where: { id: existant.id }, data: { lv1Id, lv2Id, utilisateurId, ...donneesContact } });
       misAJour++;
     } else {
-      await prisma.eleve.create({ data: { nom, prenom, classeId: classe.id, lv1Id, lv2Id, utilisateurId } });
+      await prisma.eleve.create({ data: { nom, prenom, classeId: classe.id, lv1Id, lv2Id, utilisateurId, ...donneesContact } });
       crees++;
     }
   }

@@ -50,6 +50,11 @@ const bodySchema = z
     // Si fourni, crée aussi un compte de connexion ELEVE pour cet élève.
     email: z.string().email().optional(),
     password: z.string().min(4).optional(),
+    // Coordonnées/origine, informationnelles uniquement (voir schema.prisma).
+    emailContact: z.string().email().optional(),
+    telephone: z.string().optional(),
+    numeroParcoursup: z.string().optional(),
+    etablissementOrigine: z.string().optional(),
   })
   .refine((b) => !b.lv1Id || !b.lv2Id || b.lv1Id !== b.lv2Id, {
     message: "LV1 et LV2 doivent être différentes",
@@ -86,6 +91,10 @@ export async function POST(req: Request) {
       lv1Id: body.lv1Id,
       lv2Id: body.lv2Id,
       utilisateurId,
+      emailContact: body.emailContact,
+      telephone: body.telephone,
+      numeroParcoursup: body.numeroParcoursup,
+      etablissementOrigine: body.etablissementOrigine,
     },
     include: { classe: { select: { id: true, nom: true } } },
   });

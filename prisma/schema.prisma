@@ -90,6 +90,14 @@ model Eleve {
   // différente de LV2 (contrôlé côté API).
   lv1Id         String?
   lv2Id         String?
+  // Coordonnées et infos d'origine, informationnelles uniquement — sans
+  // rapport avec le compte de connexion (utilisateurId/utilisateur.email
+  // ci-dessus, toujours facultatif et distinct). Alimentées typiquement par
+  // import CSV depuis les fichiers d'inscription (ex. export Parcoursup).
+  emailContact         String?
+  telephone            String?
+  numeroParcoursup     String?
+  etablissementOrigine String?
 
   classe      Classe       @relation(fields: [classeId], references: [id])
   utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id])
