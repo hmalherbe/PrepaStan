@@ -6,7 +6,7 @@ export default async function ClassesPage() {
   await requirePageSession(["ADMIN"]);
 
   const classes = await prisma.classe.findMany({
-    include: { anneeScolaire: true, _count: { select: { eleves: true, disciplines: true } } },
+    include: { anneeScolaire: true, _count: { select: { eleves: true, disciplines: true, sessions: true } } },
     orderBy: [{ anneeScolaire: { libelle: "desc" } }, { nom: "asc" }],
   });
 
@@ -20,6 +20,7 @@ export default async function ClassesPage() {
           anneeScolaire: c.anneeScolaire.libelle,
           nbEleves: c._count.eleves,
           nbDisciplines: c._count.disciplines,
+          nbSessions: c._count.sessions,
         }))}
       />
     </main>

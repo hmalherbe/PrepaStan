@@ -9,6 +9,7 @@ type Classe = {
   anneeScolaire: string;
   nbEleves: number;
   nbDisciplines: number;
+  nbSessions: number;
 };
 
 export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }) {
@@ -42,6 +43,7 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
           anneeScolaire: data.anneeScolaire.libelle,
           nbEleves: 0,
           nbDisciplines: 0,
+          nbSessions: 0,
         },
       ]);
       setNom("");
@@ -68,10 +70,10 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
 
   async function supprimer(classeId: string) {
     const classe = classes.find((c) => c.id === classeId);
-    const avertissement =
-      classe && classe.nbEleves > 0
-        ? ` Les ${classe.nbEleves} élève(s) qu'elle contient seront aussi supprimés.`
-        : "";
+    const details: string[] = [];
+    if (classe && classe.nbEleves > 0) details.push(`${classe.nbEleves} élève(s)`);
+    if (classe && classe.nbSessions > 0) details.push(`${classe.nbSessions} session(s) de khôlle (avec leurs passages et notes déjà enregistrés)`);
+    const avertissement = details.length > 0 ? ` Cela supprimera aussi : ${details.join(", ")}.` : "";
     if (!confirm(`Supprimer la classe "${classe?.nom}" ?${avertissement} Cette action est irréversible.`)) return;
     const res = await fetch(`/api/admin/classes/${classeId}`, { method: "DELETE" });
     const data = await res.json();

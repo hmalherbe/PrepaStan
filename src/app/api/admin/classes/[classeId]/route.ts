@@ -52,47 +52,35 @@ export async function PUT(req: Request, { params }: { params: Promise<{ classeId
 }
 
 // DELETE /api/admin/classes/:classeId
-// Les disciplines assignées (ClasseDiscipline) sont supprimées avec la
-// classe. Les élèves de la classe le sont aussi (voir plus bas), tant
-// qu'aucun n'a déjà de passage de khôlle enregistré — un vrai historique de
-// notes ne doit jamais être perdu silencieusement. La présence de sessions
-// de khôlle ou d'un référent assigné fait quant à elle toujours échouer la
-// suppression (contrainte de clé étrangère).
+// Suppression forcée, quelle que soit la présence d'élèves, de sessions de
+// khôlle, de passages/notes déjà enregistrés ou de référents assignés —
+// l'avertissement (et la décision) se fait côté écran avant l'appel. On
+// supprime donc explicitement, dans l'ordre des dépendances, tout ce que
+// les cascades de la base ne couvrent pas déjà (ClasseDiscipline et
+// ParametreDiscipline, eux, cascadent automatiquement avec la classe).
 export async function DELETE(_req: Request, { params }: { params: Promise<{ classeId: string }> }) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
   const { classeId } = await params;
 
-  const eleves = await prisma.eleve.findMany({
-    where: { classeId },
-    select: { id: true, passages: { select: { id: true }, take: 1 } },
-  });
-  const eleveAvecHistorique = eleves.find((e) => e.passages.length > 0);
-  if (eleveAvecHistorique) {
-    return NextResponse.json(
-      {
-        error:
-          "Impossible de supprimer cette classe : au moins un élève a déjà des passages de khôlle enregistrés. " +
-          "Retirez-le d'abord.",
-      },
-      { status: 409 }
-    );
-  }
+  const [eleveIds, sessionIds] = await Promise.all([
+    prisma.eleve.findMany({ where: { classeId }, select: { id: true } }).then((r) => r.map((e) => e.id)),
+    prisma.sessionKholle.findMany({ where: { classeId }, select: { id: true } }).then((r) => r.map((s) => s.id)),
+  ]);
 
-  try {
-    await prisma.$transaction([
-      prisma.eleve.deleteMany({ where: { classeId } }),
-      prisma.classe.delete({ where: { id: classeId } }),
-    ]);
-  } catch {
-    return NextResponse.json(
-      {
-        error:
-          "Impossible de supprimer cette classe : elle a encore des sessions de khôlle ou un référent assigné. " +
-          "Retirez-les d'abord.",
-      },
-      { status: 409 }
-    );
-  }
+  await prisma.$transaction([
+    // Passages/notes (Note cascade automatiquement depuis Passage) : ceux
+    // liés aux sessions de cette classe, et ceux des élèves de cette classe
+    // au cas où ils auraient des passages ailleurs.
+    prisma.passage.deleteMany({ where: { creneau: { sessionKholleId: { in: sessionIds } } } }),
+    prisma.passage.deleteMany({ where: { eleveId: { in: eleveIds } } }),
+    // Pas de cascade automatique depuis SessionKholle.
+    prisma.validationReferent.deleteMany({ where: { sessionKholleId: { in: sessionIds } } }),
+    // Cascade ensuite ValidationGrille et Creneau (donc les passages restants).
+    prisma.sessionKholle.deleteMany({ where: { classeId } }),
+    prisma.professeurReferent.deleteMany({ where: { classeId } }),
+    prisma.eleve.deleteMany({ where: { classeId } }),
+    prisma.classe.delete({ where: { id: classeId } }),
+  ]);
   return NextResponse.json({ ok: true });
 }
