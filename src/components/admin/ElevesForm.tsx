@@ -261,6 +261,7 @@ export function ElevesForm({
       <table>
         <thead>
           <tr>
+            <th></th>
             <th>Nom</th>
             <th>Prénom</th>
             <th>Classe</th>
@@ -271,7 +272,6 @@ export function ElevesForm({
             <th>Téléphone</th>
             <th>Parcoursup</th>
             <th>Établissement</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -287,6 +287,14 @@ export function ElevesForm({
               />
             ) : (
               <tr key={e.id}>
+                <td style={{ display: "flex", gap: 8 }}>
+                  <button className="discret" onClick={() => setEnEdition(e.id)}>
+                    Modifier
+                  </button>
+                  <button className="discret" onClick={() => supprimer(e.id)}>
+                    Supprimer
+                  </button>
+                </td>
                 <td>{e.nom}</td>
                 <td>{e.prenom}</td>
                 <td>{e.classe}</td>
@@ -297,14 +305,6 @@ export function ElevesForm({
                 <td>{e.telephone ?? "—"}</td>
                 <td>{e.numeroParcoursup ?? "—"}</td>
                 <td>{e.etablissementOrigine ?? "—"}</td>
-                <td style={{ display: "flex", gap: 8 }}>
-                  <button className="discret" onClick={() => setEnEdition(e.id)}>
-                    Modifier
-                  </button>
-                  <button className="discret" onClick={() => supprimer(e.id)}>
-                    Supprimer
-                  </button>
-                </td>
               </tr>
             )
           )}
