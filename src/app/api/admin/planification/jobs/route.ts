@@ -111,14 +111,22 @@ export async function POST(req: Request) {
       );
     }
   }
-  // Pour le groupe des disciplines "langue" de la semaine (Anglais/LV1 et
-  // Espagnol/Italien/Allemand/LV2 pouvant coexister), la somme des quotas
-  // doit couvrir l'effectif ENTIER de la classe, pas seulement les élèves
-  // dont c'est la LV1 ou la LV2 parmi les langues présentes : chaque élève
-  // passe exactement une langue par semaine (chacun n'en passe qu'une, quelle
-  // que soit sa LV1 ou sa LV2), donc oublier une langue dans les quotas
-  // laisserait certains élèves sans aucun créneau cette semaine-là — ce que
-  // ce total doit précisément empêcher de passer inaperçu.
+  // Pour le groupe des disciplines "langue" de la semaine, la somme des
+  // quotas doit couvrir l'effectif ENTIER de la classe, pas seulement les
+  // élèves dont c'est la LV1 ou la LV2 parmi les langues présentes : chaque
+  // élève passe exactement une langue par semaine. Cette seule règle
+  // couvre les deux cas réels :
+  //  - Classe sans LV2 (chaque élève n'a qu'une langue, sa LV1) : comme les
+  //    pools de LV1 se partitionnent exactement sur l'effectif de la classe,
+  //    exiger ce total revient mécaniquement à exiger que CHAQUE LV1 soit
+  //    intégralement couverte (le solveur ne peut pas atteindre l'effectif
+  //    total autrement).
+  //  - Classe avec LV2 (alternance LV1/LV2) : les langues se complètent,
+  //    donc seul le total combiné doit couvrir l'effectif, pas chaque
+  //    langue individuellement cette semaine-là.
+  // Dans les deux cas, oublier une langue dans les quotas laisserait
+  // certains élèves sans aucun créneau cette semaine-là — ce que ce total
+  // doit précisément empêcher de passer inaperçu.
   if (disciplinesLangue.length > 0) {
     const totalLangue = quotas
       .filter((q) => disciplinesLangue.includes(q.disciplineId))

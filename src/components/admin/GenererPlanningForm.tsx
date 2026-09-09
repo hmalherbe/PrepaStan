@@ -191,35 +191,61 @@ export function GenererPlanningForm({
     setQuotas((prev) => prev.filter((q) => q.cle !== cle));
   }
 
-  // Une ligne par discipline utilisée, chacune comparée à son propre
-  // effectif attendu : l'effectif entier de la classe pour une matière
-  // normale, mais seulement le sous-groupe ayant cette langue en LV1 ou LV2
-  // pour une langue vivante (même règle que /admin/classes, voir
-  // nbElevesParDiscipline). Ce tableau ne détecte donc pas à lui seul une
-  // langue oubliée dans les quotas de la semaine (un élève peut légitimement
-  // ne pas apparaître dans une langue donnée cette semaine-là, alternance
-  // LV1/LV2 oblige) — ce garde-fou reste assuré côté serveur
-  // (/api/admin/planification/jobs), qui bloque la génération si le total
-  // combiné des langues de la semaine ne couvre pas l'effectif entier.
+  // Une matière normale doit toujours couvrir l'effectif entier de la
+  // classe. Pour les langues vivantes, deux cas bien distincts (même règle
+  // que /api/admin/planification/jobs, qui reste l'unique garde-fou
+  // bloquant) :
+  //  - Classe sans LV2 (chaque élève n'a qu'une langue, sa LV1) : chaque
+  //    LV1 doit être intégralement couverte, donc une ligne par discipline
+  //    comparée à son propre vivier (élèves l'ayant en LV1).
+  //  - Classe avec LV2 (alternance LV1/LV2) : les langues utilisées cette
+  //    semaine se complètent (chaque élève n'en passe qu'une), donc seul
+  //    leur TOTAL combiné doit couvrir l'effectif entier — une ligne
+  //    groupée plutôt qu'une par langue, pour ne pas afficher un faux
+  //    négatif sur une langue partiellement remplie cette semaine-là.
   const recap = useMemo(() => {
     const totaux = new Map<string, number>();
     for (const q of quotas) {
       totaux.set(q.disciplineId, (totaux.get(q.disciplineId) ?? 0) + q.nombreEleves);
     }
 
-    return [...totaux.entries()].map(([disciplineId, total]) => {
+    const classeADesLV2 = classe?.eleves.some((e) => e.lv2Id) ?? false;
+    const lignes: { cle: string; nom: string; total: number; attendu: number; ok: boolean }[] = [];
+    const disciplineIdsLangue: string[] = [];
+
+    for (const [disciplineId, total] of totaux) {
       const discipline = disciplines.find((d) => d.id === disciplineId);
-      const attendu = discipline?.estLangueVivante
-        ? (classe?.eleves.filter((e) => e.lv1Id === disciplineId || e.lv2Id === disciplineId).length ?? 0)
-        : (classe?.effectif ?? 0);
-      return {
+      if (discipline?.estLangueVivante) {
+        if (classeADesLV2) {
+          disciplineIdsLangue.push(disciplineId);
+          continue;
+        }
+        const attendu = classe?.eleves.filter((e) => e.lv1Id === disciplineId).length ?? 0;
+        lignes.push({ cle: disciplineId, nom: discipline.nom, total, attendu, ok: total === attendu });
+        continue;
+      }
+      lignes.push({
         cle: disciplineId,
         nom: discipline?.nom ?? disciplineId,
         total,
-        attendu,
-        ok: total === attendu,
-      };
-    });
+        attendu: classe?.effectif ?? 0,
+        ok: total === (classe?.effectif ?? 0),
+      });
+    }
+
+    if (classeADesLV2 && disciplineIdsLangue.length > 0 && classe) {
+      const totalLangues = disciplineIdsLangue.reduce((s, id) => s + (totaux.get(id) ?? 0), 0);
+      const noms = disciplineIdsLangue.map((id) => disciplines.find((d) => d.id === id)?.nom ?? id);
+      lignes.push({
+        cle: "langues",
+        nom: `Langues (${noms.join(", ")})`,
+        total: totalLangues,
+        attendu: classe.effectif,
+        ok: totalLangues === classe.effectif,
+      });
+    }
+
+    return lignes;
   }, [quotas, disciplines, classe]);
 
   // Disciplines réellement utilisées cette semaine, dans l'ordre de leur
