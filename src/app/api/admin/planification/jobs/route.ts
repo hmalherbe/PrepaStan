@@ -280,7 +280,13 @@ export async function POST(req: Request) {
   }
 
   if (erreursSalle.length > 0) {
-    return NextResponse.json({ error: `Conflit de salle : ${erreursSalle.join(" ; ")}` }, { status: 400 });
+    // Un saut de ligne par conflit plutôt qu'un point-virgule : la liste
+    // peut compter plusieurs salles, illisible collée sur une seule ligne
+    // (voir le rendu avec white-space: pre-line côté GenererPlanningForm).
+    return NextResponse.json(
+      { error: `Conflit de salle :\n${erreursSalle.join("\n")}` },
+      { status: 400 }
+    );
   }
 
   const dispoBrutes = await prisma.disponibilite.findMany({ where: { kholleurId: { in: kholleurIds } } });

@@ -619,7 +619,13 @@ export function GenererPlanningForm({
       </form>
 
       {statutJob && statutJob !== "SUCCES" && (
-        <p className={statutJob === "EN_COURS" ? "badge badge-attente" : "champ-erreur"}>
+        <p
+          className={statutJob === "EN_COURS" ? "badge badge-attente" : "champ-erreur"}
+          // Certains messages d'erreur (ex. conflits de salle, un par ligne)
+          // contiennent des "\n" : sans ça, le navigateur les collapse et
+          // tout s'affiche sur une seule ligne illisible.
+          style={{ whiteSpace: "pre-line" }}
+        >
           {statutJob === "EN_COURS" && "Calcul en cours (job " + jobId + ")…"}
           {statutJob === "INFAISABLE" && `Impossible : ${messageJob}`}
           {statutJob === "ECHEC" && `Erreur : ${messageJob}`}
