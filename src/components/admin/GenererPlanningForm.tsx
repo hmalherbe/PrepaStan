@@ -13,9 +13,8 @@ type Discipline = {
   referents: Referent[];
   referentActuelId: string | null;
 };
-type EleveLangues = { id: string; lv1Id: string | null; lv2Id: string | null };
 type Salle = { id: string; nom: string };
-type Classe = { id: string; nom: string; effectif: number; eleves: EleveLangues[]; disciplines: Discipline[] };
+type Classe = { id: string; nom: string; effectif: number; disciplines: Discipline[] };
 
 type Quota = {
   cle: string; // clé locale stable pour React, sans rapport avec les données envoyées
@@ -192,11 +191,13 @@ export function GenererPlanningForm({
   }
 
   // Même règle que côté serveur (/api/admin/planification/jobs) : une
-  // matière normale doit couvrir l'effectif entier de la classe, mais les
-  // langues vivantes (LV1/LV2) ne concernent chacune qu'un sous-groupe — et
-  // plusieurs langues utilisées la même semaine se complètent (un élève n'en
-  // passe qu'une), donc c'est leur TOTAL combiné qui doit égaler le nombre
-  // d'élèves ayant l'une d'elles en LV1 ou LV2, pas chacune séparément.
+  // matière normale doit couvrir l'effectif entier de la classe. Les langues
+  // vivantes (LV1/LV2) utilisées la même semaine se complètent (chaque élève
+  // n'en passe qu'une) : c'est donc leur TOTAL combiné qui doit couvrir
+  // l'effectif ENTIER de la classe, pas seulement les élèves dont c'est la
+  // LV1 ou la LV2 parmi les langues déjà présentes dans les quotas — sinon
+  // une langue oubliée laisserait certains élèves sans créneau sans que rien
+  // ne le signale ici.
   const recap = useMemo(() => {
     const totaux = new Map<string, number>();
     for (const q of quotas) {
@@ -223,16 +224,13 @@ export function GenererPlanningForm({
 
     if (disciplineIdsLangue.length > 0 && classe) {
       const totalLangues = disciplineIdsLangue.reduce((s, id) => s + (totaux.get(id) ?? 0), 0);
-      const elevesEligibles = classe.eleves.filter(
-        (e) => (e.lv1Id && disciplineIdsLangue.includes(e.lv1Id)) || (e.lv2Id && disciplineIdsLangue.includes(e.lv2Id))
-      ).length;
       const noms = disciplineIdsLangue.map((id) => disciplines.find((d) => d.id === id)?.nom ?? id);
       lignes.push({
         cle: "langues",
         nom: `Langues (${noms.join(", ")})`,
         total: totalLangues,
-        attendu: elevesEligibles,
-        ok: totalLangues === elevesEligibles,
+        attendu: classe.effectif,
+        ok: totalLangues === classe.effectif,
       });
     }
 

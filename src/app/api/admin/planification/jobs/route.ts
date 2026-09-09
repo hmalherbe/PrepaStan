@@ -113,19 +113,20 @@ export async function POST(req: Request) {
   }
   // Pour le groupe des disciplines "langue" de la semaine (Anglais/LV1 et
   // Espagnol/Italien/Allemand/LV2 pouvant coexister), la somme des quotas
-  // doit égaler le nombre d'élèves éligibles à au moins l'une d'entre elles
-  // (chacun n'en passe qu'une, quelle que soit sa LV1 ou sa LV2).
+  // doit couvrir l'effectif ENTIER de la classe, pas seulement les élèves
+  // dont c'est la LV1 ou la LV2 parmi les langues présentes : chaque élève
+  // passe exactement une langue par semaine (chacun n'en passe qu'une, quelle
+  // que soit sa LV1 ou sa LV2), donc oublier une langue dans les quotas
+  // laisserait certains élèves sans aucun créneau cette semaine-là — ce que
+  // ce total doit précisément empêcher de passer inaperçu.
   if (disciplinesLangue.length > 0) {
     const totalLangue = quotas
       .filter((q) => disciplinesLangue.includes(q.disciplineId))
       .reduce((s, q) => s + q.nombreEleves, 0);
-    const elevesEligibles = eleves.filter(
-      (e) => (e.lv1Id && disciplinesLangue.includes(e.lv1Id)) || (e.lv2Id && disciplinesLangue.includes(e.lv2Id))
-    ).length;
-    if (totalLangue > elevesEligibles || (totalLangue < elevesEligibles && !permettreEffectifPartiel)) {
+    if (totalLangue > eleves.length || (totalLangue < eleves.length && !permettreEffectifPartiel)) {
       erreursEffectif.push(
         `Langues (${disciplinesLangue.length} discipline(s)) : ${totalLangue} élève(s) affecté(s) au total, ` +
-          `attendu ${elevesEligibles} (élèves dont c'est la LV1 ou la LV2)`
+          `attendu ${eleves.length} (effectif de la classe)`
       );
     }
   }
