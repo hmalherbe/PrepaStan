@@ -61,8 +61,37 @@ export function SallesForm({ sallesInitiales }: { sallesInitiales: Salle[] }) {
     setSalles((prev) => prev.filter((s) => s.id !== salleId));
   }
 
+  async function supprimerToutes() {
+    if (salles.length === 0) return;
+    if (
+      !confirm(
+        `Supprimer TOUTES les salles (${salles.length}) ? ` +
+          "Celles encore utilisées par un créneau de khôlle seront conservées. Cette action est irréversible."
+      )
+    ) {
+      return;
+    }
+    const res = await fetch("/api/admin/salles", { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error ?? "Erreur lors de la suppression");
+      return;
+    }
+    if (data.proteges > 0) {
+      alert(
+        `${data.supprimes} salle(s) supprimée(s). ${data.proteges} conservée(s) car encore utilisée(s) par un créneau de khôlle.`
+      );
+    }
+    window.location.reload();
+  }
+
   return (
     <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <button type="button" className="discret" onClick={supprimerToutes} disabled={salles.length === 0}>
+          Supprimer toutes les salles ({salles.length})
+        </button>
+      </div>
       <table>
         <thead>
           <tr>

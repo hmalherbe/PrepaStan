@@ -15,6 +15,25 @@ export async function GET() {
   return NextResponse.json(salles);
 }
 
+// DELETE /api/admin/salles
+// Supprime toutes les salles — sauf celles encore utilisées par un créneau
+// de khôlle (même garde-fou qu'une suppression individuelle) : on ne
+// dépeuple jamais silencieusement un planning déjà construit.
+export async function DELETE() {
+  const auth = await requireRole(["ADMIN"]);
+  if (auth instanceof NextResponse) return auth;
+
+  const salles = await prisma.salle.findMany({
+    select: { id: true, creneaux: { select: { id: true }, take: 1 } },
+  });
+  const supprimables = salles.filter((s) => s.creneaux.length === 0).map((s) => s.id);
+  const proteges = salles.length - supprimables.length;
+
+  const { count } = await prisma.salle.deleteMany({ where: { id: { in: supprimables } } });
+
+  return NextResponse.json({ supprimes: count, proteges });
+}
+
 const bodySchema = z.object({
   nom: z.string().min(1),
 });

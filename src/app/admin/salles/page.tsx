@@ -1,6 +1,7 @@
 import { requirePageSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SallesForm } from "@/components/admin/SallesForm";
+import { ImportCsv } from "@/components/admin/ImportCsv";
 
 export default async function SallesPage() {
   await requirePageSession(["ADMIN"]);
@@ -13,6 +14,7 @@ export default async function SallesPage() {
   return (
     <main className="container">
       <h1>Salles</h1>
+      <ImportCsv endpoint="/api/admin/salles/import" colonnes="nom" exemple={"nom\nSalle 104\nAmphi A"} />
       <SallesForm
         sallesInitiales={salles.map((s) => ({ id: s.id, nom: s.nom, nbCreneaux: s._count.creneaux }))}
       />
