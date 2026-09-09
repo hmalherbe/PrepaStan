@@ -18,6 +18,7 @@ const LIENS_PAR_ROLE: Record<string, { href: string; label: string }[]> = {
     { href: "/admin/salles", label: "Salles" },
     { href: "/admin/parametres", label: "Paramètres" },
     { href: "/admin/statistiques", label: "Statistiques" },
+    { href: "/admin/guide", label: "Guide d'utilisation" },
   ],
   KHOLLEUR: [{ href: "/kholleur/sessions", label: "Mes sessions" }],
   PROFESSEUR_REFERENT: [{ href: "/referent/sessions", label: "Sessions à valider" }],
