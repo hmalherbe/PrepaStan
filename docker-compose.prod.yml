@@ -12,6 +12,12 @@
 #   docker compose -f docker-compose.prod.yml up -d --build
 #   (les migrations Prisma s'appliquent automatiquement au démarrage du
 #   conteneur "app", voir docker-entrypoint.sh)
+#
+# Environnement de démo/test séparé (base + appli propres, sous-domaine
+# demo.prepastan.fr) : voir docker-compose.demo.yml, un fichier à part
+# entière plutôt qu'ajouté ici, pour que ce fichier de prod (et la commande
+# de mise à jour ci-dessus) restent inchangés et ne dépendent jamais de
+# l'existence de .env.demo.
 services:
   db:
     image: postgres:16-alpine

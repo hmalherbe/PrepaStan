@@ -1,0 +1,55 @@
+# Environnement de démo/test séparé de la production (base et appli
+# distinctes), pour simuler une année de khôlle sans risquer les vraies
+# données — voir docker-compose.prod.yml pour le contexte général.
+#
+# Partage volontairement le conteneur "planning-solver" et le "caddy" de
+# docker-compose.prod.yml plutôt que d'en redéfinir ici : le solveur est
+# stateless (chaque requête transporte sa propre URL de callback, voir
+# jobs/route.ts) et Caddy gère déjà le HTTPS. Ce partage ne fonctionne QUE
+# si ce fichier est lancé depuis le MÊME répertoire que
+# docker-compose.prod.yml (Compose déduit le nom de projet — et donc le
+# réseau Docker partagé — du nom du répertoire courant, pas du fichier
+# passé en -f) : toujours `cd /root/PrepaStan` d'abord, comme pour la prod.
+#
+# Usage sur le serveur (après avoir créé le DNS demo.prepastan.fr -> IP du
+# VPS et ajouté le bloc correspondant dans Caddyfile) :
+#   cp .env.demo.example .env.demo   # puis renseigner les vraies valeurs
+#   docker compose -f docker-compose.prod.yml up -d --build   # si pas déjà lancé (planning-solver, caddy)
+#   docker compose -f docker-compose.demo.yml up -d --build
+#   docker compose -f docker-compose.prod.yml restart caddy   # relit le Caddyfile modifié
+#
+# Mise à jour après un `git pull` :
+#   docker compose -f docker-compose.demo.yml up -d --build
+#
+# Tout supprimer (base de démo incluse) :
+#   docker compose -f docker-compose.demo.yml down -v
+services:
+  db-demo:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # POSTGRES_USER/PASSWORD/DB directement dans .env.demo (voir ce
+    # fichier), plutôt qu'une interpolation ${...} ici : Compose ne
+    # recharge automatiquement que le fichier nommé exactement ".env" pour
+    # ce genre d'interpolation, jamais ".env.demo" — env_file, lui,
+    # fonctionne avec n'importe quel nom de fichier.
+    env_file:
+      - .env.demo
+    volumes:
+      - prepastan-db-demo-data:/var/lib/postgresql/data
+    # Pas de port publié vers l'extérieur, comme "db" en prod.
+
+  app-demo:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db-demo
+    env_file:
+      - .env.demo
+    # Pas de port publié : Caddy (démarré via docker-compose.prod.yml) fait
+    # le reverse proxy vers ce conteneur par son nom de service, voir
+    # Caddyfile. Pas de dépendance déclarée sur "planning-solver" : il vit
+    # dans l'autre fichier compose, injoignable par depends_on d'ici, mais
+    # atteignable au runtime via le réseau Docker partagé (voir plus haut).
+
+volumes:
+  prepastan-db-demo-data:

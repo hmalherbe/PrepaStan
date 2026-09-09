@@ -7,3 +7,11 @@
 prepastan.fr {
 	reverse_proxy app:3000
 }
+
+# Environnement de démo/test séparé (voir docker-compose.demo.yml) : ce
+# bloc suppose qu'un enregistrement DNS A pour demo.prepastan.fr pointe déjà
+# vers ce serveur, sinon Caddy ne pourra pas obtenir de certificat pour ce
+# sous-domaine (les logs du conteneur caddy le signaleront clairement).
+demo.prepastan.fr {
+	reverse_proxy app-demo:3000
+}
