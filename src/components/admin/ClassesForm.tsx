@@ -71,7 +71,7 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
   async function supprimer(classeId: string) {
     const classe = classes.find((c) => c.id === classeId);
     const details: string[] = [];
-    if (classe && classe.nbEleves > 0) details.push(`${classe.nbEleves} élève(s)`);
+    if (classe && classe.nbEleves > 0) details.push(`${classe.nbEleves} étudiant(s)`);
     if (classe && classe.nbSessions > 0) details.push(`${classe.nbSessions} session(s) de khôlle (avec leurs passages et notes déjà enregistrés)`);
     const avertissement = details.length > 0 ? ` Cela supprimera aussi : ${details.join(", ")}.` : "";
     if (!confirm(`Supprimer la classe "${classe?.nom}" ?${avertissement} Cette action est irréversible.`)) return;
@@ -91,7 +91,7 @@ export function ClassesForm({ classesInitiales }: { classesInitiales: Classe[] }
           <tr>
             <th>Nom</th>
             <th>Année scolaire</th>
-            <th>Élèves</th>
+            <th>Étudiants</th>
             <th>Disciplines</th>
             <th></th>
           </tr>

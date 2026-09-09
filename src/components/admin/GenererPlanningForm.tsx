@@ -13,8 +13,9 @@ type Discipline = {
   referents: Referent[];
   referentActuelId: string | null;
 };
+type EleveLangues = { id: string; lv1Id: string | null; lv2Id: string | null };
 type Salle = { id: string; nom: string };
-type Classe = { id: string; nom: string; effectif: number; disciplines: Discipline[] };
+type Classe = { id: string; nom: string; effectif: number; eleves: EleveLangues[]; disciplines: Discipline[] };
 
 type Quota = {
   cle: string; // clé locale stable pour React, sans rapport avec les données envoyées
@@ -190,51 +191,35 @@ export function GenererPlanningForm({
     setQuotas((prev) => prev.filter((q) => q.cle !== cle));
   }
 
-  // Même règle que côté serveur (/api/admin/planification/jobs) : une
-  // matière normale doit couvrir l'effectif entier de la classe. Les langues
-  // vivantes (LV1/LV2) utilisées la même semaine se complètent (chaque élève
-  // n'en passe qu'une) : c'est donc leur TOTAL combiné qui doit couvrir
-  // l'effectif ENTIER de la classe, pas seulement les élèves dont c'est la
-  // LV1 ou la LV2 parmi les langues déjà présentes dans les quotas — sinon
-  // une langue oubliée laisserait certains élèves sans créneau sans que rien
-  // ne le signale ici.
+  // Une ligne par discipline utilisée, chacune comparée à son propre
+  // effectif attendu : l'effectif entier de la classe pour une matière
+  // normale, mais seulement le sous-groupe ayant cette langue en LV1 ou LV2
+  // pour une langue vivante (même règle que /admin/classes, voir
+  // nbElevesParDiscipline). Ce tableau ne détecte donc pas à lui seul une
+  // langue oubliée dans les quotas de la semaine (un élève peut légitimement
+  // ne pas apparaître dans une langue donnée cette semaine-là, alternance
+  // LV1/LV2 oblige) — ce garde-fou reste assuré côté serveur
+  // (/api/admin/planification/jobs), qui bloque la génération si le total
+  // combiné des langues de la semaine ne couvre pas l'effectif entier.
   const recap = useMemo(() => {
     const totaux = new Map<string, number>();
     for (const q of quotas) {
       totaux.set(q.disciplineId, (totaux.get(q.disciplineId) ?? 0) + q.nombreEleves);
     }
 
-    const lignes: { cle: string; nom: string; total: number; attendu: number; ok: boolean }[] = [];
-    const disciplineIdsLangue: string[] = [];
-
-    for (const [disciplineId, total] of totaux) {
+    return [...totaux.entries()].map(([disciplineId, total]) => {
       const discipline = disciplines.find((d) => d.id === disciplineId);
-      if (discipline?.estLangueVivante) {
-        disciplineIdsLangue.push(disciplineId);
-        continue;
-      }
-      lignes.push({
+      const attendu = discipline?.estLangueVivante
+        ? (classe?.eleves.filter((e) => e.lv1Id === disciplineId || e.lv2Id === disciplineId).length ?? 0)
+        : (classe?.effectif ?? 0);
+      return {
         cle: disciplineId,
         nom: discipline?.nom ?? disciplineId,
         total,
-        attendu: classe?.effectif ?? 0,
-        ok: classe ? total === classe.effectif : false,
-      });
-    }
-
-    if (disciplineIdsLangue.length > 0 && classe) {
-      const totalLangues = disciplineIdsLangue.reduce((s, id) => s + (totaux.get(id) ?? 0), 0);
-      const noms = disciplineIdsLangue.map((id) => disciplines.find((d) => d.id === id)?.nom ?? id);
-      lignes.push({
-        cle: "langues",
-        nom: `Langues (${noms.join(", ")})`,
-        total: totalLangues,
-        attendu: classe.effectif,
-        ok: totalLangues === classe.effectif,
-      });
-    }
-
-    return lignes;
+        attendu,
+        ok: total === attendu,
+      };
+    });
   }, [quotas, disciplines, classe]);
 
   // Disciplines réellement utilisées cette semaine, dans l'ordre de leur
@@ -339,7 +324,7 @@ export function GenererPlanningForm({
           <select value={classeId} onChange={(e) => changerClasse(e.target.value)} disabled={enCours}>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nom} ({c.effectif} élèves)
+                {c.nom} ({c.effectif} étudiants)
               </option>
             ))}
           </select>
@@ -364,7 +349,7 @@ export function GenererPlanningForm({
 
         <p style={{ marginTop: 16 }}>
           Quotas par jour / discipline / kholleur — pour chaque ligne, OR-Tools choisira quels
-          élèves précis remplissent le quota, à partir de l&apos;heure de début indiquée.
+          étudiants précis remplissent le quota, à partir de l&apos;heure de début indiquée.
         </p>
 
         {disciplines.length === 0 && classe && (
@@ -377,7 +362,7 @@ export function GenererPlanningForm({
               <th>Jour</th>
               <th>Discipline</th>
               <th>Kholleur</th>
-              <th>Nb élèves</th>
+              <th>Nb étudiants</th>
               <th>Début préparation</th>
               <th>Salle</th>
               <th></th>
@@ -533,7 +518,7 @@ export function GenererPlanningForm({
               <thead>
                 <tr>
                   <th>Discipline</th>
-                  <th>Total élèves affectés</th>
+                  <th>Total étudiants affectés</th>
                   <th>Effectif attendu</th>
                   <th></th>
                 </tr>

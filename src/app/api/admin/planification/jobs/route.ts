@@ -107,7 +107,7 @@ export async function POST(req: Request) {
     if (total > eleves.length || (total < eleves.length && !permettreEffectifPartiel)) {
       const discipline = await prisma.discipline.findUnique({ where: { id: disciplineId } });
       erreursEffectif.push(
-        `${discipline?.nom ?? disciplineId} : ${total} élève(s) affecté(s) au total, attendu ${eleves.length}`
+        `${discipline?.nom ?? disciplineId} : ${total} étudiant(s) affecté(s) au total, attendu ${eleves.length}`
       );
     }
   }
@@ -125,7 +125,7 @@ export async function POST(req: Request) {
       .reduce((s, q) => s + q.nombreEleves, 0);
     if (totalLangue > eleves.length || (totalLangue < eleves.length && !permettreEffectifPartiel)) {
       erreursEffectif.push(
-        `Langues (${disciplinesLangue.length} discipline(s)) : ${totalLangue} élève(s) affecté(s) au total, ` +
+        `Langues (${disciplinesLangue.length} discipline(s)) : ${totalLangue} étudiant(s) affecté(s) au total, ` +
           `attendu ${eleves.length} (effectif de la classe)`
       );
     }
@@ -226,7 +226,7 @@ export async function POST(req: Request) {
       const kholleur = await prisma.utilisateur.findUnique({ where: { id: q.kholleurId } });
       erreursCapacite.push(
         `${kholleur ? `${kholleur.prenom} ${kholleur.nom}` : q.kholleurId} le ${q.date} de ${minutesVersHeure(debut)} à ` +
-          `${minutesVersHeure(fin)} (${q.nombreEleves} élèves) : hors de ses disponibilités déclarées`
+          `${minutesVersHeure(fin)} (${q.nombreEleves} étudiants) : hors de ses disponibilités déclarées`
       );
     }
   }

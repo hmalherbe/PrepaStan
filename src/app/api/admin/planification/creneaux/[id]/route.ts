@@ -85,7 +85,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   if (chevauchants.length > 0) {
     return NextResponse.json(
-      { error: "Conflit détecté sur ce créneau (kholleur, salle ou élève déjà occupé à cette heure)" },
+      { error: "Conflit détecté sur ce créneau (kholleur, salle ou étudiant déjà occupé à cette heure)" },
       { status: 409 }
     );
   }

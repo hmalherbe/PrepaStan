@@ -166,7 +166,7 @@ export function PlanningReview({
                 <th>Kholleur</th>
                 <th>Référent</th>
                 <th>Salle</th>
-                <th>Élèves</th>
+                <th>Étudiants</th>
                 {estBrouillon && <th className="no-print"></th>}
               </tr>
             </thead>

@@ -98,7 +98,7 @@ export function ParametresGenerauxForm({
         onActifChange={setEnvoiReferent}
       />
       <PlaceholderTextarea
-        label="Élèves — quand le référent clôture la session (note disponible)"
+        label="Étudiants — quand le référent clôture la session (note disponible)"
         value={modeleEleve}
         onChange={setModeleEleve}
         actif={envoiEleve}

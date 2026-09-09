@@ -121,7 +121,7 @@ export function StatistiquesView({
       <div className="stat-cartes">
         <div className="stat-carte">
           <div className="valeur">{nbEleves}</div>
-          <div className="libelle">Élèves</div>
+          <div className="libelle">Étudiants</div>
         </div>
         <div className="stat-carte">
           <div className="valeur">{nbKholleurs}</div>
@@ -139,14 +139,14 @@ export function StatistiquesView({
         )}
       </div>
 
-      <h2>Score horaire moyen par élève</h2>
+      <h2>Score horaire moyen par étudiant</h2>
       <p style={{ color: "#777", fontSize: "0.85rem", marginTop: -8 }}>
-        Rang horaire moyen (14 = créneaux vers 14h, 18 = créneaux vers 18h) : plus la valeur est basse, plus l&apos;élève
-        passe tôt en moyenne. Un bon équilibrage se traduit par des valeurs proches entre élèves. Échelle resserrée
+        Rang horaire moyen (14 = créneaux vers 14h, 18 = créneaux vers 18h) : plus la valeur est basse, plus l&apos;étudiant
+        passe tôt en moyenne. Un bon équilibrage se traduit par des valeurs proches entre étudiants. Échelle resserrée
         entre {minScore.toFixed(1)} et {maxScore.toFixed(1)} pour rendre les écarts visibles.
         <br />
-        <strong>Écart-type entre élèves : {ecartTypeScoreHoraire.toFixed(2)}</strong> (plus c&apos;est bas, plus les
-        heures de passage sont réparties de façon homogène entre élèves).
+        <strong>Écart-type entre étudiants : {ecartTypeScoreHoraire.toFixed(2)}</strong> (plus c&apos;est bas, plus les
+        heures de passage sont réparties de façon homogène entre étudiants).
       </p>
       {scoreParEleve.length === 0 ? (
         <p>Aucun passage publié pour cette classe.</p>
@@ -178,9 +178,9 @@ export function StatistiquesView({
 
       <h2>Diversité des khôlleurs par discipline</h2>
       <p style={{ color: "#777", fontSize: "0.85rem", marginTop: -8 }}>
-        Taux moyen = nombre de khôlleurs distincts vus / nombre de passages, pour les élèves ayant eu au moins 2
+        Taux moyen = nombre de khôlleurs distincts vus / nombre de passages, pour les étudiants ayant eu au moins 2
         passages dans la discipline. 100% = jamais deux fois le même khôlleur. Écart-type entre parenthèses : plus
-        il est bas, plus la diversité est homogène d&apos;un élève à l&apos;autre (pas seulement bonne en moyenne).
+        il est bas, plus la diversité est homogène d&apos;un étudiant à l&apos;autre (pas seulement bonne en moyenne).
       </p>
       {diversiteDisciplines.length === 0 ? (
         <p>Pas assez de données.</p>
@@ -198,10 +198,10 @@ export function StatistiquesView({
         </div>
       )}
 
-      <h2>Détail élève / khôlleur / discipline</h2>
+      <h2>Détail étudiant / khôlleur / discipline</h2>
       <input
         type="text"
-        placeholder="Filtrer par élève, khôlleur ou discipline…"
+        placeholder="Filtrer par étudiant, khôlleur ou discipline…"
         value={filtre}
         onChange={(e) => setFiltre(e.target.value)}
         style={{ marginBottom: 12, width: "100%", maxWidth: 360 }}
@@ -210,7 +210,7 @@ export function StatistiquesView({
         <thead>
           <tr>
             <th className="triable" onClick={() => trierPar("eleve")}>
-              Élève{fleche("eleve")}
+              Étudiant{fleche("eleve")}
             </th>
             <th className="triable" onClick={() => trierPar("kholleur")}>
               Khôlleur{fleche("kholleur")}

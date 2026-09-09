@@ -43,7 +43,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ disc
       {
         error:
           "Impossible de supprimer cette discipline : elle est encore assignée à une classe, a des " +
-          "kholleurs compétents, des sessions de khôlle, ou est choisie comme LV1/LV2 par un élève. " +
+          "kholleurs compétents, des sessions de khôlle, ou est choisie comme LV1/LV2 par un étudiant. " +
           "Retirez-les d'abord.",
       },
       { status: 409 }

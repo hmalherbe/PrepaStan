@@ -57,7 +57,7 @@ export function DetailClasse({
   }
 
   async function supprimerEleve(eleveId: string) {
-    if (!confirm("Retirer cet élève de la classe ?")) return;
+    if (!confirm("Retirer cet étudiant de la classe ?")) return;
     const res = await fetch(`/api/admin/classes/${classeId}/eleves/${eleveId}`, { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) {
@@ -125,7 +125,7 @@ export function DetailClasse({
               <input type="checkbox" checked={assignee} onChange={() => toggleDiscipline(d, assignee)} />
               {d.nom}
               <span style={{ color: "#777", fontSize: "0.85rem" }}>
-                ({nbElevesParDiscipline[d.id] ?? 0} élève(s))
+                ({nbElevesParDiscipline[d.id] ?? 0} étudiant(s))
               </span>
             </label>
           );
@@ -133,7 +133,7 @@ export function DetailClasse({
         {toutesDisciplines.length === 0 && <p>Aucune discipline créée pour le moment.</p>}
       </div>
 
-      <h2>Élèves</h2>
+      <h2>Étudiants</h2>
       <table>
         <thead>
           <tr>
@@ -170,14 +170,14 @@ export function DetailClasse({
           )}
           {eleves.length === 0 && (
             <tr>
-              <td colSpan={4}>Aucun élève pour le moment.</td>
+              <td colSpan={4}>Aucun étudiant pour le moment.</td>
             </tr>
           )}
         </tbody>
       </table>
       {erreurEdition && <p className="champ-erreur">{erreurEdition}</p>}
 
-      <h3>Ajouter un élève</h3>
+      <h3>Ajouter un étudiant</h3>
       <form onSubmit={ajouterEleve} className="carte">
         <label>
           Nom
@@ -204,7 +204,7 @@ export function DetailClasse({
         )}
         {erreur && <p className="champ-erreur">{erreur}</p>}
         <button type="submit" disabled={enCours}>
-          {enCours ? "Ajout…" : "Ajouter l'élève"}
+          {enCours ? "Ajout…" : "Ajouter l'étudiant"}
         </button>
       </form>
     </div>

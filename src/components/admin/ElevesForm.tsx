@@ -127,7 +127,7 @@ export function ElevesForm({
     if (eleves.length === 0) return;
     if (
       !confirm(
-        `Supprimer TOUS les élèves de TOUTES les classes (${eleves.length} élève(s)) ? ` +
+        `Supprimer TOUS les étudiants de TOUTES les classes (${eleves.length} étudiant(s)) ? ` +
           "Ceux ayant déjà des passages de khôlle enregistrés seront conservés. Cette action est irréversible."
       )
     ) {
@@ -141,7 +141,7 @@ export function ElevesForm({
     }
     if (data.proteges > 0) {
       alert(
-        `${data.supprimes} élève(s) supprimé(s). ${data.proteges} conservé(s) car ils ont déjà des passages de khôlle enregistrés.`
+        `${data.supprimes} étudiant(s) supprimé(s). ${data.proteges} conservé(s) car ils ont déjà des passages de khôlle enregistrés.`
       );
     }
     // Recharge simplement la liste depuis le serveur : plus fiable que de
@@ -150,7 +150,7 @@ export function ElevesForm({
   }
 
   async function supprimer(eleveId: string) {
-    if (!confirm("Supprimer cet élève ?")) return;
+    if (!confirm("Supprimer cet étudiant ?")) return;
     const res = await fetch(`/api/admin/eleves/${eleveId}`, { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) {
@@ -217,7 +217,7 @@ export function ElevesForm({
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
         <button type="button" className="discret" onClick={supprimerTous} disabled={eleves.length === 0}>
-          Supprimer tous les élèves ({eleves.length})
+          Supprimer tous les étudiants ({eleves.length})
         </button>
       </div>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -310,7 +310,7 @@ export function ElevesForm({
           )}
           {elevesAffiches.length === 0 && (
             <tr>
-              <td colSpan={11}>{eleves.length === 0 ? "Aucun élève pour le moment." : "Aucun élève pour ces filtres."}</td>
+              <td colSpan={11}>{eleves.length === 0 ? "Aucun étudiant pour le moment." : "Aucun étudiant pour ces filtres."}</td>
             </tr>
           )}
         </tbody>

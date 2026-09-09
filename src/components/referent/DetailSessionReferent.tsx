@@ -37,7 +37,7 @@ export function DetailSessionReferent({
   const toutValide = groupes.length > 0 && totalValides === groupes.length;
 
   async function validerSession() {
-    if (!confirm("Valider cette session ? Les notes deviendront visibles aux élèves.")) return;
+    if (!confirm("Valider cette session ? Les notes deviendront visibles aux étudiants.")) return;
     setEnCours("session");
     setErreur(null);
     try {
@@ -70,7 +70,7 @@ export function DetailSessionReferent({
           <table style={{ marginTop: 12 }}>
             <thead>
               <tr>
-                <th>Élève</th>
+                <th>Étudiant</th>
                 <th>Créneau</th>
                 <th>Note</th>
                 <th>Appréciation</th>

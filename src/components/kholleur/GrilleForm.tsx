@@ -151,7 +151,7 @@ export function GrilleForm({
       <table>
         <thead>
           <tr>
-            <th>Élève</th>
+            <th>Étudiant</th>
             <th>Créneau</th>
             <th>Salle</th>
             <th>Note</th>

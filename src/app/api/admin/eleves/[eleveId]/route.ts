@@ -15,7 +15,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ elev
     await prisma.eleve.delete({ where: { id: eleveId } });
   } catch {
     return NextResponse.json(
-      { error: "Impossible de supprimer un élève qui a déjà des passages de khôlle enregistrés" },
+      { error: "Impossible de supprimer un étudiant qui a déjà des passages de khôlle enregistrés" },
       { status: 409 }
     );
   }

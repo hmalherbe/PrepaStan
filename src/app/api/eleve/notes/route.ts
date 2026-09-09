@@ -11,7 +11,7 @@ export async function GET() {
 
   const eleve = await prisma.eleve.findUnique({ where: { utilisateurId: auth.user.id } });
   if (!eleve) {
-    return NextResponse.json({ error: "Aucun élève associé à ce compte" }, { status: 404 });
+    return NextResponse.json({ error: "Aucun étudiant associé à ce compte" }, { status: 404 });
   }
   const eleveId = eleve.id;
 
