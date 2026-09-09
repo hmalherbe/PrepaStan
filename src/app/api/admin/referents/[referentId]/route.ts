@@ -48,6 +48,25 @@ export async function PUT(req: Request, { params }: { params: Promise<{ referent
 
   const referentExistant = await prisma.professeurReferent.findUniqueOrThrow({ where: { id: referentId } });
 
+  // Un seul référent à la fois par (classe, discipline) — voir POST ci-dessus.
+  const conflit = await prisma.professeurReferent.findFirst({
+    where: {
+      classeId: body.classeId,
+      disciplineId: body.disciplineId,
+      id: { not: referentId },
+      utilisateurId: { not: referentExistant.utilisateurId },
+    },
+    include: { utilisateur: true },
+  });
+  if (conflit) {
+    return NextResponse.json(
+      {
+        error: `Un autre référent (${conflit.utilisateur.prenom} ${conflit.utilisateur.nom}) est déjà assigné à cette classe pour cette discipline. Retirez-le d'abord.`,
+      },
+      { status: 409 }
+    );
+  }
+
   try {
     const referent = await prisma.$transaction(async (tx) => {
       await tx.utilisateur.update({

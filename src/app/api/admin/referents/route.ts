@@ -58,6 +58,26 @@ export async function POST(req: Request) {
     );
   }
 
+  // Un seul référent à la fois par (classe, discipline) : une khôlle n'a
+  // qu'un professeur référent, jamais plusieurs. On identifie le compte visé
+  // (choisi directement, ou retrouvé par email s'il existe déjà) pour ne
+  // bloquer que les classes couvertes par quelqu'un d'autre.
+  const utilisateurVise =
+    body.utilisateurId ?? (body.email ? await prisma.utilisateur.findUnique({ where: { email: body.email } }) : null);
+  const utilisateurViseId = typeof utilisateurVise === "string" ? utilisateurVise : utilisateurVise?.id;
+  const referentsExistants = await prisma.professeurReferent.findMany({
+    where: { disciplineId: body.disciplineId, classeId: { in: body.classeIds } },
+    include: { classe: true, utilisateur: true },
+  });
+  const conflits = referentsExistants.filter((r) => r.utilisateurId !== utilisateurViseId);
+  if (conflits.length > 0) {
+    const details = conflits.map((r) => `${r.classe.nom} (déjà ${r.utilisateur.prenom} ${r.utilisateur.nom})`).join(", ");
+    return NextResponse.json(
+      { error: `Un autre référent est déjà assigné à cette discipline pour : ${details}. Retirez-le d'abord.` },
+      { status: 409 }
+    );
+  }
+
   try {
     const referents = await prisma.$transaction(async (tx) => {
       let utilisateurId = body.utilisateurId;

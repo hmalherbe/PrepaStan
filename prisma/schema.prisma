@@ -173,8 +173,13 @@ model ProfesseurReferent {
   classe      Classe      @relation(fields: [classeId], references: [id])
   discipline  Discipline  @relation(fields: [disciplineId], references: [id])
 
-  // Plusieurs référents peuvent être assignés à la même (classe, discipline) ;
-  // seule l'assignation exacte (même personne) est empêchée en double.
+  // Un seul référent à la fois par (classe, discipline) — une khôlle n'a
+  // jamais qu'un seul professeur référent. Ce n'est imposé qu'au niveau
+  // applicatif (voir /api/admin/referents), pas ici par la contrainte
+  // d'unicité elle-même, pour ne pas faire échouer un déploiement si des
+  // doublons existent déjà en base (à nettoyer manuellement le cas échéant
+  // via l'écran Référents). utilisateurId reste dans la clé uniquement pour
+  // empêcher une double assignation exacte de la même personne.
   @@unique([classeId, disciplineId, utilisateurId])
 }
 

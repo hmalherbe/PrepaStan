@@ -39,9 +39,13 @@ export default async function PlanningReviewPage({
     }),
   ]);
 
-  // Plusieurs référents peuvent être assignés à la même (classe, discipline)
-  // (voir ProfesseurReferent dans le schéma) : affiche tous les noms plutôt
-  // que d'en choisir un arbitrairement.
+  // Un seul référent par (classe, discipline) est censé exister (voir
+  // /api/admin/referents, qui l'empêche désormais) — mais la contrainte
+  // d'unicité en base n'a volontairement pas été durcie pour ne pas casser
+  // un déploiement si des doublons existent déjà. On regroupe donc quand
+  // même par discipline plutôt que de ne garder arbitrairement qu'un nom :
+  // un tel doublon reste visible ici comme signal à nettoyer via l'écran
+  // Référents, au lieu de disparaître silencieusement.
   const referentsParDiscipline = new Map<string, string[]>();
   for (const r of referents) {
     const noms = referentsParDiscipline.get(r.disciplineId) ?? [];
