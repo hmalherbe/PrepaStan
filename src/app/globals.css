@@ -129,6 +129,29 @@ tr:last-child td {
   border-bottom: none;
 }
 
+/* Tableau resserré : lignes de saisie avec beaucoup de colonnes (ex. quotas
+   de "Générer le planning") où chaque select/input garde sa largeur libre
+   par défaut — sans ça, l'ensemble déborde et le bouton "Retirer" en bout de
+   ligne n'est visible qu'après avoir fait défiler horizontalement. Un
+   padding réduit et une largeur maximale sur les champs de saisie
+   compactent la ligne pour que tout reste visible d'un coup d'œil. */
+.table-compact th,
+.table-compact td {
+  padding: calc(var(--echelle-espacement) * 5px) calc(var(--echelle-espacement) * 8px);
+  font-size: 0.85rem;
+}
+
+.table-compact select,
+.table-compact input[type="time"],
+.table-compact input[type="number"] {
+  max-width: 130px;
+}
+
+.table-compact button {
+  padding: calc(var(--echelle-espacement) * 4px) calc(var(--echelle-espacement) * 10px);
+  white-space: nowrap;
+}
+
 /* Colonne "volet figé" : reste visible à gauche pendant le défilement
    horizontal d'un tableau trop large (ex. liste des khôlleurs avec email +
    disciplines + actions), pour garder le repère de la ligne concernée. Le

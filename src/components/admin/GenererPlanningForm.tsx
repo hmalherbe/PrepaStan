@@ -9,6 +9,8 @@ type Discipline = {
   id: string;
   nom: string;
   estLangueVivante: boolean;
+  dureePreparationMinutes: number;
+  dureeKholleMinutes: number;
   kholleurs: Kholleur[];
   referents: Referent[];
   referentActuelId: string | null;
@@ -29,6 +31,28 @@ type Quota = {
 
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 const HEURE_DEBUT_DEFAUT = "14:00";
+
+function minutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minutesVersHeure(total: number): string {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+// Heure de fin de la DERNIÈRE khôlle de la ligne (pas de la préparation) :
+// même calcul que côté serveur (voir /api/admin/planification/jobs), à
+// partir de l'heure de début de préparation, de la durée de préparation et
+// de la durée d'une khôlle propres à la discipline, et du nombre
+// d'étudiants (khôllés l'un après l'autre par le même kholleur).
+function finDerniereKholle(q: Quota, discipline: Discipline | undefined): string | null {
+  if (!discipline || !q.heureDebut || q.nombreEleves < 1) return null;
+  const debutKholle = minutes(q.heureDebut) + discipline.dureePreparationMinutes;
+  return minutesVersHeure(debutKholle + q.nombreEleves * discipline.dureeKholleMinutes);
+}
 
 let compteurCle = 0;
 function nouvelleCle() {
@@ -400,7 +424,7 @@ export function GenererPlanningForm({
           <p className="champ-erreur">Aucune discipline n&apos;est assignée à cette classe.</p>
         )}
 
-        <table className="table">
+        <table className="table table-compact">
           <thead>
             <tr>
               <th>Jour</th>
@@ -408,6 +432,7 @@ export function GenererPlanningForm({
               <th>Kholleur</th>
               <th>Nb étudiants</th>
               <th>Début préparation</th>
+              <th>Fin dernière khôlle</th>
               <th>Salle</th>
               <th></th>
             </tr>
@@ -491,6 +516,7 @@ export function GenererPlanningForm({
                       disabled={enCours}
                     />
                   </td>
+                  <td>{finDerniereKholle(q, discipline) ?? "—"}</td>
                   <td>
                     <select
                       value={q.salleId}

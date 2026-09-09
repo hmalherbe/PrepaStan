@@ -1,4 +1,5 @@
 import { requirePageSession } from "@/lib/auth";
+import { dureesParDefaut } from "@/lib/parametresDiscipline";
 import { prisma } from "@/lib/prisma";
 import { GenererPlanningForm } from "@/components/admin/GenererPlanningForm";
 
@@ -10,7 +11,7 @@ export default async function PlanificationPage({
   await requirePageSession(["ADMIN"]);
   const { classeId: classeIdParam, date: dateParam } = await searchParams;
 
-  const [classes, salles, chargeParKholleur] = await Promise.all([
+  const [classes, salles, chargeParKholleur, parametresDiscipline] = await Promise.all([
     prisma.classe.findMany({
       orderBy: { nom: "asc" },
       include: {
@@ -43,8 +44,15 @@ export default async function PlanificationPage({
       where: { sessionKholle: { statut: { not: "PLANIFICATION" } } },
       _count: { id: true },
     }),
+    // Durées de préparation/khôlle propres à chaque (classe, discipline) —
+    // voir écran Paramètres — sert à GenererPlanningForm pour calculer
+    // l'heure de fin de la dernière khôlle de chaque ligne de quota.
+    prisma.parametreDiscipline.findMany(),
   ]);
   const chargeParKholleurId = new Map(chargeParKholleur.map((c) => [c.kholleurId, c._count.id]));
+  const parametreParClasseDiscipline = new Map(
+    parametresDiscipline.map((p) => [`${p.classeId}|${p.disciplineId}`, p])
+  );
 
   const classesAvecDisciplines = classes.map((c) => ({
     id: c.id,
@@ -63,10 +71,15 @@ export default async function PlanificationPage({
         ])
       );
       const referentActuel = c.referents.find((r) => r.disciplineId === cd.disciplineId);
+      const parametre = parametreParClasseDiscipline.get(`${c.id}|${cd.disciplineId}`);
+      const { dureePreparationMinutes, dureeKholleMinutes } =
+        parametre ?? dureesParDefaut(cd.discipline.estLangueVivante);
       return {
         id: cd.discipline.id,
         nom: cd.discipline.nom,
         estLangueVivante: cd.discipline.estLangueVivante,
+        dureePreparationMinutes,
+        dureeKholleMinutes,
         kholleurs: cd.discipline.competences
           .map((comp) => ({
             id: comp.kholleur.id,
