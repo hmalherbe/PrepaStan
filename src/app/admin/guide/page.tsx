@@ -96,9 +96,13 @@ export default async function GuidePage() {
           En dessous du tableau, choisissez le <strong>référent de la semaine</strong> pour chaque discipline
           utilisée (une seule sélection, valable pour toutes les lignes de cette discipline). Le
           <strong> récapitulatif par discipline</strong> vous indique, pour chacune, le nombre d&apos;étudiants
-          affectés face à l&apos;effectif attendu : l&apos;effectif entier de la classe pour une matière normale,
-          mais seulement le sous-groupe concerné pour une langue vivante. Un total en écart (✗) doit être corrigé
-          avant de lancer le calcul.
+          affectés face à l&apos;effectif attendu : l&apos;effectif entier de la classe pour une matière normale.
+          Pour les langues vivantes, deux cas : une classe <strong>sans LV2</strong> affiche une ligne par langue
+          (chacune doit être intégralement couverte, puisque chaque étudiant n&apos;en a qu&apos;une) ; une classe
+          <strong> avec LV2</strong> affiche une ligne combinée <strong>« Langues »</strong>, l&apos;alternance
+          LV1/LV2 faisant qu&apos;une langue prise isolément peut être partiellement remplie une semaine donnée —
+          seul le total combiné doit couvrir l&apos;effectif entier. Un total en écart (✗) doit être corrigé avant
+          de lancer le calcul.
         </p>
         <p>
           Une fois le calcul terminé, vous atterrissez sur l&apos;écran de relecture du planning : vous pouvez
