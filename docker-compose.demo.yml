@@ -23,6 +23,15 @@
 #
 # Tout supprimer (base de démo incluse) :
 #   docker compose -f docker-compose.demo.yml down -v
+#
+# Repli temporaire IP:port (le sous-domaine demo.prepastan.fr est en attente
+# d'un problème DNS côté registrar — voir le port 8080 publié plus bas, et
+# NEXTAUTH_URL="http://<IP-DU-VPS>:8080" dans .env.demo) : le port publié
+# n'entre pas en conflit avec Caddy, qui continue de fonctionner en
+# parallèle sur le même app-demo via le réseau interne. Une fois le DNS
+# réparé, il suffit de repasser NEXTAUTH_URL en
+# "https://demo.prepastan.fr", de retirer le bloc "ports" ci-dessous, et de
+# relancer `docker compose -f docker-compose.demo.yml up -d`.
 services:
   db-demo:
     image: postgres:16-alpine
@@ -45,11 +54,18 @@ services:
       - db-demo
     env_file:
       - .env.demo
-    # Pas de port publié : Caddy (démarré via docker-compose.prod.yml) fait
-    # le reverse proxy vers ce conteneur par son nom de service, voir
-    # Caddyfile. Pas de dépendance déclarée sur "planning-solver" : il vit
-    # dans l'autre fichier compose, injoignable par depends_on d'ici, mais
-    # atteignable au runtime via le réseau Docker partagé (voir plus haut).
+    ports:
+      # Repli temporaire tant que demo.prepastan.fr ne résout pas (voir plus
+      # haut) : accès direct par http://<IP-DU-VPS>:8080, sans HTTPS. À
+      # retirer une fois le DNS/Caddy fonctionnels pour ne plus exposer
+      # l'appli en HTTP nu.
+      - "8080:3000"
+    # Caddy (démarré via docker-compose.prod.yml) fait aussi le reverse
+    # proxy vers ce conteneur par son nom de service, voir Caddyfile — les
+    # deux chemins d'accès coexistent sans conflit. Pas de dépendance
+    # déclarée sur "planning-solver" : il vit dans l'autre fichier compose,
+    # injoignable par depends_on d'ici, mais atteignable au runtime via le
+    # réseau Docker partagé (voir plus haut).
 
 volumes:
   prepastan-db-demo-data:
