@@ -203,6 +203,62 @@ export async function POST(req: Request) {
       }
     }
   }
+
+  // Une salle est une ressource partagée entre TOUTES les classes, pas
+  // seulement entre les quotas de ce job : on vérifie donc aussi les
+  // créneaux déjà en base (d'une autre classe, ou d'une autre discipline de
+  // cette même classe non concernée par cette régénération). Les créneaux
+  // de la (classe, semaine, discipline) qu'on est en train de régénérer sont
+  // exclus : ils seront de toute façon supprimés et remplacés par le
+  // callback (voir /api/internal/planification/callback), donc un
+  // chevauchement avec leur ancienne version n'a pas de sens.
+  const datesUtilisees = [...new Set(quotasDates.map((q) => q.date))];
+  const sallesUtilisees = [...new Set(quotasDates.map((q) => q.salleId))];
+  const creneauxExistants =
+    datesUtilisees.length > 0
+      ? await prisma.creneau.findMany({
+          where: {
+            date: { in: datesUtilisees.map((d) => new Date(`${d}T00:00:00.000Z`)) },
+            salleId: { in: sallesUtilisees },
+            NOT: { sessionKholle: { classeId, semaine, disciplineId: { in: disciplineIds } } },
+          },
+          select: {
+            date: true,
+            salleId: true,
+            heureDebut: true,
+            heureFin: true,
+            sessionKholle: { select: { classe: { select: { nom: true } } } },
+          },
+        })
+      : [];
+  const sallesMap = new Map(
+    (sallesUtilisees.length > 0 ? await prisma.salle.findMany({ where: { id: { in: sallesUtilisees } } }) : []).map(
+      (s) => [s.id, s.nom]
+    )
+  );
+
+  const conflitsCroises = new Set<string>();
+  for (const q of quotasDates) {
+    const debutBloc = minutesVersHeure(minutes(q.heureDebut) + q.dureePreparationMinutes);
+    const finBloc = minutesVersHeure(
+      minutes(q.heureDebut) + q.dureePreparationMinutes + q.nombreEleves * q.dureeKholleMinutes
+    );
+    for (const existant of creneauxExistants) {
+      if (existant.salleId !== q.salleId || existant.date.toISOString().slice(0, 10) !== q.date) continue;
+      // Comparaison lexicographique valide car heureDebut/heureFin sont au
+      // format "HH:MM" (même convention que la vérification ci-dessus).
+      if (existant.heureDebut < finBloc && existant.heureFin > debutBloc) {
+        const cle = `${q.salleId}|${q.date}|${existant.heureDebut}|${existant.heureFin}`;
+        if (conflitsCroises.has(cle)) continue;
+        conflitsCroises.add(cle);
+        erreursSalle.push(
+          `${sallesMap.get(q.salleId) ?? q.salleId} le ${q.date} de ${existant.heureDebut} à ${existant.heureFin} : ` +
+            `déjà réservée par la classe ${existant.sessionKholle.classe.nom}`
+        );
+      }
+    }
+  }
+
   if (erreursSalle.length > 0) {
     return NextResponse.json({ error: `Conflit de salle : ${erreursSalle.join(" ; ")}` }, { status: 400 });
   }
