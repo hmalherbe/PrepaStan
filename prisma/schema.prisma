@@ -29,6 +29,7 @@ model Utilisateur {
   competences              Competence[]
   disponibilites           Disponibilite[]
   referentsMatiere         ProfesseurReferent[]
+  sessionsReferent         SessionKholle[]      @relation("SessionReferent")
   creneaux                 Creneau[]
   planificationJobs        PlanificationJob[]
   eleve                    Eleve?
@@ -173,13 +174,12 @@ model ProfesseurReferent {
   classe      Classe      @relation(fields: [classeId], references: [id])
   discipline  Discipline  @relation(fields: [disciplineId], references: [id])
 
-  // Un seul référent à la fois par (classe, discipline) — une khôlle n'a
-  // jamais qu'un seul professeur référent. Ce n'est imposé qu'au niveau
-  // applicatif (voir /api/admin/referents), pas ici par la contrainte
-  // d'unicité elle-même, pour ne pas faire échouer un déploiement si des
-  // doublons existent déjà en base (à nettoyer manuellement le cas échéant
-  // via l'écran Référents). utilisateurId reste dans la clé uniquement pour
-  // empêcher une double assignation exacte de la même personne.
+  // Plusieurs référents peuvent être assignés à la même (classe, discipline)
+  // au fil du temps (ex. un remplaçant certaines semaines) : cette table
+  // n'est qu'un vivier de professeurs éligibles, pas "le" référent en cours
+  // — celui effectivement en vigueur pour une semaine précise est fixé par
+  // SessionKholle.referentId. Seule l'assignation exacte (même personne) est
+  // empêchée en double ici.
   @@unique([classeId, disciplineId, utilisateurId])
 }
 
@@ -219,9 +219,17 @@ model SessionKholle {
   dateDebut    DateTime
   dateFin      DateTime
   statut       StatutSession @default(PLANIFICATION)
+  // Référent en vigueur pour CETTE semaine précise dans cette discipline —
+  // choisi à la génération du planning parmi les ProfesseurReferent de
+  // (classe, discipline), voir /admin/planification. Distinct du vivier
+  // ProfesseurReferent lui-même, qui peut lister plusieurs personnes
+  // éligibles au fil des semaines. Nullable : absent pour les sessions
+  // créées avant l'introduction de ce champ.
+  referentId String?
 
   classe             Classe              @relation(fields: [classeId], references: [id])
   discipline         Discipline          @relation(fields: [disciplineId], references: [id])
+  referent           Utilisateur?        @relation("SessionReferent", fields: [referentId], references: [id])
   creneaux           Creneau[]
   validationGrilles  ValidationGrille[]
   validationReferent ValidationReferent?

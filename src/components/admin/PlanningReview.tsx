@@ -14,8 +14,9 @@ type Creneau = {
   heureFin: string;
   kholleurId: string;
   kholleurNom: string;
-  // Professeur(s) référent(s) de (classe, discipline) — fixé côté serveur,
-  // pas propre au créneau, donc jamais modifiable ici (voir LigneEdition).
+  // Référent choisi pour cette semaine dans cette discipline
+  // (SessionKholle.referentId, fixé à la génération du planning) — pas
+  // propre au créneau, donc jamais modifiable ici (voir LigneEdition).
   referentNom: string;
   salleId: string;
   salleNom: string;

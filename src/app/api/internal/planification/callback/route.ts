@@ -54,6 +54,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  // Le référent choisi pour chaque discipline (un seul, pour la semaine
+  // entière — voir GenererPlanningForm) a été fixé à la création du job et
+  // stocké tel quel dans PlanificationJob.quotas (une ligne par jour, mais
+  // toutes du même référent pour une discipline donnée) : on le relit ici
+  // plutôt que de le faire remonter séparément depuis le solveur Python, qui
+  // n'a pas besoin de le connaître.
+  const job = await prisma.planificationJob.findUniqueOrThrow({ where: { id: payload.jobId } });
+  const quotasJob = job.quotas as { disciplineId: string; referentId?: string }[];
+  const referentParDiscipline = new Map<string, string>();
+  for (const q of quotasJob) {
+    if (q.referentId) referentParDiscipline.set(q.disciplineId, q.referentId);
+  }
+
   await prisma.$transaction(async (tx) => {
     const disciplineIds = [...new Set(payload.creneaux.map((c) => c.disciplineId))];
 
@@ -97,6 +110,7 @@ export async function POST(req: Request) {
       // Régénérer une session déjà publiée la repasse en brouillon : les
       // créneaux ayant changé, l'admin doit revalider et republier avant que
       // les kholleurs ne les revoient.
+      const referentId = referentParDiscipline.get(disciplineId);
       const session = await tx.sessionKholle.upsert({
         where: {
           classeId_disciplineId_semaine: {
@@ -105,13 +119,14 @@ export async function POST(req: Request) {
             semaine: payload.semaine,
           },
         },
-        update: { statut: "PLANIFICATION" },
+        update: { statut: "PLANIFICATION", referentId },
         create: {
           classeId: payload.classeId,
           disciplineId,
           semaine: payload.semaine,
           dateDebut: lundi,
           dateFin: vendredi,
+          referentId,
         },
       });
       sessions.set(disciplineId, session.id);

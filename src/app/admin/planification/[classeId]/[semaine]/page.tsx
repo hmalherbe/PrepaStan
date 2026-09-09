@@ -19,6 +19,7 @@ export default async function PlanningReviewPage({
     where: { classeId, semaine },
     include: {
       discipline: true,
+      referent: { select: { prenom: true, nom: true } },
       creneaux: {
         include: {
           kholleur: true,
@@ -30,28 +31,10 @@ export default async function PlanningReviewPage({
     },
   });
 
-  const [kholleurs, salles, referents] = await Promise.all([
+  const [kholleurs, salles] = await Promise.all([
     prisma.utilisateur.findMany({ where: { roles: { has: "KHOLLEUR" } }, orderBy: { nom: "asc" } }),
     prisma.salle.findMany({ orderBy: { nom: "asc" } }),
-    prisma.professeurReferent.findMany({
-      where: { classeId, disciplineId: { in: sessions.map((s) => s.disciplineId) } },
-      include: { utilisateur: { select: { prenom: true, nom: true } } },
-    }),
   ]);
-
-  // Un seul référent par (classe, discipline) est censé exister (voir
-  // /api/admin/referents, qui l'empêche désormais) — mais la contrainte
-  // d'unicité en base n'a volontairement pas été durcie pour ne pas casser
-  // un déploiement si des doublons existent déjà. On regroupe donc quand
-  // même par discipline plutôt que de ne garder arbitrairement qu'un nom :
-  // un tel doublon reste visible ici comme signal à nettoyer via l'écran
-  // Référents, au lieu de disparaître silencieusement.
-  const referentsParDiscipline = new Map<string, string[]>();
-  for (const r of referents) {
-    const noms = referentsParDiscipline.get(r.disciplineId) ?? [];
-    noms.push(`${r.utilisateur.prenom} ${r.utilisateur.nom}`);
-    referentsParDiscipline.set(r.disciplineId, noms);
-  }
 
   const estBrouillon = sessions.every((s) => s.statut === "PLANIFICATION");
 
@@ -66,7 +49,7 @@ export default async function PlanningReviewPage({
         heureFin: c.heureFin,
         kholleurId: c.kholleurId,
         kholleurNom: `${c.kholleur.prenom} ${c.kholleur.nom}`,
-        referentNom: (referentsParDiscipline.get(s.disciplineId) ?? []).join(", ") || "—",
+        referentNom: s.referent ? `${s.referent.prenom} ${s.referent.nom}` : "—",
         salleId: c.salleId,
         salleNom: c.salle.nom,
         eleves: c.passages.map((p) => `${p.eleve.prenom} ${p.eleve.nom}`),

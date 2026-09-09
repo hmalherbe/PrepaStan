@@ -23,7 +23,6 @@ type Quota = {
   nombreEleves: number;
   heureDebut: string;
   salleId: string;
-  referentId: string;
 };
 
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
@@ -43,7 +42,12 @@ function nouvelleCle() {
 // succès (voir plus bas).
 const BROUILLON_CLE = "prepastan:generer-planning:brouillon";
 
-type Brouillon = { classeId: string; dateDebutSemaine: string; quotas: Quota[] };
+type Brouillon = {
+  classeId: string;
+  dateDebutSemaine: string;
+  quotas: Quota[];
+  referentParDiscipline: Record<string, string>;
+};
 
 function chargerBrouillon(): Brouillon | null {
   if (typeof window === "undefined") return null;
@@ -105,21 +109,29 @@ export function GenererPlanningForm({
   );
   const semaine = useMemo(() => (dateDebutSemaine ? semaineIso(dateDebutSemaine) : null), [dateDebutSemaine]);
   const [quotas, setQuotas] = useState<Quota[]>(brouillonInitial?.quotas ?? []);
+  // Un seul référent par discipline pour toute la semaine — pas par ligne
+  // (jour) : voir referentParDefaut() et la section dédiée sous le tableau.
+  const [referentParDiscipline, setReferentParDiscipline] = useState<Record<string, string>>(
+    brouillonInitial?.referentParDiscipline ?? {}
+  );
   const [jobId, setJobId] = useState<string | null>(null);
   const [statutJob, setStatutJob] = useState<string | null>(null);
   const [messageJob, setMessageJob] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Sauvegarde continue du brouillon (classe, date, quotas) tant que la
-  // génération n'a pas réussi — voir chargerBrouillon() plus haut.
+  // Sauvegarde continue du brouillon (classe, date, quotas, référents) tant
+  // que la génération n'a pas réussi — voir chargerBrouillon() plus haut.
   useEffect(() => {
     try {
-      sessionStorage.setItem(BROUILLON_CLE, JSON.stringify({ classeId, dateDebutSemaine, quotas }));
+      sessionStorage.setItem(
+        BROUILLON_CLE,
+        JSON.stringify({ classeId, dateDebutSemaine, quotas, referentParDiscipline })
+      );
     } catch {
       // Stockage indisponible (navigation privée stricte, quota dépassé...) :
       // sans conséquence, juste pas de restauration au prochain aller-retour.
     }
-  }, [classeId, dateDebutSemaine, quotas]);
+  }, [classeId, dateDebutSemaine, quotas, referentParDiscipline]);
 
   const classe = classes.find((c) => c.id === classeId);
   const disciplines = classe?.disciplines ?? [];
@@ -130,18 +142,31 @@ export function GenererPlanningForm({
     };
   }, []);
 
-  // Changer de classe invalide les disciplines/kholleurs déjà choisis.
+  // Changer de classe invalide les disciplines/kholleurs/référents déjà choisis.
   function changerClasse(id: string) {
     setClasseId(id);
     setQuotas([]);
+    setReferentParDiscipline({});
   }
 
   function referentParDefaut(discipline: Discipline | undefined): string {
     return discipline?.referentActuelId ?? discipline?.referents[0]?.id ?? "";
   }
 
+  // Assure qu'une discipline nouvellement utilisée dans les quotas a bien un
+  // référent par défaut préselectionné, sans écraser un choix déjà fait.
+  function assurerReferentDiscipline(disciplineId: string) {
+    if (!disciplineId) return;
+    setReferentParDiscipline((prev) =>
+      prev[disciplineId] !== undefined
+        ? prev
+        : { ...prev, [disciplineId]: referentParDefaut(disciplines.find((d) => d.id === disciplineId)) }
+    );
+  }
+
   function ajouterQuota() {
     const premiereDiscipline = disciplines[0];
+    if (premiereDiscipline) assurerReferentDiscipline(premiereDiscipline.id);
     setQuotas((prev) => [
       ...prev,
       {
@@ -152,7 +177,6 @@ export function GenererPlanningForm({
         nombreEleves: 1,
         heureDebut: HEURE_DEBUT_DEFAUT,
         salleId: salles[0]?.id ?? "",
-        referentId: referentParDefaut(premiereDiscipline),
       },
     ]);
   }
@@ -178,33 +202,25 @@ export function GenererPlanningForm({
     }));
   }, [quotas, disciplines, classe]);
 
-  // Le référent est rattaché à (classe, discipline), pas à une ligne : deux
-  // lignes de la même discipline (ex. deux kholleurs, deux jours) doivent
-  // donc obligatoirement pointer vers le même référent.
-  const disciplinesReferentIncoherent = useMemo(() => {
-    const parDiscipline = new Map<string, Set<string>>();
+  // Disciplines réellement utilisées cette semaine, dans l'ordre de leur
+  // première apparition — une seule ligne de sélection de référent chacune,
+  // sous le tableau des quotas.
+  const disciplinesUtilisees = useMemo(() => {
+    const ids: string[] = [];
     for (const q of quotas) {
-      if (!q.referentId) continue;
-      const set = parDiscipline.get(q.disciplineId) ?? new Set<string>();
-      set.add(q.referentId);
-      parDiscipline.set(q.disciplineId, set);
+      if (q.disciplineId && !ids.includes(q.disciplineId)) ids.push(q.disciplineId);
     }
-    return [...parDiscipline.entries()]
-      .filter(([, ids]) => ids.size > 1)
-      .map(([disciplineId]) => disciplines.find((d) => d.id === disciplineId)?.nom ?? disciplineId);
+    return ids.map((id) => disciplines.find((d) => d.id === id)).filter((d): d is Discipline => !!d);
   }, [quotas, disciplines]);
 
+  const referentsIncomplets = disciplinesUtilisees.some((d) => !referentParDiscipline[d.id]);
+
   const quotasIncomplets = quotas.some(
-    (q) => !q.disciplineId || !q.kholleurId || !q.heureDebut || !q.salleId || !q.referentId || q.nombreEleves < 1
+    (q) => !q.disciplineId || !q.kholleurId || !q.heureDebut || !q.salleId || q.nombreEleves < 1
   );
   const effectifsOk = recap.length > 0 && recap.every((r) => r.ok);
   const formulaireValide =
-    !!classeId &&
-    !!dateDebutSemaine &&
-    quotas.length > 0 &&
-    !quotasIncomplets &&
-    effectifsOk &&
-    disciplinesReferentIncoherent.length === 0;
+    !!classeId && !!dateDebutSemaine && quotas.length > 0 && !quotasIncomplets && effectifsOk && !referentsIncomplets;
 
   async function lancer(forcerMalgreIndisponibilites = false) {
     if (semaine === null) return;
@@ -225,7 +241,7 @@ export function GenererPlanningForm({
           nombreEleves: q.nombreEleves,
           heureDebut: q.heureDebut,
           salleId: q.salleId,
-          referentId: q.referentId,
+          referentId: referentParDiscipline[q.disciplineId] ?? "",
         })),
         forcerMalgreIndisponibilites,
       }),
@@ -329,7 +345,6 @@ export function GenererPlanningForm({
               <th>Nb élèves</th>
               <th>Début préparation</th>
               <th>Salle</th>
-              <th>Référent</th>
               <th></th>
             </tr>
           </thead>
@@ -337,7 +352,6 @@ export function GenererPlanningForm({
             {quotas.map((q) => {
               const discipline = disciplines.find((d) => d.id === q.disciplineId);
               const kholleurs = discipline?.kholleurs ?? [];
-              const referents = discipline?.referents ?? [];
               return (
                 <tr key={q.cle}>
                   <td>
@@ -358,10 +372,10 @@ export function GenererPlanningForm({
                       value={q.disciplineId}
                       onChange={(e) => {
                         const nouvelleDiscipline = disciplines.find((d) => d.id === e.target.value);
+                        assurerReferentDiscipline(e.target.value);
                         modifierQuota(q.cle, {
                           disciplineId: e.target.value,
                           kholleurId: nouvelleDiscipline?.kholleurs[0]?.id ?? "",
-                          referentId: referentParDefaut(nouvelleDiscipline),
                         });
                       }}
                       disabled={enCours}
@@ -430,25 +444,6 @@ export function GenererPlanningForm({
                     </select>
                   </td>
                   <td>
-                    <select
-                      value={q.referentId}
-                      onChange={(e) => modifierQuota(q.cle, { referentId: e.target.value })}
-                      disabled={enCours || referents.length === 0}
-                    >
-                      <option value="" disabled>
-                        —
-                      </option>
-                      {referents.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.nom}
-                        </option>
-                      ))}
-                    </select>
-                    {discipline && referents.length === 0 && (
-                      <span className="champ-erreur">Aucun référent pour cette matière</span>
-                    )}
-                  </td>
-                  <td>
                     <button type="button" onClick={() => retirerQuota(q.cle)} disabled={enCours}>
                       Retirer
                     </button>
@@ -465,11 +460,35 @@ export function GenererPlanningForm({
           </button>
         </p>
 
-        {disciplinesReferentIncoherent.length > 0 && (
-          <p className="champ-erreur">
-            Référent incohérent entre plusieurs lignes de la même discipline : uniformisez-le pour{" "}
-            {disciplinesReferentIncoherent.join(", ")}.
-          </p>
+        {disciplinesUtilisees.length > 0 && (
+          <>
+            <p style={{ marginTop: 16 }}>
+              Référent par discipline — valable pour toute la semaine, indépendamment du nombre de lignes ci-dessus :
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {disciplinesUtilisees.map((d) => (
+                <label key={d.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, maxWidth: 360 }}>
+                  {d.nom}
+                  <select
+                    value={referentParDiscipline[d.id] ?? ""}
+                    onChange={(e) => setReferentParDiscipline((prev) => ({ ...prev, [d.id]: e.target.value }))}
+                    disabled={enCours || d.referents.length === 0}
+                    style={{ flex: 1 }}
+                  >
+                    <option value="" disabled>
+                      —
+                    </option>
+                    {d.referents.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.nom}
+                      </option>
+                    ))}
+                  </select>
+                  {d.referents.length === 0 && <span className="champ-erreur">Aucun référent pour cette matière</span>}
+                </label>
+              ))}
+            </div>
+          </>
         )}
 
         {recap.length > 0 && (
