@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { ANNEE_SCOLAIRE_COOKIE, anneeScolaireCourante } from "@/lib/anneeScolaire";
 import { requireRole } from "@/lib/auth";
 import { parserCsv } from "@/lib/csv";
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
 
   const { csv } = bodySchema.parse(await req.json());
   const lignes = parserCsv(csv);
+  const baseUrl = baseUrlDepuisRequete(req);
 
   const cookieStore = await cookies();
   const anneeScolaireLibelle = cookieStore.get(ANNEE_SCOLAIRE_COOKIE)?.value ?? anneeScolaireCourante();
@@ -88,6 +90,7 @@ export async function POST(req: Request) {
         data: { email, password: await bcrypt.hash(MOT_DE_PASSE_DEFAUT, 12), nom, prenom, roles: ["PROFESSEUR_REFERENT"] },
       });
       utilisateurId = cree.id;
+      await envoyerActivationNouveauCompte({ utilisateurId: cree.id, email: cree.email, prenom: cree.prenom, baseUrl });
     }
 
     const referentExistant = await prisma.professeurReferent.findUnique({

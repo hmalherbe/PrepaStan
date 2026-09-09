@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -59,6 +60,15 @@ export async function POST(req: Request) {
           competences: { create: body.disciplineIds.map((disciplineId) => ({ disciplineId })) },
         },
       });
+
+  if (!existant) {
+    await envoyerActivationNouveauCompte({
+      utilisateurId: kholleur.id,
+      email: kholleur.email,
+      prenom: kholleur.prenom,
+      baseUrl: baseUrlDepuisRequete(req),
+    });
+  }
 
   return NextResponse.json(kholleur, { status: 201 });
 }

@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { ANNEE_SCOLAIRE_COOKIE, anneeScolaireCourante } from "@/lib/anneeScolaire";
 import { requireRole } from "@/lib/auth";
 import { parserCsv } from "@/lib/csv";
@@ -18,9 +19,10 @@ const bodySchema = z.object({ csv: z.string().min(1) });
 // pour l'année scolaire actuellement sélectionnée (écran Classes).
 //
 // "email" et "emailcontact" sont deux choses différentes : "email" crée un
-// compte de connexion ELEVE (mot de passe par défaut "demo1234", à changer
-// ensuite via /compte) — même logique que scripts/import-legacy-data.ts,
-// mais accessible depuis l'interface admin. "emailcontact" (comme
+// compte de connexion ELEVE (mot de passe par défaut "demo1234", et un
+// email d'activation envoyé pour que l'élève en choisisse un lui-même) —
+// même logique que scripts/import-legacy-data.ts, mais accessible depuis
+// l'interface admin. "emailcontact" (comme
 // telephone/parcoursup/etablissement) est une simple donnée informationnelle
 // sans lien avec un compte, typique d'un export d'inscription (ex.
 // Parcoursup) où on ne veut pas forcément ouvrir l'accès tout de suite.
@@ -33,6 +35,7 @@ export async function POST(req: Request) {
 
   const { csv } = bodySchema.parse(await req.json());
   const lignes = parserCsv(csv);
+  const baseUrl = baseUrlDepuisRequete(req);
 
   const cookieStore = await cookies();
   const anneeScolaireLibelle = cookieStore.get(ANNEE_SCOLAIRE_COOKIE)?.value ?? anneeScolaireCourante();
@@ -108,6 +111,7 @@ export async function POST(req: Request) {
           data: { email: l.email, password: await bcrypt.hash(MOT_DE_PASSE_DEFAUT, 12), nom, prenom, roles: ["ELEVE"] },
         });
         utilisateurId = cree.id;
+        await envoyerActivationNouveauCompte({ utilisateurId: cree.id, email: cree.email, prenom: cree.prenom, baseUrl });
       }
     }
 

@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
   try {
     const referents = await prisma.$transaction(async (tx) => {
       let utilisateurId = body.utilisateurId;
+      let nouveauCompte: { id: string; email: string; prenom: string } | null = null;
       if (!utilisateurId) {
         // Si l'email correspond déjà à un compte existant (ex. un kholleur),
         // ajoute simplement le rôle PROFESSEUR_REFERENT à ce compte au lieu
@@ -76,17 +78,17 @@ export async function POST(req: Request) {
             });
           }
         } else {
-          utilisateurId = (
-            await tx.utilisateur.create({
-              data: {
-                email: body.email!,
-                password: await bcrypt.hash(body.password!, 12),
-                nom: body.nom!,
-                prenom: body.prenom!,
-                roles: ["PROFESSEUR_REFERENT"],
-              },
-            })
-          ).id;
+          const cree = await tx.utilisateur.create({
+            data: {
+              email: body.email!,
+              password: await bcrypt.hash(body.password!, 12),
+              nom: body.nom!,
+              prenom: body.prenom!,
+              roles: ["PROFESSEUR_REFERENT"],
+            },
+          });
+          utilisateurId = cree.id;
+          nouveauCompte = { id: cree.id, email: cree.email, prenom: cree.prenom };
         }
       }
       const referentId = utilisateurId;
@@ -112,7 +114,7 @@ export async function POST(req: Request) {
           })
         )
       );
-      return { nouveaux, toutesDejaAssignees: classeIdsAAjouter.length === 0 };
+      return { nouveaux, toutesDejaAssignees: classeIdsAAjouter.length === 0, nouveauCompte };
     });
 
     if (referents.toutesDejaAssignees) {
@@ -120,6 +122,14 @@ export async function POST(req: Request) {
         { error: "Ce référent est déjà assigné à toutes les classes sélectionnées pour cette discipline" },
         { status: 409 }
       );
+    }
+    if (referents.nouveauCompte) {
+      await envoyerActivationNouveauCompte({
+        utilisateurId: referents.nouveauCompte.id,
+        email: referents.nouveauCompte.email,
+        prenom: referents.nouveauCompte.prenom,
+        baseUrl: baseUrlDepuisRequete(req),
+      });
     }
     return NextResponse.json(referents.nouveaux, { status: 201 });
   } catch {

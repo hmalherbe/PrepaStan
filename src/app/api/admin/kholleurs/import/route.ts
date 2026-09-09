@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { requireRole } from "@/lib/auth";
 import { parserCsv } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
 
   const { csv } = bodySchema.parse(await req.json());
   const lignes = parserCsv(csv);
+  const baseUrl = baseUrlDepuisRequete(req);
 
   const disciplines = await prisma.discipline.findMany();
   const disciplineParNom = new Map(disciplines.map((d) => [d.nom.toLowerCase(), d]));
@@ -72,6 +74,7 @@ export async function POST(req: Request) {
       });
       kholleurId = cree.id;
       crees++;
+      await envoyerActivationNouveauCompte({ utilisateurId: cree.id, email: cree.email, prenom: cree.prenom, baseUrl });
     }
 
     for (const disciplineId of disciplineIds) {

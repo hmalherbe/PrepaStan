@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -57,7 +58,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ eleveId:
   const eleveExistant = await prisma.eleve.findUniqueOrThrow({ where: { id: eleveId } });
 
   try {
-    const eleve = await prisma.$transaction(async (tx) => {
+    const { eleve, nouveauCompte } = await prisma.$transaction(async (tx) => {
+      let nouveauCompte: { id: string; email: string; prenom: string } | null = null;
       if (eleveExistant.utilisateurId) {
         if (body.email) {
           await tx.utilisateur.update({
@@ -81,8 +83,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ eleveId:
           },
         });
         await tx.eleve.update({ where: { id: eleveId }, data: { utilisateurId: utilisateur.id } });
+        nouveauCompte = { id: utilisateur.id, email: utilisateur.email, prenom: utilisateur.prenom };
       }
-      return tx.eleve.update({
+      const eleve = await tx.eleve.update({
         where: { id: eleveId },
         data: {
           nom: body.nom,
@@ -97,7 +100,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ eleveId:
         },
         include: { classe: { select: { id: true, nom: true } } },
       });
+      return { eleve, nouveauCompte };
     });
+    if (nouveauCompte) {
+      await envoyerActivationNouveauCompte({
+        utilisateurId: nouveauCompte.id,
+        email: nouveauCompte.email,
+        prenom: nouveauCompte.prenom,
+        baseUrl: baseUrlDepuisRequete(req),
+      });
+    }
     return NextResponse.json(eleve);
   } catch {
     return NextResponse.json({ error: "Un compte avec cet email existe déjà" }, { status: 409 });

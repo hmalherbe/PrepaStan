@@ -146,6 +146,44 @@ export async function envoyerEmailReinitialisationMotDePasse({
   }
 }
 
+// Premier email reçu par un compte fraîchement créé (ajout individuel ou
+// import CSV) : pas de mot de passe en clair, un lien à usage unique (7
+// jours, voir DUREE_VALIDITE_TOKEN_ACTIVATION_MS) vers la même page que
+// "mot de passe oublié", où la personne choisit elle-même son mot de passe
+// avant sa toute première connexion. N'échoue jamais bruyamment, comme les
+// autres emails ci-dessus.
+export async function envoyerEmailActivationCompte({
+  destinataire,
+  nomUtilisateur,
+  lien,
+}: {
+  destinataire: string;
+  nomUtilisateur: string;
+  lien: string;
+}): Promise<void> {
+  if (!resend) {
+    console.warn(`RESEND_API_KEY non configuré : email d'activation non envoyé à ${destinataire}`);
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: EXPEDITEUR,
+      to: destinataire,
+      subject: "PrepaStan — Activez votre compte",
+      html: `
+        <p>Bonjour ${nomUtilisateur},</p>
+        <p>Un compte PrepaStan vient d'être créé pour vous, avec cette adresse (${destinataire}).
+        Cliquez sur le lien ci-dessous pour choisir votre mot de passe (valable 7 jours) :</p>
+        <p><a href="${lien}">${lien}</a></p>
+        <p>Si vous ne vous attendiez pas à cet email, vous pouvez l'ignorer.</p>
+      `,
+    });
+  } catch (err) {
+    console.error(`Échec de l'envoi de l'email d'activation à ${destinataire} :`, err);
+  }
+}
+
 // Notifie un professeur référent que tous les kholleurs de sa session ont
 // validé leur grille de notation : il peut désormais valider la session à
 // son tour (voir /api/kholleur/sessions/[sessionId]/valider, qui détecte ce

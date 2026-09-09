@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -81,6 +82,12 @@ export async function POST(req: Request) {
       },
     });
     utilisateurId = utilisateur.id;
+    await envoyerActivationNouveauCompte({
+      utilisateurId: utilisateur.id,
+      email: utilisateur.email,
+      prenom: utilisateur.prenom,
+      baseUrl: baseUrlDepuisRequete(req),
+    });
   }
 
   const eleve = await prisma.eleve.create({
