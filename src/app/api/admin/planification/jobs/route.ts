@@ -237,7 +237,16 @@ export async function POST(req: Request) {
     )
   );
 
-  const conflitsCroises = new Set<string>();
+  // Regroupé par (salle, date) plutôt qu'une ligne par paire de créneaux en
+  // conflit : une salle déjà occupée toute une après-midi par plusieurs
+  // petits créneaux consécutifs (un par quota de l'autre classe) produirait
+  // sinon une ligne d'erreur par créneau existant chevauché, illisible pour
+  // l'admin alors qu'un seul message par salle suffit à comprendre le
+  // problème.
+  const conflitsCroises = new Map<
+    string,
+    { salleId: string; date: string; debut: string; fin: string; classes: Set<string> }
+  >();
   for (const q of quotasDates) {
     const debutBloc = minutesVersHeure(minutes(q.heureDebut) + q.dureePreparationMinutes);
     const finBloc = minutesVersHeure(
@@ -248,15 +257,26 @@ export async function POST(req: Request) {
       // Comparaison lexicographique valide car heureDebut/heureFin sont au
       // format "HH:MM" (même convention que la vérification ci-dessus).
       if (existant.heureDebut < finBloc && existant.heureFin > debutBloc) {
-        const cle = `${q.salleId}|${q.date}|${existant.heureDebut}|${existant.heureFin}`;
-        if (conflitsCroises.has(cle)) continue;
-        conflitsCroises.add(cle);
-        erreursSalle.push(
-          `${sallesMap.get(q.salleId) ?? q.salleId} le ${q.date} de ${existant.heureDebut} à ${existant.heureFin} : ` +
-            `déjà réservée par la classe ${existant.sessionKholle.classe.nom}`
-        );
+        const cle = `${q.salleId}|${q.date}`;
+        const entree = conflitsCroises.get(cle) ?? {
+          salleId: q.salleId,
+          date: q.date,
+          debut: existant.heureDebut,
+          fin: existant.heureFin,
+          classes: new Set<string>(),
+        };
+        entree.debut = entree.debut < existant.heureDebut ? entree.debut : existant.heureDebut;
+        entree.fin = entree.fin > existant.heureFin ? entree.fin : existant.heureFin;
+        entree.classes.add(existant.sessionKholle.classe.nom);
+        conflitsCroises.set(cle, entree);
       }
     }
+  }
+  for (const { salleId, date, debut, fin, classes } of conflitsCroises.values()) {
+    erreursSalle.push(
+      `${sallesMap.get(salleId) ?? salleId} le ${date} de ${debut} à ${fin} : déjà réservée par la classe ` +
+        `${[...classes].join(", ")}`
+    );
   }
 
   if (erreursSalle.length > 0) {
