@@ -8,12 +8,14 @@ type Referent = { id: string; nom: string };
 type Discipline = {
   id: string;
   nom: string;
+  estLangueVivante: boolean;
   kholleurs: Kholleur[];
   referents: Referent[];
   referentActuelId: string | null;
 };
+type EleveLangues = { id: string; lv1Id: string | null; lv2Id: string | null };
 type Salle = { id: string; nom: string };
-type Classe = { id: string; nom: string; effectif: number; disciplines: Discipline[] };
+type Classe = { id: string; nom: string; effectif: number; eleves: EleveLangues[]; disciplines: Discipline[] };
 
 type Quota = {
   cle: string; // clé locale stable pour React, sans rapport avec les données envoyées
@@ -189,17 +191,52 @@ export function GenererPlanningForm({
     setQuotas((prev) => prev.filter((q) => q.cle !== cle));
   }
 
+  // Même règle que côté serveur (/api/admin/planification/jobs) : une
+  // matière normale doit couvrir l'effectif entier de la classe, mais les
+  // langues vivantes (LV1/LV2) ne concernent chacune qu'un sous-groupe — et
+  // plusieurs langues utilisées la même semaine se complètent (un élève n'en
+  // passe qu'une), donc c'est leur TOTAL combiné qui doit égaler le nombre
+  // d'élèves ayant l'une d'elles en LV1 ou LV2, pas chacune séparément.
   const recap = useMemo(() => {
     const totaux = new Map<string, number>();
     for (const q of quotas) {
       totaux.set(q.disciplineId, (totaux.get(q.disciplineId) ?? 0) + q.nombreEleves);
     }
-    return [...totaux.entries()].map(([disciplineId, total]) => ({
-      disciplineId,
-      nom: disciplines.find((d) => d.id === disciplineId)?.nom ?? disciplineId,
-      total,
-      ok: classe ? total === classe.effectif : false,
-    }));
+
+    const lignes: { cle: string; nom: string; total: number; attendu: number; ok: boolean }[] = [];
+    const disciplineIdsLangue: string[] = [];
+
+    for (const [disciplineId, total] of totaux) {
+      const discipline = disciplines.find((d) => d.id === disciplineId);
+      if (discipline?.estLangueVivante) {
+        disciplineIdsLangue.push(disciplineId);
+        continue;
+      }
+      lignes.push({
+        cle: disciplineId,
+        nom: discipline?.nom ?? disciplineId,
+        total,
+        attendu: classe?.effectif ?? 0,
+        ok: classe ? total === classe.effectif : false,
+      });
+    }
+
+    if (disciplineIdsLangue.length > 0 && classe) {
+      const totalLangues = disciplineIdsLangue.reduce((s, id) => s + (totaux.get(id) ?? 0), 0);
+      const elevesEligibles = classe.eleves.filter(
+        (e) => (e.lv1Id && disciplineIdsLangue.includes(e.lv1Id)) || (e.lv2Id && disciplineIdsLangue.includes(e.lv2Id))
+      ).length;
+      const noms = disciplineIdsLangue.map((id) => disciplines.find((d) => d.id === id)?.nom ?? id);
+      lignes.push({
+        cle: "langues",
+        nom: `Langues (${noms.join(", ")})`,
+        total: totalLangues,
+        attendu: elevesEligibles,
+        ok: totalLangues === elevesEligibles,
+      });
+    }
+
+    return lignes;
   }, [quotas, disciplines, classe]);
 
   // Disciplines réellement utilisées cette semaine, dans l'ordre de leur
@@ -499,16 +536,16 @@ export function GenererPlanningForm({
                 <tr>
                   <th>Discipline</th>
                   <th>Total élèves affectés</th>
-                  <th>Effectif de la classe</th>
+                  <th>Effectif attendu</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {recap.map((r) => (
-                  <tr key={r.disciplineId}>
+                  <tr key={r.cle}>
                     <td>{r.nom}</td>
                     <td>{r.total}</td>
-                    <td>{classe?.effectif}</td>
+                    <td>{r.attendu}</td>
                     <td>
                       <span className={`badge ${r.ok ? "badge-succes" : "badge-attente"}`}>
                         {r.ok ? "✓" : "✗"}

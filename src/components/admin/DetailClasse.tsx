@@ -10,11 +10,15 @@ export function DetailClasse({
   elevesInitiaux,
   disciplinesAssigneesInitiales,
   toutesDisciplines,
+  nbElevesParDiscipline,
 }: {
   classeId: string;
   elevesInitiaux: Eleve[];
   disciplinesAssigneesInitiales: Discipline[];
   toutesDisciplines: Discipline[];
+  // Effectif entier de la classe pour une matière normale, mais seulement le
+  // sous-groupe ayant cette langue en LV1 ou LV2 pour une langue vivante.
+  nbElevesParDiscipline: Record<string, number>;
 }) {
   const [eleves, setEleves] = useState(elevesInitiaux);
   const [disciplinesAssignees, setDisciplinesAssignees] = useState(disciplinesAssigneesInitiales);
@@ -120,6 +124,9 @@ export function DetailClasse({
             <label key={d.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <input type="checkbox" checked={assignee} onChange={() => toggleDiscipline(d, assignee)} />
               {d.nom}
+              <span style={{ color: "#777", fontSize: "0.85rem" }}>
+                ({nbElevesParDiscipline[d.id] ?? 0} élève(s))
+              </span>
             </label>
           );
         })}

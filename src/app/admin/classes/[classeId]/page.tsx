@@ -23,6 +23,20 @@ export default async function DetailClassePage({
 
   const toutesDisciplines = await prisma.discipline.findMany({ orderBy: { nom: "asc" } });
 
+  // Nombre d'élèves concernés par chaque discipline : l'effectif entier de
+  // la classe pour une matière normale, mais seulement le sous-groupe ayant
+  // cette langue en LV1 ou LV2 pour une langue vivante — voir aussi
+  // GenererPlanningForm, qui a besoin de la même distinction pour valider
+  // les quotas de planification.
+  const nbElevesParDiscipline = Object.fromEntries(
+    toutesDisciplines.map((d) => [
+      d.id,
+      d.estLangueVivante
+        ? classe.eleves.filter((e) => e.lv1Id === d.id || e.lv2Id === d.id).length
+        : classe.eleves.length,
+    ])
+  );
+
   return (
     <main className="container">
       <h1>
@@ -42,6 +56,7 @@ export default async function DetailClassePage({
           nom: cd.discipline.nom,
         }))}
         toutesDisciplines={toutesDisciplines.map((d) => ({ id: d.id, nom: d.nom }))}
+        nbElevesParDiscipline={nbElevesParDiscipline}
       />
     </main>
   );
