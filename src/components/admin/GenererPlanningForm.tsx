@@ -191,6 +191,19 @@ export function GenererPlanningForm({
     setQuotas((prev) => prev.filter((q) => q.cle !== cle));
   }
 
+  // Efface tout le brouillon en cours (lignes de quotas, référents choisis,
+  // date) sans changer la classe sélectionnée — utile pour repartir de zéro
+  // sans avoir à retirer chaque ligne une par une. Le brouillon persisté en
+  // sessionStorage se met à jour tout seul (voir l'effet plus haut), donc un
+  // aller-retour d'écran ne le fait pas ressurgir.
+  function viderPlanning() {
+    if (quotas.length === 0 && !dateDebutSemaine && Object.keys(referentParDiscipline).length === 0) return;
+    if (!confirm("Vider le planning en cours ? Toutes les lignes et sélections saisies seront perdues.")) return;
+    setQuotas([]);
+    setReferentParDiscipline({});
+    setDateDebutSemaine("");
+  }
+
   // Une matière normale doit toujours couvrir l'effectif entier de la
   // classe. Pour les langues vivantes, deux cas bien distincts (même règle
   // que /api/admin/planification/jobs, qui reste l'unique garde-fou
@@ -339,6 +352,11 @@ export function GenererPlanningForm({
 
   return (
     <div className="carte">
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <button type="button" className="discret" onClick={viderPlanning} disabled={enCours}>
+          Vider le planning
+        </button>
+      </div>
       <form
         onSubmit={(e) => {
           e.preventDefault();
