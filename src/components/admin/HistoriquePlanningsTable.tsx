@@ -48,6 +48,7 @@ function ListePersonnes({ personnes }: { personnes: Personne[] }) {
 export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
   const [classeFiltre, setClasseFiltre] = useState("");
   const [ouverts, setOuverts] = useState<Set<string>>(new Set());
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false);
 
   function toggle(cle: string) {
     setOuverts((prev) => {
@@ -58,6 +59,27 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
     });
   }
 
+  async function supprimerTout() {
+    if (lignes.length === 0) return;
+    if (
+      !confirm(
+        `Supprimer TOUS les plannings (${lignes.length} semaine(s) au total, toutes classes confondues) ? ` +
+          "Créneaux, notes, appréciations et validations associées seront perdus. Cette action est irréversible."
+      )
+    ) {
+      return;
+    }
+    setSuppressionEnCours(true);
+    const res = await fetch("/api/admin/planification/historique", { method: "DELETE" });
+    const data = await res.json();
+    setSuppressionEnCours(false);
+    if (!res.ok) {
+      alert(data.error ?? "Erreur lors de la suppression");
+      return;
+    }
+    window.location.reload();
+  }
+
   const classes = [...new Map(lignes.map((l) => [l.classeId, l.classeNom])).entries()]
     .map(([id, nom]) => ({ id, nom }))
     .sort((a, b) => a.nom.localeCompare(b.nom));
@@ -66,6 +88,17 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
 
   return (
     <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <button
+          type="button"
+          className="discret"
+          onClick={supprimerTout}
+          disabled={lignes.length === 0 || suppressionEnCours}
+        >
+          {suppressionEnCours ? "Suppression en cours…" : "Supprimer tous les plannings"}
+        </button>
+      </div>
+
       <label style={{ maxWidth: 280 }}>
         Filtrer par classe
         <select value={classeFiltre} onChange={(e) => setClasseFiltre(e.target.value)}>
