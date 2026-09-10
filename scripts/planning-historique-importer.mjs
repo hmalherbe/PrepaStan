@@ -7,18 +7,23 @@
 // Usage (depuis /root/PrepaStan sur le VPS, pour reconstruire l'historique
 // réel dans l'environnement de DÉMO) :
 //
-//   docker compose -f docker-compose.demo.yml exec app-demo mkdir -p /app/tmp-import
-//   docker compose -f docker-compose.demo.yml cp scripts/planning-historique-importer.mjs app-demo:/app/tmp-import/
-//   docker compose -f docker-compose.demo.yml cp scripts/planning-historique-L1.json app-demo:/app/tmp-import/
-//   docker compose -f docker-compose.demo.yml cp scripts/planning-historique-L2.json app-demo:/app/tmp-import/
+//   docker compose -f docker-compose.demo.yml exec app-demo mkdir -p /app/prisma/tmp-import
+//   docker compose -f docker-compose.demo.yml cp scripts/planning-historique-importer.mjs app-demo:/app/prisma/tmp-import/
+//   docker compose -f docker-compose.demo.yml cp scripts/planning-historique-L1.json app-demo:/app/prisma/tmp-import/
+//   docker compose -f docker-compose.demo.yml cp scripts/planning-historique-L2.json app-demo:/app/prisma/tmp-import/
 //   docker compose -f docker-compose.demo.yml exec \
 //     -e SEED_ADMIN_EMAIL="admin@demo.prepastan.fr" \
 //     -e SEED_ADMIN_PASSWORD="VOTRE_MOT_DE_PASSE_ADMIN_DEMO" \
-//     app-demo node /app/tmp-import/planning-historique-importer.mjs
+//     app-demo node /app/prisma/tmp-import/planning-historique-importer.mjs
 //
 // Le script DOIT vivre sous /app (pas /tmp) : Node résout node_modules (donc
 // @prisma/client) en remontant les répertoires ANCÊTRES du fichier exécuté,
-// et /tmp n'a pas /app/node_modules comme ancêtre.
+// et /tmp n'a pas /app/node_modules comme ancêtre. /app/prisma/tmp-import
+// plutôt que /app/tmp-import directement : le conteneur tourne en
+// utilisateur non-root ("nextjs"), qui ne peut créer de nouvelle entrée
+// directement sous /app (appartient à root, voir Dockerfile — WORKDIR crée
+// le dossier avant le USER nextjs) mais peut écrire dans /app/prisma,
+// copié avec --chown=nextjs:nodejs.
 //
 // DATABASE_URL et PREPASTAN_URL ne sont PAS à fournir : le conteneur
 // app-demo a déjà DATABASE_URL pointé sur db-demo (voir .env.demo), et
