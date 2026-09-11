@@ -351,6 +351,51 @@ form label {
   padding: 6px 10px;
 }
 
+.nav-sous-menu {
+  position: relative;
+}
+
+.nav-sous-menu > summary {
+  cursor: pointer;
+  color: var(--couleur-texte);
+  font-size: 0.95rem;
+  list-style: none;
+}
+
+.nav-sous-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-sous-menu > summary::after {
+  content: " ▾";
+  font-size: 0.7em;
+}
+
+.nav-sous-menu[open] > summary::after {
+  content: " ▴";
+}
+
+.nav-sous-menu > summary:hover {
+  color: var(--couleur-primaire);
+}
+
+.nav-sous-menu-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  padding: 10px 14px;
+  min-width: 190px;
+  background: var(--couleur-surface);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+}
+
 .champ-erreur {
   color: var(--couleur-erreur);
   font-size: 0.9rem;
@@ -518,6 +563,16 @@ th.triable:hover {
     width: 100%;
     gap: 10px;
     padding-top: 10px;
+  }
+
+  .nav-sous-menu-liste {
+    position: static;
+    margin-top: 6px;
+    margin-left: 12px;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
   }
 
   .navbar nav.ouvert {

@@ -2,14 +2,23 @@
 
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ANNEE_SCOLAIRE_COOKIE } from "@/lib/anneeScolaire";
 
-const LIENS_PAR_ROLE: Record<string, { href: string; label: string }[]> = {
+type LienSimple = { href: string; label: string; enfants?: undefined };
+type LienAvecEnfants = { label: string; enfants: { href: string; label: string }[]; href?: undefined };
+type Lien = LienSimple | LienAvecEnfants;
+
+const LIENS_PAR_ROLE: Record<string, Lien[]> = {
   ADMIN: [
-    { href: "/admin/planification", label: "Planification" },
-    { href: "/admin/planification/historique", label: "Historique" },
+    {
+      label: "Planification",
+      enfants: [
+        { href: "/admin/planification", label: "Générer le planning" },
+        { href: "/admin/planification/historique", label: "Historique" },
+      ],
+    },
     { href: "/admin/classes", label: "Classes" },
     { href: "/admin/eleves", label: "Étudiants" },
     { href: "/admin/disciplines", label: "Disciplines" },
@@ -17,8 +26,13 @@ const LIENS_PAR_ROLE: Record<string, { href: string; label: string }[]> = {
     { href: "/admin/referents", label: "Référents" },
     { href: "/admin/salles", label: "Salles" },
     { href: "/admin/parametres", label: "Paramètres" },
-    { href: "/admin/statistiques", label: "Statistiques" },
-    { href: "/admin/statistiques/notes-eleves", label: "Notes par étudiant" },
+    {
+      label: "Statistiques",
+      enfants: [
+        { href: "/admin/statistiques", label: "Vue d'ensemble" },
+        { href: "/admin/statistiques/notes-eleves", label: "Notes par étudiant" },
+      ],
+    },
     { href: "/admin/guide", label: "Guide d'utilisation" },
   ],
   KHOLLEUR: [{ href: "/kholleur/sessions", label: "Mes sessions" }],
@@ -35,6 +49,7 @@ export function NavBar({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const [ouvert, setOuvert] = useState(false);
   const [anneeScolaire, setAnneeScolaire] = useState(anneeScolaireInitiale);
 
@@ -45,10 +60,11 @@ export function NavBar({
   // Une même personne peut cumuler plusieurs rôles (ex. khôlleur ET
   // référent) : on affiche l'union des liens de tous ses rôles, dans l'ordre
   // ADMIN > KHOLLEUR > PROFESSEUR_REFERENT > ELEVE, sans doublon.
+  const cleLien = (lien: Lien) => lien.href ?? lien.label;
   const liens = (["ADMIN", "KHOLLEUR", "PROFESSEUR_REFERENT", "ELEVE"] as const)
     .filter((r) => session.user.roles.includes(r))
     .flatMap((r) => LIENS_PAR_ROLE[r] ?? [])
-    .filter((lien, i, arr) => arr.findIndex((l) => l.href === lien.href) === i);
+    .filter((lien, i, arr) => arr.findIndex((l) => cleLien(l) === cleLien(lien)) === i);
 
   // Change l'année scolaire courante pour toute l'appli (ex. les nouvelles
   // classes créées y seront rattachées) : cookie lu par les Server
@@ -83,11 +99,24 @@ export function NavBar({
         ☰
       </button>
       <nav className={ouvert ? "ouvert" : ""}>
-        {liens.map((lien) => (
-          <Link key={lien.href} href={lien.href} onClick={() => setOuvert(false)}>
-            {lien.label}
-          </Link>
-        ))}
+        {liens.map((lien) =>
+          lien.enfants ? (
+            <details key={lien.label} className="nav-sous-menu" open={lien.enfants.some((e) => pathname === e.href) || undefined}>
+              <summary>{lien.label}</summary>
+              <div className="nav-sous-menu-liste">
+                {lien.enfants.map((enfant) => (
+                  <Link key={enfant.href} href={enfant.href} onClick={() => setOuvert(false)}>
+                    {enfant.label}
+                  </Link>
+                ))}
+              </div>
+            </details>
+          ) : (
+            <Link key={lien.href} href={lien.href} onClick={() => setOuvert(false)}>
+              {lien.label}
+            </Link>
+          )
+        )}
         {session.user.roles.includes("ADMIN") && (
           <select
             value={anneeScolaire}
