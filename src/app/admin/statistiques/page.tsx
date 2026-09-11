@@ -183,6 +183,7 @@ export default async function StatistiquesPage({
   // moyennes en comptant comme un 0.
   const notesParDiscipline = new Map<string, number[]>();
   const notesParKholleur = new Map<string, { nom: string; valeurs: number[] }>();
+  const notesParEleve = new Map<string, { nom: string; valeurs: number[] }>();
   const notesParDisciplineKholleur = new Map<
     string,
     { disciplineNom: string; kholleurNom: string; valeurs: number[] }
@@ -201,6 +202,11 @@ export default async function StatistiquesPage({
     entreeKholleur.valeurs.push(valeur);
     notesParKholleur.set(p.creneau.kholleurId, entreeKholleur);
 
+    const eleveNom = `${p.eleve.prenom} ${p.eleve.nom}`;
+    const entreeEleve = notesParEleve.get(p.eleveId) ?? { nom: eleveNom, valeurs: [] };
+    entreeEleve.valeurs.push(valeur);
+    notesParEleve.set(p.eleveId, entreeEleve);
+
     const cleCroisee = `${p.creneau.sessionKholle.disciplineId}|${p.creneau.kholleurId}`;
     const entreeCroisee = notesParDisciplineKholleur.get(cleCroisee) ?? { disciplineNom, kholleurNom, valeurs: [] };
     entreeCroisee.valeurs.push(valeur);
@@ -218,6 +224,16 @@ export default async function StatistiquesPage({
     .sort((a, b) => b.moyenne - a.moyenne);
 
   const notesKholleur = [...notesParKholleur.values()]
+    .map(({ nom, valeurs }) => ({
+      nom,
+      moyenne: moyenne(valeurs),
+      min: Math.min(...valeurs),
+      max: Math.max(...valeurs),
+      nbNotes: valeurs.length,
+    }))
+    .sort((a, b) => b.moyenne - a.moyenne);
+
+  const notesEleve = [...notesParEleve.values()]
     .map(({ nom, valeurs }) => ({
       nom,
       moyenne: moyenne(valeurs),
@@ -254,6 +270,7 @@ export default async function StatistiquesPage({
         nbNotesSaisies={nbNotesSaisies}
         notesDiscipline={notesDiscipline}
         notesKholleur={notesKholleur}
+        notesEleve={notesEleve}
         detailNotesDisciplineKholleur={detailNotesDisciplineKholleur}
       />
     </main>

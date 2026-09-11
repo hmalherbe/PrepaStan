@@ -10,6 +10,7 @@ type LigneDetail = { eleveNom: string; kholleurNom: string; disciplineNom: strin
 type Classe = { id: string; nom: string };
 type NoteDiscipline = { discipline: string; moyenne: number; min: number; max: number; nbNotes: number };
 type NoteKholleur = { nom: string; moyenne: number; min: number; max: number; nbNotes: number };
+type NoteEleve = { nom: string; moyenne: number; min: number; max: number; nbNotes: number };
 type LigneNoteCroisee = { disciplineNom: string; kholleurNom: string; moyenne: number; nbNotes: number };
 
 function BarreHorizontale({
@@ -56,6 +57,7 @@ export function StatistiquesView({
   nbNotesSaisies,
   notesDiscipline,
   notesKholleur,
+  notesEleve,
   detailNotesDisciplineKholleur,
 }: {
   classes: Classe[];
@@ -72,6 +74,7 @@ export function StatistiquesView({
   nbNotesSaisies: number;
   notesDiscipline: NoteDiscipline[];
   notesKholleur: NoteKholleur[];
+  notesEleve: NoteEleve[];
   detailNotesDisciplineKholleur: LigneNoteCroisee[];
 }) {
   const router = useRouter();
@@ -282,6 +285,23 @@ export function StatistiquesView({
               valeur={k.moyenne}
               max={20}
               formatValeur={(v) => `${v.toFixed(2)}/20 (min ${k.min}, max ${k.max}, n=${k.nbNotes})`}
+            />
+          ))}
+        </div>
+      )}
+
+      <h2>Moyenne des notes par étudiant</h2>
+      {notesEleve.length === 0 ? (
+        <p>Aucune note saisie pour cette classe.</p>
+      ) : (
+        <div className="graphique-barres">
+          {notesEleve.map((e) => (
+            <BarreHorizontale
+              key={e.nom}
+              label={e.nom}
+              valeur={e.moyenne}
+              max={20}
+              formatValeur={(v) => `${v.toFixed(2)}/20 (min ${e.min}, max ${e.max}, n=${e.nbNotes})`}
             />
           ))}
         </div>
