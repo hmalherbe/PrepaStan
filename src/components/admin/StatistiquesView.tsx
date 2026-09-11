@@ -8,6 +8,9 @@ type ChargeKholleur = { nom: string; nbCreneaux: number };
 type DiversiteDiscipline = { discipline: string; tauxMoyen: number; ecartType: number };
 type LigneDetail = { eleveNom: string; kholleurNom: string; disciplineNom: string; nbPassages: number };
 type Classe = { id: string; nom: string };
+type NoteDiscipline = { discipline: string; moyenne: number; min: number; max: number; nbNotes: number };
+type NoteKholleur = { nom: string; moyenne: number; min: number; max: number; nbNotes: number };
+type LigneNoteCroisee = { disciplineNom: string; kholleurNom: string; moyenne: number; nbNotes: number };
 
 function BarreHorizontale({
   label,
@@ -36,6 +39,7 @@ function BarreHorizontale({
 }
 
 type ColonneTri = "eleve" | "kholleur" | "discipline" | "nbPassages";
+type ColonneTriNotes = "discipline" | "kholleur" | "moyenne" | "nbNotes";
 
 export function StatistiquesView({
   classes,
@@ -49,6 +53,10 @@ export function StatistiquesView({
   diversiteDisciplines,
   detailEleveKholleur,
   alternance,
+  nbNotesSaisies,
+  notesDiscipline,
+  notesKholleur,
+  detailNotesDisciplineKholleur,
 }: {
   classes: Classe[];
   classeIdActuelle: string;
@@ -61,10 +69,19 @@ export function StatistiquesView({
   diversiteDisciplines: DiversiteDiscipline[];
   detailEleveKholleur: LigneDetail[];
   alternance: { pourcentage: number; alternees: number; total: number } | null;
+  nbNotesSaisies: number;
+  notesDiscipline: NoteDiscipline[];
+  notesKholleur: NoteKholleur[];
+  detailNotesDisciplineKholleur: LigneNoteCroisee[];
 }) {
   const router = useRouter();
   const [filtre, setFiltre] = useState("");
   const [tri, setTri] = useState<{ colonne: ColonneTri; ordre: 1 | -1 }>({ colonne: "eleve", ordre: 1 });
+  const [filtreNotes, setFiltreNotes] = useState("");
+  const [triNotes, setTriNotes] = useState<{ colonne: ColonneTriNotes; ordre: 1 | -1 }>({
+    colonne: "moyenne",
+    ordre: -1,
+  });
 
   // Échelle resserrée sur [min, max] plutôt que [0, max] : les scores
   // horaires sont naturellement dans une bande étroite (ex. 16.6 à 17.4),
@@ -105,6 +122,36 @@ export function StatistiquesView({
 
   const fleche = (colonne: ColonneTri) => (tri.colonne === colonne ? (tri.ordre === 1 ? " ▲" : " ▼") : "");
 
+  function trierParNotes(colonne: ColonneTriNotes) {
+    setTriNotes((prev) => (prev.colonne === colonne ? { colonne, ordre: prev.ordre === 1 ? -1 : 1 } : { colonne, ordre: 1 }));
+  }
+
+  const detailNotesFiltreTrie = useMemo(() => {
+    const filtreNorm = filtreNotes.trim().toLowerCase();
+    const filtres = filtreNorm
+      ? detailNotesDisciplineKholleur.filter(
+          (l) =>
+            l.disciplineNom.toLowerCase().includes(filtreNorm) || l.kholleurNom.toLowerCase().includes(filtreNorm)
+        )
+      : detailNotesDisciplineKholleur;
+    const cleParColonne: Record<ColonneTriNotes, (l: LigneNoteCroisee) => string | number> = {
+      discipline: (l) => l.disciplineNom,
+      kholleur: (l) => l.kholleurNom,
+      moyenne: (l) => l.moyenne,
+      nbNotes: (l) => l.nbNotes,
+    };
+    const cle = cleParColonne[triNotes.colonne];
+    return [...filtres].sort((a, b) => {
+      const va = cle(a);
+      const vb = cle(b);
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * triNotes.ordre;
+      return String(va).localeCompare(String(vb)) * triNotes.ordre;
+    });
+  }, [detailNotesDisciplineKholleur, filtreNotes, triNotes]);
+
+  const flecheNotes = (colonne: ColonneTriNotes) =>
+    triNotes.colonne === colonne ? (triNotes.ordre === 1 ? " ▲" : " ▼") : "";
+
   return (
     <div>
       <label>
@@ -137,6 +184,10 @@ export function StatistiquesView({
             <div className="libelle">Alternance LV1/LV2 ({alternance.alternees}/{alternance.total})</div>
           </div>
         )}
+        <div className="stat-carte">
+          <div className="valeur">{nbNotesSaisies}</div>
+          <div className="libelle">Notes saisies</div>
+        </div>
       </div>
 
       <h2>Score horaire moyen par étudiant</h2>
@@ -197,6 +248,86 @@ export function StatistiquesView({
           ))}
         </div>
       )}
+
+      <h2>Moyenne des notes par matière</h2>
+      {notesDiscipline.length === 0 ? (
+        <p>Aucune note saisie pour cette classe.</p>
+      ) : (
+        <div className="graphique-barres">
+          {notesDiscipline.map((d) => (
+            <BarreHorizontale
+              key={d.discipline}
+              label={d.discipline}
+              valeur={d.moyenne}
+              max={20}
+              formatValeur={(v) => `${v.toFixed(2)}/20 (min ${d.min}, max ${d.max}, n=${d.nbNotes})`}
+            />
+          ))}
+        </div>
+      )}
+
+      <h2>Moyenne des notes attribuées par khôlleur</h2>
+      <p style={{ color: "#777", fontSize: "0.85rem", marginTop: -8 }}>
+        Utile pour repérer un khôlleur nettement plus sévère ou plus généreux que les autres — pas forcément un
+        problème en soi (dépend de la discipline et des groupes), mais un écart à regarder.
+      </p>
+      {notesKholleur.length === 0 ? (
+        <p>Aucune note saisie pour cette classe.</p>
+      ) : (
+        <div className="graphique-barres">
+          {notesKholleur.map((k) => (
+            <BarreHorizontale
+              key={k.nom}
+              label={k.nom}
+              valeur={k.moyenne}
+              max={20}
+              formatValeur={(v) => `${v.toFixed(2)}/20 (min ${k.min}, max ${k.max}, n=${k.nbNotes})`}
+            />
+          ))}
+        </div>
+      )}
+
+      <h2>Détail note par matière et khôlleur</h2>
+      <input
+        type="text"
+        placeholder="Filtrer par matière ou khôlleur…"
+        value={filtreNotes}
+        onChange={(e) => setFiltreNotes(e.target.value)}
+        style={{ marginBottom: 12, width: "100%", maxWidth: 360 }}
+      />
+      <table className="table-hauteur-limitee">
+        <thead>
+          <tr>
+            <th className="triable" onClick={() => trierParNotes("discipline")}>
+              Discipline{flecheNotes("discipline")}
+            </th>
+            <th className="triable" onClick={() => trierParNotes("kholleur")}>
+              Khôlleur{flecheNotes("kholleur")}
+            </th>
+            <th className="triable" onClick={() => trierParNotes("moyenne")}>
+              Moyenne{flecheNotes("moyenne")}
+            </th>
+            <th className="triable" onClick={() => trierParNotes("nbNotes")}>
+              Nb notes{flecheNotes("nbNotes")}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {detailNotesFiltreTrie.map((l, i) => (
+            <tr key={`${l.disciplineNom}|${l.kholleurNom}|${i}`}>
+              <td>{l.disciplineNom}</td>
+              <td>{l.kholleurNom}</td>
+              <td>{l.moyenne.toFixed(2)}/20</td>
+              <td>{l.nbNotes}</td>
+            </tr>
+          ))}
+          {detailNotesFiltreTrie.length === 0 && (
+            <tr>
+              <td colSpan={4}>Aucun résultat.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
 
       <h2>Détail étudiant / khôlleur / discipline</h2>
       <input

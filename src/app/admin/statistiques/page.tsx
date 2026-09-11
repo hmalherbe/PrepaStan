@@ -47,6 +47,7 @@ export default async function StatistiquesPage({
     select: {
       eleveId: true,
       eleve: { select: { nom: true, prenom: true, lv1Id: true, lv2Id: true } },
+      note: { select: { valeur: true } },
       creneau: {
         select: {
           heureDebut: true,
@@ -176,6 +177,65 @@ export default async function StatistiquesPage({
     alternance = { pourcentage: total > 0 ? (alternees / total) * 100 : 0, alternees, total };
   }
 
+  // ---------- Notes : par discipline, par khôlleur, et détail croisé ----------
+  // Seuls les passages ayant reçu une note (valeur renseignée) comptent ici
+  // — un passage publié mais pas encore noté ne doit pas fausser les
+  // moyennes en comptant comme un 0.
+  const notesParDiscipline = new Map<string, number[]>();
+  const notesParKholleur = new Map<string, { nom: string; valeurs: number[] }>();
+  const notesParDisciplineKholleur = new Map<
+    string,
+    { disciplineNom: string; kholleurNom: string; valeurs: number[] }
+  >();
+  let nbNotesSaisies = 0;
+  for (const p of passages) {
+    if (p.note?.valeur == null) continue;
+    const valeur = Number(p.note.valeur);
+    nbNotesSaisies++;
+
+    const disciplineNom = p.creneau.sessionKholle.discipline.nom;
+    notesParDiscipline.set(disciplineNom, [...(notesParDiscipline.get(disciplineNom) ?? []), valeur]);
+
+    const kholleurNom = `${p.creneau.kholleur.prenom} ${p.creneau.kholleur.nom}`;
+    const entreeKholleur = notesParKholleur.get(p.creneau.kholleurId) ?? { nom: kholleurNom, valeurs: [] };
+    entreeKholleur.valeurs.push(valeur);
+    notesParKholleur.set(p.creneau.kholleurId, entreeKholleur);
+
+    const cleCroisee = `${p.creneau.sessionKholle.disciplineId}|${p.creneau.kholleurId}`;
+    const entreeCroisee = notesParDisciplineKholleur.get(cleCroisee) ?? { disciplineNom, kholleurNom, valeurs: [] };
+    entreeCroisee.valeurs.push(valeur);
+    notesParDisciplineKholleur.set(cleCroisee, entreeCroisee);
+  }
+
+  const notesDiscipline = [...notesParDiscipline.entries()]
+    .map(([discipline, valeurs]) => ({
+      discipline,
+      moyenne: moyenne(valeurs),
+      min: Math.min(...valeurs),
+      max: Math.max(...valeurs),
+      nbNotes: valeurs.length,
+    }))
+    .sort((a, b) => b.moyenne - a.moyenne);
+
+  const notesKholleur = [...notesParKholleur.values()]
+    .map(({ nom, valeurs }) => ({
+      nom,
+      moyenne: moyenne(valeurs),
+      min: Math.min(...valeurs),
+      max: Math.max(...valeurs),
+      nbNotes: valeurs.length,
+    }))
+    .sort((a, b) => b.moyenne - a.moyenne);
+
+  const detailNotesDisciplineKholleur = [...notesParDisciplineKholleur.values()]
+    .map(({ disciplineNom, kholleurNom, valeurs }) => ({
+      disciplineNom,
+      kholleurNom,
+      moyenne: moyenne(valeurs),
+      nbNotes: valeurs.length,
+    }))
+    .sort((a, b) => a.disciplineNom.localeCompare(b.disciplineNom) || a.kholleurNom.localeCompare(b.kholleurNom));
+
   return (
     <main className="container">
       <h1>Statistiques</h1>
@@ -191,6 +251,10 @@ export default async function StatistiquesPage({
         diversiteDisciplines={diversiteDisciplines}
         detailEleveKholleur={detailEleveKholleur}
         alternance={alternance}
+        nbNotesSaisies={nbNotesSaisies}
+        notesDiscipline={notesDiscipline}
+        notesKholleur={notesKholleur}
+        detailNotesDisciplineKholleur={detailNotesDisciplineKholleur}
       />
     </main>
   );
