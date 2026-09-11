@@ -42,6 +42,12 @@ const APPLY = process.env.APPLY === "1";
 async function main() {
   const reference = JSON.parse(readFileSync(join(__dirname, "kholleurs-emails-corrects.json"), "utf-8"));
 
+  // Tous les utilisateurs (pas seulement les khôlleurs) : l'email est
+  // unique sur TOUTE la table, un référent/admin/élève peut très bien
+  // détenir déjà l'email cible (doublon de compte, rôles cumulés...).
+  const tousLesUtilisateurs = await prisma.utilisateur.findMany({
+    select: { id: true, nom: true, prenom: true, email: true },
+  });
   const kholleurs = await prisma.utilisateur.findMany({
     where: { roles: { has: "KHOLLEUR" } },
     select: { id: true, nom: true, prenom: true, email: true },
@@ -81,19 +87,32 @@ async function main() {
       continue;
     }
 
-    // L'email cible appartient déjà à un AUTRE utilisateur (contrainte
-    // unique) : on ne peut pas écraser sans risquer de casser ce compte-là.
-    const autrePorteur = kholleurs.find(
-      (k) => k.id !== utilisateur.id && k.email.toLowerCase() === ref.email.toLowerCase()
-    );
-    if (autrePorteur) {
-      conflits.push({ ref, utilisateur, autrePorteur });
-      continue;
-    }
-
     aCorreger++;
     aAppliquer.push({ utilisateur, emailAvant: utilisateur.email, emailApres: ref.email });
   }
+
+  // L'email cible peut déjà être détenu par un AUTRE utilisateur
+  // (contrainte unique sur TOUTE la table, pas seulement les khôlleurs :
+  // doublon de compte, référent avec le même email, etc.). Ce n'est un vrai
+  // conflit que si ce porteur ne change pas lui-même d'email dans ce même
+  // lot — sinon (chaîne A -> email de B, B -> autre email), les deux
+  // corrections cohabitent une fois appliquées, gérées via une écriture en
+  // deux temps plus bas pour ne jamais heurter la contrainte unique.
+  const idsCorriges = new Set(aAppliquer.map((a) => a.utilisateur.id));
+  const aAppliquerFiltre = [];
+  for (const entree of aAppliquer) {
+    const autrePorteur = tousLesUtilisateurs.find(
+      (u) => u.id !== entree.utilisateur.id && u.email.toLowerCase() === entree.emailApres.toLowerCase()
+    );
+    if (autrePorteur && !idsCorriges.has(autrePorteur.id)) {
+      conflits.push({ ref: { nom: entree.utilisateur.nom, prenom: entree.utilisateur.prenom, email: entree.emailApres }, utilisateur: entree.utilisateur, autrePorteur });
+      aCorreger--;
+      continue;
+    }
+    aAppliquerFiltre.push(entree);
+  }
+  aAppliquer.length = 0;
+  aAppliquer.push(...aAppliquerFiltre);
 
   console.log(`=== Plan (${APPLY ? "APPLICATION RÉELLE" : "SIMULATION — aucune écriture"}) ===\n`);
   for (const { utilisateur, emailAvant, emailApres } of aAppliquer) {
@@ -125,6 +144,17 @@ async function main() {
     return;
   }
 
+  // Écriture en deux temps : d'abord un email temporaire unique pour
+  // chaque compte corrigé (libère les emails cibles qui seraient encore
+  // détenus par un autre compte lui-même en cours de correction), puis
+  // l'email final — jamais de collision possible avec la contrainte
+  // unique, quel que soit l'ordre ou les chaînes entre corrections.
+  for (const { utilisateur } of aAppliquer) {
+    await prisma.utilisateur.update({
+      where: { id: utilisateur.id },
+      data: { email: `tmp-correction-${utilisateur.id}@invalid.local` },
+    });
+  }
   for (const { utilisateur, emailApres } of aAppliquer) {
     await prisma.utilisateur.update({ where: { id: utilisateur.id }, data: { email: emailApres } });
   }
