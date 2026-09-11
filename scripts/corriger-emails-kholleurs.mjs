@@ -11,9 +11,15 @@
 //
 // Rapprochement par (nom, prénom) normalisés (casse/accents ignorés) sur
 // les Utilisateur ayant le rôle KHOLLEUR — PAS par email, puisque ce sont
-// justement les emails à corriger. Un utilisateur non trouvé, ou un
-// conflit d'email avec une personne DIFFÉRENTE (pas un doublon), est
-// signalé et ignoré plutôt que traité au hasard.
+// justement les emails à corriger. Si aucun compte n'a exactement ce
+// nom+prénom mais qu'un seul compte porte ce nom avec un PRÉNOM VIDE en
+// base (import initial incomplet), il est rapproché et son prénom
+// complété au passage — mais seulement s'il n'y a aucune ambiguïté
+// (plusieurs comptes du même nom à prénom vide ne sont jamais devinés).
+// Un utilisateur non trouvé, ou un conflit d'email avec une personne
+// DIFFÉRENTE (pas un doublon), est signalé et ignoré plutôt que traité au
+// hasard. Voir aussi diagnostic-correspondance-emails.mjs (lecture seule)
+// pour visualiser en détail pourquoi une entrée ne se rapproche de rien.
 //
 // Mode par défaut : SIMULATION uniquement (aucune écriture), affiche le
 // plan complet. Ajouter APPLY=1 pour appliquer réellement (fusions puis
@@ -138,27 +144,46 @@ async function main() {
   });
 
   const parCle = new Map();
+  const parNomSeul = new Map();
   for (const k of kholleurs) {
     const cle = `${normaliser(k.nom)}|${normaliser(k.prenom)}`;
     const liste = parCle.get(cle) ?? [];
     liste.push(k);
     parCle.set(cle, liste);
+
+    const cleNom = normaliser(k.nom);
+    parNomSeul.set(cleNom, [...(parNomSeul.get(cleNom) ?? []), k]);
   }
 
   let dejaCorrect = 0;
   const nonTrouves = [];
   const conflits = [];
   const fusions = []; // { ref, garde, perdants: [...] }
-  const aAppliquer = []; // { utilisateur, emailAvant, emailApres }
+  const aAppliquer = []; // { utilisateur, emailAvant, emailApres, prenomAvant?, prenomApres? }
+  const prenomsACompleter = []; // { ref, utilisateur } — prénom vide en base, complété au passage
 
   for (const ref of reference) {
     const cle = `${normaliser(ref.nom)}|${normaliser(ref.prenom)}`;
     let candidats = parCle.get(cle) ?? [];
+    let prenomACompleter = false;
+
+    // Repli : nom exact mais prénom VIDE en base (import initial incomplet)
+    // — sûr à corriger seulement si un seul compte porte ce nom avec un
+    // prénom vide (jamais si prénom vide ET plusieurs personnes du même
+    // nom : ambigu, laissé de côté).
+    if (candidats.length === 0) {
+      const candidatsNomSeul = (parNomSeul.get(normaliser(ref.nom)) ?? []).filter((k) => !k.prenom || k.prenom.trim() === "");
+      if (candidatsNomSeul.length === 1) {
+        candidats = candidatsNomSeul;
+        prenomACompleter = true;
+      }
+    }
 
     if (candidats.length === 0) {
       nonTrouves.push(ref);
       continue;
     }
+    const idCandidatPrenomVide = prenomACompleter ? candidats[0].id : null;
 
     // Doublons détectés directement (plusieurs comptes KHOLLEUR pour le
     // même nom/prénom) : décidés par score de données réelles ci-dessous,
@@ -194,6 +219,10 @@ async function main() {
       fusions.push({ ref, garde, perdants, scores: tous.map((u, i) => ({ utilisateur: u, score: scores[i] })) });
     }
 
+    if (idCandidatPrenomVide && garde.id === idCandidatPrenomVide) {
+      prenomsACompleter.push({ ref, utilisateur: garde });
+    }
+
     if (garde.email.toLowerCase() === ref.email.toLowerCase()) {
       dejaCorrect++;
       continue;
@@ -214,9 +243,17 @@ async function main() {
     console.log();
   }
 
+  if (prenomsACompleter.length > 0) {
+    console.log(`--- ${prenomsACompleter.length} prénom(s) vide(s) en base à compléter (nom sans ambiguïté) ---`);
+    for (const { ref, utilisateur } of prenomsACompleter) {
+      console.log(`  - ${ref.nom} (id ${utilisateur.id}) : prénom vide -> "${ref.prenom}"`);
+    }
+    console.log();
+  }
+
   console.log(`--- Corrections d'email ---`);
   for (const { utilisateur, emailAvant, emailApres } of aAppliquer) {
-    console.log(`${utilisateur.prenom} ${utilisateur.nom} : ${emailAvant}  ->  ${emailApres}`);
+    console.log(`${utilisateur.prenom || "(vide)"} ${utilisateur.nom} : ${emailAvant}  ->  ${emailApres}`);
   }
   console.log(`\n${aAppliquer.length} email(s) à corriger, ${dejaCorrect} déjà correct(s).`);
 
@@ -242,6 +279,10 @@ async function main() {
     }
   }
 
+  for (const { ref, utilisateur } of prenomsACompleter) {
+    await prisma.utilisateur.update({ where: { id: utilisateur.id }, data: { prenom: ref.prenom } });
+  }
+
   // Écriture en deux temps : d'abord un email temporaire unique pour
   // chaque compte corrigé (libère les emails cibles qui seraient encore
   // détenus par un autre compte lui-même en cours de correction), puis
@@ -256,7 +297,9 @@ async function main() {
   for (const { utilisateur, emailApres } of aAppliquer) {
     await prisma.utilisateur.update({ where: { id: utilisateur.id }, data: { email: emailApres } });
   }
-  console.log(`\n${fusions.length} fusion(s) et ${aAppliquer.length} email(s) corrigé(s) en base.`);
+  console.log(
+    `\n${fusions.length} fusion(s), ${prenomsACompleter.length} prénom(s) complété(s) et ${aAppliquer.length} email(s) corrigé(s) en base.`
+  );
 }
 
 main()
