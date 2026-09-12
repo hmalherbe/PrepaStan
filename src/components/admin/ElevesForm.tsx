@@ -258,7 +258,7 @@ export function ElevesForm({
         )}
       </div>
 
-      <table>
+      <table className="table-compact">
         <thead>
           <tr>
             <th></th>
@@ -270,7 +270,6 @@ export function ElevesForm({
             <th>Compte</th>
             <th>Email contact</th>
             <th>Téléphone</th>
-            <th>Parcoursup</th>
             <th>Établissement</th>
           </tr>
         </thead>
@@ -287,7 +286,7 @@ export function ElevesForm({
               />
             ) : (
               <tr key={e.id}>
-                <td style={{ display: "flex", gap: 8 }}>
+                <td style={{ display: "flex", gap: 6 }}>
                   <button className="discret" onClick={() => setEnEdition(e.id)}>
                     Modifier
                   </button>
@@ -303,14 +302,13 @@ export function ElevesForm({
                 <td>{e.aUnCompte ? "Oui" : "Non"}</td>
                 <td>{e.emailContact ?? "—"}</td>
                 <td>{e.telephone ?? "—"}</td>
-                <td>{e.numeroParcoursup ?? "—"}</td>
                 <td>{e.etablissementOrigine ?? "—"}</td>
               </tr>
             )
           )}
           {elevesAffiches.length === 0 && (
             <tr>
-              <td colSpan={11}>{eleves.length === 0 ? "Aucun étudiant pour le moment." : "Aucun étudiant pour ces filtres."}</td>
+              <td colSpan={10}>{eleves.length === 0 ? "Aucun étudiant pour le moment." : "Aucun étudiant pour ces filtres."}</td>
             </tr>
           )}
         </tbody>
@@ -454,7 +452,7 @@ function LigneEdition({
 
   return (
     <tr>
-      <td colSpan={11}>
+      <td colSpan={10}>
         <div className="carte" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" style={{ flex: 1 }} />
