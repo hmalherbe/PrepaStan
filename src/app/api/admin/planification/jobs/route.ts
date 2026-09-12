@@ -355,6 +355,7 @@ export async function POST(req: Request) {
     disciplineIds
   );
   const derniereLangue = await calculerDerniereLangue(eleves);
+  const parametresGeneraux = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
 
   const solverUrl = process.env.PLANNING_SOLVER_URL;
   if (!solverUrl) {
@@ -375,6 +376,10 @@ export async function POST(req: Request) {
         historique: { ...historique, derniereLangue },
         disciplinesLangue,
         effectifPartiel: permettreEffectifPartiel,
+        poidsEquilibrageKholleur: parametresGeneraux?.poidsEquilibrageKholleur ?? 10,
+        poidsDiversiteKholleur: parametresGeneraux?.poidsDiversiteKholleur ?? 5,
+        poidsEquilibrageHoraire: parametresGeneraux?.poidsEquilibrageHoraire ?? 1,
+        poidsAlternanceLangue: parametresGeneraux?.poidsAlternanceLangue ?? 1000,
         // En Docker de production, le solveur doit rappeler l'appli via le
         // réseau interne (ex. http://app:3000), pas via le nom de domaine
         // public : selon l'hébergeur, un conteneur ne peut pas forcément se

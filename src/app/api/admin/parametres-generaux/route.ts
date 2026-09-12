@@ -11,6 +11,10 @@ const bodySchema = z.object({
   envoiEmailKholleur: z.boolean(),
   envoiEmailReferent: z.boolean(),
   envoiEmailEleve: z.boolean(),
+  poidsEquilibrageKholleur: z.number().int().min(0).max(100000),
+  poidsDiversiteKholleur: z.number().int().min(0).max(100000),
+  poidsEquilibrageHoraire: z.number().int().min(0).max(100000),
+  poidsAlternanceLangue: z.number().int().min(0).max(100000),
 });
 
 // PUT /api/admin/parametres-generaux

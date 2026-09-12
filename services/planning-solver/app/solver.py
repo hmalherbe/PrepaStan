@@ -51,7 +51,11 @@ from datetime import datetime, timedelta
 
 from ortools.sat.python import cp_model
 
-# Pondérations de l'objectif combiné (voir docstring ci-dessus).
+# Pondérations PAR DÉFAUT de l'objectif combiné (voir docstring ci-dessus) —
+# utilisées si resoudre() est appelée sans préciser les paramètres
+# poids_*, ce qui n'arrive plus qu'en test/appel direct : en usage normal,
+# l'appli les transmet depuis ParametresApplication (écran Paramètres),
+# réglables sans redéploiement du microservice.
 POIDS_EQUILIBRAGE_KHOLLEUR = 10
 POIDS_DIVERSITE_KHOLLEUR = 5
 POIDS_EQUILIBRAGE_HORAIRE = 1
@@ -143,6 +147,10 @@ def resoudre(
     historique_derniere_langue: dict[str, str] | None = None,
     effectif_partiel: bool = False,
     max_temps_secondes: float = 30.0,
+    poids_equilibrage_kholleur: int = POIDS_EQUILIBRAGE_KHOLLEUR,
+    poids_diversite_kholleur: int = POIDS_DIVERSITE_KHOLLEUR,
+    poids_equilibrage_horaire: int = POIDS_EQUILIBRAGE_HORAIRE,
+    poids_alternance_langue: int = POIDS_ALTERNANCE_LANGUE,
 ) -> SolveResult:
     """`disciplines_langue` : sous-ensemble de disciplines de la semaine
     marquées "langue vivante" (Discipline.estLangueVivante côté app). Pour
@@ -340,10 +348,10 @@ def resoudre(
     alternance_penalite = sum(termes_alternance) if termes_alternance else 0
 
     model.Minimize(
-        POIDS_ALTERNANCE_LANGUE * alternance_penalite
-        + POIDS_EQUILIBRAGE_KHOLLEUR * charge_max
-        + POIDS_DIVERSITE_KHOLLEUR * diversite_penalite
-        + POIDS_EQUILIBRAGE_HORAIRE * score_horaire_max
+        poids_alternance_langue * alternance_penalite
+        + poids_equilibrage_kholleur * charge_max
+        + poids_diversite_kholleur * diversite_penalite
+        + poids_equilibrage_horaire * score_horaire_max
     )
 
     solver = cp_model.CpSolver()

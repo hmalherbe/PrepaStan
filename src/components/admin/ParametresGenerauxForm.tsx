@@ -11,6 +11,10 @@ export function ParametresGenerauxForm({
   envoiKholleurInitial,
   envoiReferentInitial,
   envoiEleveInitial,
+  poidsEquilibrageKholleurInitial,
+  poidsDiversiteKholleurInitial,
+  poidsEquilibrageHoraireInitial,
+  poidsAlternanceLangueInitial,
 }: {
   delaiInitial: number;
   modeleKholleurInitial: string;
@@ -19,6 +23,10 @@ export function ParametresGenerauxForm({
   envoiKholleurInitial: boolean;
   envoiReferentInitial: boolean;
   envoiEleveInitial: boolean;
+  poidsEquilibrageKholleurInitial: number;
+  poidsDiversiteKholleurInitial: number;
+  poidsEquilibrageHoraireInitial: number;
+  poidsAlternanceLangueInitial: number;
 }) {
   const [delai, setDelai] = useState(delaiInitial);
   const [modeleKholleur, setModeleKholleur] = useState(modeleKholleurInitial);
@@ -27,6 +35,10 @@ export function ParametresGenerauxForm({
   const [envoiKholleur, setEnvoiKholleur] = useState(envoiKholleurInitial);
   const [envoiReferent, setEnvoiReferent] = useState(envoiReferentInitial);
   const [envoiEleve, setEnvoiEleve] = useState(envoiEleveInitial);
+  const [poidsEquilibrageKholleur, setPoidsEquilibrageKholleur] = useState(poidsEquilibrageKholleurInitial);
+  const [poidsDiversiteKholleur, setPoidsDiversiteKholleur] = useState(poidsDiversiteKholleurInitial);
+  const [poidsEquilibrageHoraire, setPoidsEquilibrageHoraire] = useState(poidsEquilibrageHoraireInitial);
+  const [poidsAlternanceLangue, setPoidsAlternanceLangue] = useState(poidsAlternanceLangueInitial);
   const [enCours, setEnCours] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -45,6 +57,10 @@ export function ParametresGenerauxForm({
           envoiEmailKholleur: envoiKholleur,
           envoiEmailReferent: envoiReferent,
           envoiEmailEleve: envoiEleve,
+          poidsEquilibrageKholleur,
+          poidsDiversiteKholleur,
+          poidsEquilibrageHoraire,
+          poidsAlternanceLangue,
         }),
       });
       if (!res.ok) {
@@ -104,6 +120,57 @@ export function ParametresGenerauxForm({
         actif={envoiEleve}
         onActifChange={setEnvoiEleve}
       />
+
+      <h3>Réglages du solveur (fine-tuning)</h3>
+      <p style={{ color: "#777", fontSize: "0.9rem" }}>
+        Pondérations de l&apos;objectif du solveur de planification (OR-Tools) : plus une pondération est élevée,
+        plus l&apos;objectif correspondant est prioritaire par rapport aux autres lors de la génération d&apos;un
+        planning. Valeurs par défaut d&apos;origine : 10 / 5 / 1 / 1000.
+      </p>
+      <label style={{ display: "block", marginBottom: 10 }}>
+        Équilibrage de la charge des kholleurs
+        <input
+          type="number"
+          min={0}
+          max={100000}
+          value={poidsEquilibrageKholleur}
+          onChange={(e) => setPoidsEquilibrageKholleur(Number(e.target.value))}
+          style={{ width: 100 }}
+        />
+      </label>
+      <label style={{ display: "block", marginBottom: 10 }}>
+        Diversité des kholleurs vus par un même étudiant
+        <input
+          type="number"
+          min={0}
+          max={100000}
+          value={poidsDiversiteKholleur}
+          onChange={(e) => setPoidsDiversiteKholleur(Number(e.target.value))}
+          style={{ width: 100 }}
+        />
+      </label>
+      <label style={{ display: "block", marginBottom: 10 }}>
+        Équilibrage des horaires de passage
+        <input
+          type="number"
+          min={0}
+          max={100000}
+          value={poidsEquilibrageHoraire}
+          onChange={(e) => setPoidsEquilibrageHoraire(Number(e.target.value))}
+          style={{ width: 100 }}
+        />
+      </label>
+      <label style={{ display: "block", marginBottom: 10 }}>
+        Alternance LV1/LV2
+        <input
+          type="number"
+          min={0}
+          max={100000}
+          value={poidsAlternanceLangue}
+          onChange={(e) => setPoidsAlternanceLangue(Number(e.target.value))}
+          style={{ width: 100 }}
+        />
+      </label>
 
       <button type="button" onClick={enregistrer} disabled={enCours}>
         {enCours ? "Enregistrement..." : "Enregistrer"}

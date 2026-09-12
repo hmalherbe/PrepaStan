@@ -365,6 +365,15 @@ model ParametresApplication {
   envoiEmailKholleur Boolean @default(true)
   envoiEmailReferent Boolean @default(true)
   envoiEmailEleve    Boolean @default(true)
+
+  // Pondérations de l'objectif "soft" du solveur OR-Tools (voir
+  // services/planning-solver/app/solver.py) : ajustables pour du
+  // fine-tuning sans redéploiement du microservice. Valeurs par défaut
+  // identiques aux constantes historiques codées en dur dans le solveur.
+  poidsEquilibrageKholleur Int @default(10)
+  poidsDiversiteKholleur   Int @default(5)
+  poidsEquilibrageHoraire  Int @default(1)
+  poidsAlternanceLangue    Int @default(1000)
 }
 
 // Empêche de renvoyer plusieurs fois le même rappel à un kholleur pour une

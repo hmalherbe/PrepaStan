@@ -54,6 +54,14 @@ class SolveRequest(BaseModel):
     # (voir la docstring de resoudre() dans solver.py). False par défaut :
     # comportement inchangé pour une planification normale.
     effectifPartiel: bool = False
+    # Pondérations de l'objectif combiné (voir docstring de resoudre() dans
+    # solver.py) : réglables depuis l'écran Paramètres de l'appli, pour du
+    # fine-tuning sans redéploiement du microservice. Valeurs par défaut
+    # identiques aux constantes historiques codées en dur dans le solveur.
+    poidsEquilibrageKholleur: int = 10
+    poidsDiversiteKholleur: int = 5
+    poidsEquilibrageHoraire: int = 1
+    poidsAlternanceLangue: int = 1000
     callbackUrl: str
     callbackSecret: str
 
@@ -92,6 +100,10 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
             disciplines_langue=set(payload.disciplinesLangue),
             historique_derniere_langue=payload.historique.derniereLangue,
             effectif_partiel=payload.effectifPartiel,
+            poids_equilibrage_kholleur=payload.poidsEquilibrageKholleur,
+            poids_diversite_kholleur=payload.poidsDiversiteKholleur,
+            poids_equilibrage_horaire=payload.poidsEquilibrageHoraire,
+            poids_alternance_langue=payload.poidsAlternanceLangue,
         )
         logger.info("Job %s résolu : statut=%s", payload.jobId, result.statut)
 

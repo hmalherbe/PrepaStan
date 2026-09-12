@@ -25,6 +25,10 @@ export default async function ParametresPage({
   const envoiKholleurInitial = parametresGeneraux?.envoiEmailKholleur ?? true;
   const envoiReferentInitial = parametresGeneraux?.envoiEmailReferent ?? true;
   const envoiEleveInitial = parametresGeneraux?.envoiEmailEleve ?? true;
+  const poidsEquilibrageKholleurInitial = parametresGeneraux?.poidsEquilibrageKholleur ?? 10;
+  const poidsDiversiteKholleurInitial = parametresGeneraux?.poidsDiversiteKholleur ?? 5;
+  const poidsEquilibrageHoraireInitial = parametresGeneraux?.poidsEquilibrageHoraire ?? 1;
+  const poidsAlternanceLangueInitial = parametresGeneraux?.poidsAlternanceLangue ?? 1000;
 
   if (!classe) {
     return (
@@ -38,6 +42,10 @@ export default async function ParametresPage({
           envoiKholleurInitial={envoiKholleurInitial}
           envoiReferentInitial={envoiReferentInitial}
           envoiEleveInitial={envoiEleveInitial}
+          poidsEquilibrageKholleurInitial={poidsEquilibrageKholleurInitial}
+          poidsDiversiteKholleurInitial={poidsDiversiteKholleurInitial}
+          poidsEquilibrageHoraireInitial={poidsEquilibrageHoraireInitial}
+          poidsAlternanceLangueInitial={poidsAlternanceLangueInitial}
         />
         <p>Aucune classe créée pour le moment.</p>
       </main>
@@ -76,6 +84,10 @@ export default async function ParametresPage({
         envoiKholleurInitial={envoiKholleurInitial}
         envoiReferentInitial={envoiReferentInitial}
         envoiEleveInitial={envoiEleveInitial}
+        poidsEquilibrageKholleurInitial={poidsEquilibrageKholleurInitial}
+        poidsDiversiteKholleurInitial={poidsDiversiteKholleurInitial}
+        poidsEquilibrageHoraireInitial={poidsEquilibrageHoraireInitial}
+        poidsAlternanceLangueInitial={poidsAlternanceLangueInitial}
       />
       <h2>Durées par discipline</h2>
       <p>Durée de préparation et durée de khôlle, par discipline, pour la classe sélectionnée.</p>
