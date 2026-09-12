@@ -51,6 +51,7 @@ export default async function PlanningReviewPage({
         salleId: c.salleId,
         salleNom: c.salle.nom,
         eleves: c.passages.map((p) => `${p.eleve.prenom} ${p.eleve.nom}`),
+        sessionCloturee: s.statut === "CLOTUREE",
       }))
     )
     // Toutes les sessions (une par discipline) sont fusionnées ici : sans ce

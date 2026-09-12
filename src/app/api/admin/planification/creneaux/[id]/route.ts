@@ -27,8 +27,12 @@ const bodySchema = z.object({
 });
 
 // PUT /api/admin/planification/creneaux/:id
-// Édition manuelle d'un créneau du brouillon (salle / kholleur / horaires),
-// avec revérification des conflits (kholleur, salle, élève déjà occupé).
+// Édition manuelle d'un créneau (salle / kholleur / horaires) — utile
+// notamment pour remplacer un kholleur devenu indisponible après la
+// génération, y compris après publication. Refusée une fois la session
+// clôturée (notes validées) : l'historique de qui a fait passer qui doit
+// alors rester figé. Revérifie les conflits (kholleur, salle, élève déjà
+// occupé) à chaque modification.
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
@@ -40,9 +44,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     where: { id },
     include: {
       passages: true,
-      sessionKholle: { select: { classeId: true, disciplineId: true, discipline: { select: { estLangueVivante: true } } } },
+      sessionKholle: {
+        select: { classeId: true, disciplineId: true, statut: true, discipline: { select: { estLangueVivante: true } } },
+      },
     },
   });
+
+  if (existant.sessionKholle.statut === "CLOTUREE") {
+    return NextResponse.json(
+      { error: "Session déjà clôturée (notes validées) : ce créneau n'est plus modifiable" },
+      { status: 409 }
+    );
+  }
 
   let heureDebutPreparation = body.heureDebutPreparation ?? existant.heureDebutPreparation;
   if (body.heureDebutPreparation === undefined && body.heureDebut !== undefined && body.heureDebut !== existant.heureDebut) {

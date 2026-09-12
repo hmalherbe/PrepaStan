@@ -17,6 +17,12 @@ type Creneau = {
   salleId: string;
   salleNom: string;
   eleves: string[];
+  // Session déjà clôturée (toutes les notes validées par le référent) :
+  // rééditer le kholleur/la salle n'aurait alors plus de sens (l'historique
+  // de qui a fait passer qui doit rester figé). Un planning publié mais pas
+  // encore clôturé reste modifiable, précisément pour pouvoir remplacer un
+  // kholleur devenu indisponible après publication.
+  sessionCloturee: boolean;
 };
 
 type Option = { id: string; nom: string };
@@ -162,7 +168,7 @@ export function PlanningReview({
                 <th>Khôlle</th>
                 <th>Kholleur</th>
                 <th>Salle</th>
-                {estBrouillon && <th className="no-print"></th>}
+                <th className="no-print"></th>
               </tr>
             </thead>
             <tbody>
@@ -186,13 +192,13 @@ export function PlanningReview({
                     </td>
                     <td>{c.kholleurNom}</td>
                     <td>{c.salleNom}</td>
-                    {estBrouillon && (
-                      <td className="no-print">
+                    <td className="no-print">
+                      {!c.sessionCloturee && (
                         <button className="discret" onClick={() => setEnEdition(c.id)}>
                           Modifier
                         </button>
-                      </td>
-                    )}
+                      )}
+                    </td>
                   </tr>
                 )
               )}
