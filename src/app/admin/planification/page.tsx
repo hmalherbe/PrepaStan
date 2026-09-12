@@ -15,7 +15,7 @@ export default async function PlanificationPage({
     prisma.classe.findMany({
       orderBy: { nom: "asc" },
       include: {
-        eleves: { select: { id: true, lv1Id: true, lv2Id: true } },
+        eleves: { select: { id: true, nom: true, prenom: true, lv1Id: true, lv2Id: true } },
         referents: true,
         disciplines: {
           include: {
@@ -62,7 +62,9 @@ export default async function PlanificationPage({
     // l'effectif attendu propre à chaque discipline de langue (un
     // sous-groupe de la classe, pas la classe entière — voir aussi
     // nbElevesParDiscipline sur l'écran Classes).
-    eleves: c.eleves.map((e) => ({ id: e.id, lv1Id: e.lv1Id, lv2Id: e.lv2Id })),
+    eleves: c.eleves
+      .map((e) => ({ id: e.id, nom: `${e.prenom} ${e.nom}`, lv1Id: e.lv1Id, lv2Id: e.lv2Id }))
+      .sort((a, b) => a.nom.localeCompare(b.nom)),
     disciplines: c.disciplines.map((cd) => {
       const referentsUniques = new Map(
         cd.discipline.referents.map((r) => [

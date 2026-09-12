@@ -15,7 +15,7 @@ type Discipline = {
   referents: Referent[];
   referentActuelId: string | null;
 };
-type EleveLangues = { id: string; lv1Id: string | null; lv2Id: string | null };
+type EleveLangues = { id: string; nom: string; lv1Id: string | null; lv2Id: string | null };
 type Salle = { id: string; nom: string };
 type Classe = { id: string; nom: string; effectif: number; eleves: EleveLangues[]; disciplines: Discipline[] };
 
@@ -27,6 +27,19 @@ type Quota = {
   nombreEleves: number;
   heureDebut: string;
   salleId: string;
+};
+
+// Fixe un élève précis chez un kholleur précis pour une discipline, AVANT le
+// passage par OR-Tools — utile par exemple pour un élève ayant un besoin
+// pédagogique particulier avec un kholleur donné. Ponctuel : propre à cette
+// génération, jamais mémorisé pour les semaines suivantes (voir jobs/route.ts,
+// qui ne fait que le transmettre tel quel au solveur sans le persister dans
+// une table dédiée).
+type AffectationForcee = {
+  cle: string;
+  eleveId: string;
+  disciplineId: string;
+  kholleurId: string;
 };
 
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
@@ -73,6 +86,7 @@ type Brouillon = {
   dateDebutSemaine: string;
   quotas: Quota[];
   referentParDiscipline: Record<string, string>;
+  affectationsForcees: AffectationForcee[];
 };
 
 function chargerBrouillon(): Brouillon | null {
@@ -117,13 +131,14 @@ export function GenererPlanningForm({
   const [brouillonInitial] = useState<Brouillon | null>(() => {
     if (classeIdInitiale || dateDebutSemaineInitiale) return null;
     const b = chargerBrouillon();
-    if (b?.quotas?.length) {
+    if (b?.quotas?.length || b?.affectationsForcees?.length) {
       // Le compteur de clés React est global au module : après un
       // rechargement complet de page (F5), il repart de zéro alors que le
       // brouillon restauré contient déjà des clés "qN" — sans ce
       // rattrapage, une nouvelle ligne ajoutée pourrait réutiliser une clé
       // déjà prise par une ligne restaurée.
-      const maxNum = Math.max(0, ...b.quotas.map((q) => Number(q.cle.replace("q", "")) || 0));
+      const cles = [...(b.quotas ?? []), ...(b.affectationsForcees ?? [])].map((x) => x.cle);
+      const maxNum = Math.max(0, ...cles.map((c) => Number(c.replace("q", "")) || 0));
       if (maxNum > compteurCle) compteurCle = maxNum;
     }
     return b;
@@ -140,24 +155,28 @@ export function GenererPlanningForm({
   const [referentParDiscipline, setReferentParDiscipline] = useState<Record<string, string>>(
     brouillonInitial?.referentParDiscipline ?? {}
   );
+  const [affectationsForcees, setAffectationsForcees] = useState<AffectationForcee[]>(
+    brouillonInitial?.affectationsForcees ?? []
+  );
   const [jobId, setJobId] = useState<string | null>(null);
   const [statutJob, setStatutJob] = useState<string | null>(null);
   const [messageJob, setMessageJob] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Sauvegarde continue du brouillon (classe, date, quotas, référents) tant
-  // que la génération n'a pas réussi — voir chargerBrouillon() plus haut.
+  // Sauvegarde continue du brouillon (classe, date, quotas, référents,
+  // affectations forcées) tant que la génération n'a pas réussi — voir
+  // chargerBrouillon() plus haut.
   useEffect(() => {
     try {
       sessionStorage.setItem(
         BROUILLON_CLE,
-        JSON.stringify({ classeId, dateDebutSemaine, quotas, referentParDiscipline })
+        JSON.stringify({ classeId, dateDebutSemaine, quotas, referentParDiscipline, affectationsForcees })
       );
     } catch {
       // Stockage indisponible (navigation privée stricte, quota dépassé...) :
       // sans conséquence, juste pas de restauration au prochain aller-retour.
     }
-  }, [classeId, dateDebutSemaine, quotas, referentParDiscipline]);
+  }, [classeId, dateDebutSemaine, quotas, referentParDiscipline, affectationsForcees]);
 
   const classe = classes.find((c) => c.id === classeId);
   const disciplines = classe?.disciplines ?? [];
@@ -168,11 +187,13 @@ export function GenererPlanningForm({
     };
   }, []);
 
-  // Changer de classe invalide les disciplines/kholleurs/référents déjà choisis.
+  // Changer de classe invalide les disciplines/kholleurs/référents/élèves
+  // déjà choisis.
   function changerClasse(id: string) {
     setClasseId(id);
     setQuotas([]);
     setReferentParDiscipline({});
+    setAffectationsForcees([]);
   }
 
   function referentParDefaut(discipline: Discipline | undefined): string {
@@ -215,16 +236,44 @@ export function GenererPlanningForm({
     setQuotas((prev) => prev.filter((q) => q.cle !== cle));
   }
 
+  function ajouterAffectationForcee() {
+    const premiereDiscipline = disciplinesUtilisees[0];
+    setAffectationsForcees((prev) => [
+      ...prev,
+      {
+        cle: nouvelleCle(),
+        eleveId: classe?.eleves[0]?.id ?? "",
+        disciplineId: premiereDiscipline?.id ?? "",
+        kholleurId: premiereDiscipline?.kholleurs[0]?.id ?? "",
+      },
+    ]);
+  }
+
+  function modifierAffectationForcee(cle: string, patch: Partial<AffectationForcee>) {
+    setAffectationsForcees((prev) => prev.map((a) => (a.cle === cle ? { ...a, ...patch } : a)));
+  }
+
+  function retirerAffectationForcee(cle: string) {
+    setAffectationsForcees((prev) => prev.filter((a) => a.cle !== cle));
+  }
+
   // Efface tout le brouillon en cours (lignes de quotas, référents choisis,
   // date) sans changer la classe sélectionnée — utile pour repartir de zéro
   // sans avoir à retirer chaque ligne une par une. Le brouillon persisté en
   // sessionStorage se met à jour tout seul (voir l'effet plus haut), donc un
   // aller-retour d'écran ne le fait pas ressurgir.
   function viderPlanning() {
-    if (quotas.length === 0 && !dateDebutSemaine && Object.keys(referentParDiscipline).length === 0) return;
+    if (
+      quotas.length === 0 &&
+      !dateDebutSemaine &&
+      Object.keys(referentParDiscipline).length === 0 &&
+      affectationsForcees.length === 0
+    )
+      return;
     if (!confirm("Vider le planning en cours ? Toutes les lignes et sélections saisies seront perdues.")) return;
     setQuotas([]);
     setReferentParDiscipline({});
+    setAffectationsForcees([]);
     setDateDebutSemaine("");
   }
 
@@ -302,8 +351,17 @@ export function GenererPlanningForm({
     (q) => !q.disciplineId || !q.kholleurId || !q.heureDebut || !q.salleId || q.nombreEleves < 1
   );
   const effectifsOk = recap.length > 0 && recap.every((r) => r.ok);
+  const affectationsForceesIncompletes = affectationsForcees.some(
+    (a) => !a.eleveId || !a.disciplineId || !a.kholleurId
+  );
   const formulaireValide =
-    !!classeId && !!dateDebutSemaine && quotas.length > 0 && !quotasIncomplets && effectifsOk && !referentsIncomplets;
+    !!classeId &&
+    !!dateDebutSemaine &&
+    quotas.length > 0 &&
+    !quotasIncomplets &&
+    effectifsOk &&
+    !referentsIncomplets &&
+    !affectationsForceesIncompletes;
 
   async function lancer(forcerMalgreIndisponibilites = false) {
     if (semaine === null) return;
@@ -325,6 +383,11 @@ export function GenererPlanningForm({
           heureDebut: q.heureDebut,
           salleId: q.salleId,
           referentId: referentParDiscipline[q.disciplineId] ?? "",
+        })),
+        affectationsForcees: affectationsForcees.map((a) => ({
+          eleveId: a.eleveId,
+          disciplineId: a.disciplineId,
+          kholleurId: a.kholleurId,
         })),
         forcerMalgreIndisponibilites,
       }),
@@ -549,6 +612,100 @@ export function GenererPlanningForm({
             + Ajouter une ligne
           </button>
         </p>
+
+        {disciplinesUtilisees.length > 0 && (
+          <>
+            <p style={{ marginTop: 16 }}>
+              Affectations forcées (optionnel) — fixe un étudiant précis chez un kholleur précis pour une
+              discipline, avant le calcul du reste du planning par OR-Tools. Ponctuel : propre à cette
+              génération, à ressaisir si besoin la semaine suivante.
+            </p>
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Discipline</th>
+                  <th>Étudiant</th>
+                  <th>Kholleur</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {affectationsForcees.map((a) => {
+                  const discipline = disciplinesUtilisees.find((d) => d.id === a.disciplineId);
+                  const kholleurs = discipline?.kholleurs ?? [];
+                  return (
+                    <tr key={a.cle}>
+                      <td>
+                        <select
+                          value={a.disciplineId}
+                          onChange={(e) => {
+                            const nouvelleDiscipline = disciplinesUtilisees.find((d) => d.id === e.target.value);
+                            modifierAffectationForcee(a.cle, {
+                              disciplineId: e.target.value,
+                              kholleurId: nouvelleDiscipline?.kholleurs[0]?.id ?? "",
+                            });
+                          }}
+                          disabled={enCours}
+                        >
+                          <option value="" disabled>
+                            —
+                          </option>
+                          {disciplinesUtilisees.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.nom}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <select
+                          value={a.eleveId}
+                          onChange={(e) => modifierAffectationForcee(a.cle, { eleveId: e.target.value })}
+                          disabled={enCours}
+                        >
+                          <option value="" disabled>
+                            —
+                          </option>
+                          {(classe?.eleves ?? []).map((e) => (
+                            <option key={e.id} value={e.id}>
+                              {e.nom}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <select
+                          value={a.kholleurId}
+                          onChange={(e) => modifierAffectationForcee(a.cle, { kholleurId: e.target.value })}
+                          disabled={enCours || kholleurs.length === 0}
+                        >
+                          <option value="" disabled>
+                            —
+                          </option>
+                          {kholleurs.map((k) => (
+                            <option key={k.id} value={k.id}>
+                              {k.nom}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <button type="button" onClick={() => retirerAffectationForcee(a.cle)} disabled={enCours}>
+                          Retirer
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p>
+              <button type="button" onClick={ajouterAffectationForcee} disabled={enCours}>
+                + Ajouter une affectation forcée
+              </button>
+            </p>
+          </>
+        )}
 
         {disciplinesUtilisees.length > 0 && (
           <>

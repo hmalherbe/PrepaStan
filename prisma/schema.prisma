@@ -336,6 +336,12 @@ model PlanificationJob {
   // quels élèves précis remplissent ces quotas. Conservé pour traçabilité.
   // Forme : [{ jourSemaine, disciplineId, kholleurId, nombreEleves }]
   quotas      Json
+  // Affectations ponctuelles fixées par l'admin avant génération (élève ->
+  // kholleur pour une discipline, voir GenererPlanningForm) : jamais
+  // réappliquées automatiquement les semaines suivantes, conservées ici
+  // uniquement pour traçabilité comme `quotas` ci-dessus.
+  // Forme : [{ eleveId, disciplineId, kholleurId }]
+  affectationsForcees Json @default("[]")
   statut      JobStatut   @default(EN_COURS)
   lanceParId  String
   lancePar    Utilisateur @relation(fields: [lanceParId], references: [id])

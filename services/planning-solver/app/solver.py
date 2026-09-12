@@ -21,6 +21,9 @@ Contraintes dures :
 - chaque élève passe exactement une fois par discipline demandée
 - chaque créneau issu d'un quota est occupé par exactement un élève (donc
   chaque quota est intégralement rempli)
+- affectations forcées ponctuelles : un élève donné passe précisément chez un
+  kholleur donné pour une discipline donnée, quand l'admin l'a explicitement
+  demandé avant génération (voir `affectations_forcees` de `resoudre()`)
 
 Objectifs "soft" (somme pondérée, pondérations ajustables ci-dessous) :
 - équilibrer la charge cumulée des kholleurs (historique inclus)
@@ -151,6 +154,7 @@ def resoudre(
     poids_diversite_kholleur: int = POIDS_DIVERSITE_KHOLLEUR,
     poids_equilibrage_horaire: int = POIDS_EQUILIBRAGE_HORAIRE,
     poids_alternance_langue: int = POIDS_ALTERNANCE_LANGUE,
+    affectations_forcees: list[dict] | None = None,
 ) -> SolveResult:
     """`disciplines_langue` : sous-ensemble de disciplines de la semaine
     marquées "langue vivante" (Discipline.estLangueVivante côté app). Pour
@@ -228,6 +232,35 @@ def resoudre(
         model.AddNoOverlap(ivs)
     for ivs in intervals_salle.values():
         model.AddNoOverlap(ivs)
+
+    # Affectations forcées (ponctuelles, décidées par l'admin avant la
+    # résolution — voir GenererPlanningForm côté appli) : impose qu'un élève
+    # donné passe précisément chez un kholleur donné pour une discipline
+    # donnée, en fixant à 1 la somme des présences sur les seuls créneaux
+    # candidats de ce kholleur pour cette discipline. Combinée à la
+    # contrainte générale "une fois par discipline" ci-dessous (non
+    # contradictoire, juste redondante une fois ce total fixé), le solveur
+    # choisit encore librement LEQUEL des créneaux de ce kholleur (donc
+    # l'horaire précis) si son quota en compte plusieurs.
+    for affectation in affectations_forcees or []:
+        vars_forcees = [
+            presence[(affectation["eleveId"], s_idx)]
+            for s_idx, slot in enumerate(slots)
+            if slot.discipline_id == affectation["disciplineId"]
+            and slot.kholleur_id == affectation["kholleurId"]
+            and (affectation["eleveId"], s_idx) in presence
+        ]
+        if not vars_forcees:
+            return SolveResult(
+                statut="INFAISABLE",
+                message=(
+                    "Affectation forcée impossible : aucun créneau candidat pour l'élève "
+                    f"{affectation['eleveId']} vers le kholleur {affectation['kholleurId']} en discipline "
+                    f"{affectation['disciplineId']} (pas de quota pour ce kholleur dans cette discipline, "
+                    "ou élève non éligible à cette discipline)."
+                ),
+            )
+        model.Add(sum(vars_forcees) == 1)
 
     # Chaque élève passe exactement une fois par discipline demandée cette
     # semaine — sauf les disciplines "langue", regroupées juste après : un

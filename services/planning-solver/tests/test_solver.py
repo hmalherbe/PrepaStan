@@ -450,3 +450,81 @@ def test_charge_kholleur_deja_entierement_fixee_par_les_quotas():
     result = resoudre(eleves=eleves, quotas=quotas, historique_charge_kholleur={"K1": 500})
 
     assert_toutes_contraintes_dures(eleves, quotas, result)
+
+
+# ---------- Affectations forcées (fixer un élève à un kholleur) -----------
+
+
+def test_affectation_forcee_eleve_kholleur_specifique():
+    """Un élève forcé vers K2 doit y atterrir, même si K1 aurait été un choix
+    tout aussi valide pour les contraintes dures et les objectifs soft."""
+    eleves = [eleve("E1"), eleve("E2"), eleve("E3")]
+    quotas = [
+        quota("K1", "Maths", "S1", heure_debut="14:00", nombre_eleves=2),
+        quota("K2", "Maths", "S2", heure_debut="16:00", nombre_eleves=1),
+    ]
+
+    result = resoudre(
+        eleves=eleves,
+        quotas=quotas,
+        affectations_forcees=[{"eleveId": "E1", "disciplineId": "Maths", "kholleurId": "K2"}],
+    )
+
+    assert_toutes_contraintes_dures(eleves, quotas, result)
+    creneau_e1 = next(c for c in result.creneaux if "E1" in c["eleveIds"])
+    assert creneau_e1["kholleurId"] == "K2"
+
+
+def test_affectation_forcee_laisse_les_autres_eleves_libres():
+    """Les élèves non concernés par une affectation forcée restent affectés
+    librement par le solveur — la contrainte ne doit pas se propager."""
+    eleves = [eleve("E1"), eleve("E2"), eleve("E3"), eleve("E4")]
+    quotas = [
+        quota("K1", "Maths", "S1", heure_debut="14:00", nombre_eleves=3),
+        quota("K2", "Maths", "S2", heure_debut="16:00", nombre_eleves=1),
+    ]
+
+    result = resoudre(
+        eleves=eleves,
+        quotas=quotas,
+        affectations_forcees=[{"eleveId": "E4", "disciplineId": "Maths", "kholleurId": "K2"}],
+    )
+
+    assert_toutes_contraintes_dures(eleves, quotas, result)
+    creneau_e4 = next(c for c in result.creneaux if "E4" in c["eleveIds"])
+    assert creneau_e4["kholleurId"] == "K2"
+
+
+def test_affectation_forcee_kholleur_sans_quota_est_infaisable():
+    """Forcer un élève vers un kholleur qui n'a aucun quota pour la
+    discipline demandée doit échouer proprement (message clair), pas
+    planter ni être silencieusement ignoré."""
+    eleves = [eleve("E1")]
+    quotas = [quota("K1", "Maths", "S1", nombre_eleves=1)]
+
+    result = resoudre(
+        eleves=eleves,
+        quotas=quotas,
+        affectations_forcees=[{"eleveId": "E1", "disciplineId": "Maths", "kholleurId": "K999"}],
+    )
+
+    assert result.statut == "INFAISABLE"
+    assert "Affectation forcée impossible" in result.message
+
+
+def test_affectation_forcee_incompatible_avec_langue_est_infaisable():
+    """Forcer un élève vers une discipline langue qui n'est ni sa LV1 ni sa
+    LV2 doit échouer proprement : aucune variable de présence n'existe pour
+    cette combinaison (voir l'éligibilité stricte testée par ailleurs)."""
+    eleves = [eleve("E1", lv1="Anglais", lv2="Espagnol")]
+    quotas = [quota("K1", "Allemand", "S1", nombre_eleves=1)]
+
+    result = resoudre(
+        eleves=eleves,
+        quotas=quotas,
+        disciplines_langue={"Anglais", "Espagnol", "Allemand"},
+        affectations_forcees=[{"eleveId": "E1", "disciplineId": "Allemand", "kholleurId": "K1"}],
+    )
+
+    assert result.statut == "INFAISABLE"
+    assert "Affectation forcée impossible" in result.message

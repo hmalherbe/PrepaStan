@@ -30,6 +30,16 @@ const bodySchema = z.object({
   // propres à chaque (classe, discipline), voir ParametreDiscipline /
   // dureesParDefaut.
   quotas: z.array(quotaSchema).min(1),
+  // Affectations ponctuelles fixées par l'admin avant résolution (écran
+  // "Générer le planning") : force un élève précis chez un kholleur précis
+  // pour une discipline donnée. Jamais persisté dans une table dédiée
+  // (voir plus bas) — propre à cette génération, à ressaisir si besoin la
+  // semaine suivante. Validé ci-dessous (élève de la classe, quota
+  // correspondant existant) avant transmission au solveur.
+  affectationsForcees: z
+    .array(z.object({ eleveId: z.string(), disciplineId: z.string(), kholleurId: z.string() }))
+    .optional()
+    .default([]),
   // Si des quotas dépassent les disponibilités déclarées d'un kholleur, le
   // calcul est d'abord refusé avec le détail (voir plus bas) pour laisser
   // l'admin confirmer explicitement qu'il veut lancer quand même.
@@ -55,8 +65,15 @@ export async function POST(req: Request) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
   const lanceParId = auth.user.id;
-  const { classeId, semaine, dateDebutSemaine, quotas, forcerMalgreIndisponibilites, permettreEffectifPartiel } =
-    bodySchema.parse(await req.json());
+  const {
+    classeId,
+    semaine,
+    dateDebutSemaine,
+    quotas,
+    affectationsForcees,
+    forcerMalgreIndisponibilites,
+    permettreEffectifPartiel,
+  } = bodySchema.parse(await req.json());
 
   const disciplineIds = [...new Set(quotas.map((q) => q.disciplineId))];
   const kholleurIds = [...new Set(quotas.map((q) => q.kholleurId))];
@@ -158,6 +175,40 @@ export async function POST(req: Request) {
   if (erreursReferent.length > 0) {
     return NextResponse.json(
       { error: `Référent incohérent : ${erreursReferent.join(" ; ")}` },
+      { status: 400 }
+    );
+  }
+
+  // Affectations forcées : validées ici plutôt que laissées au solveur, pour
+  // un message d'erreur clair (le solveur, lui, renverrait juste INFAISABLE
+  // sans pouvoir distinguer "élève hors classe" de "vrai conflit de
+  // planning"). Un élève déjà forcé deux fois pour la même discipline est
+  // par nature contradictoire (une seule khôlle possible par discipline).
+  const eleveIds = new Set(eleves.map((e) => e.id));
+  const combinaisonsQuotas = new Set(quotas.map((q) => `${q.disciplineId}|${q.kholleurId}`));
+  const disciplinesDejaForcees = new Set<string>();
+  const erreursAffectation: string[] = [];
+  for (const a of affectationsForcees) {
+    if (!eleveIds.has(a.eleveId)) {
+      erreursAffectation.push(`Élève ${a.eleveId} n'appartient pas à cette classe`);
+      continue;
+    }
+    if (!combinaisonsQuotas.has(`${a.disciplineId}|${a.kholleurId}`)) {
+      erreursAffectation.push(
+        `Aucun quota pour ce kholleur dans cette discipline (élève ${a.eleveId})`
+      );
+      continue;
+    }
+    const cleEleveDiscipline = `${a.eleveId}|${a.disciplineId}`;
+    if (disciplinesDejaForcees.has(cleEleveDiscipline)) {
+      erreursAffectation.push(`Élève ${a.eleveId} forcé deux fois pour la même discipline`);
+      continue;
+    }
+    disciplinesDejaForcees.add(cleEleveDiscipline);
+  }
+  if (erreursAffectation.length > 0) {
+    return NextResponse.json(
+      { error: `Affectation forcée invalide : ${erreursAffectation.join(" ; ")}` },
       { status: 400 }
     );
   }
@@ -331,7 +382,7 @@ export async function POST(req: Request) {
   }
 
   const job = await prisma.planificationJob.create({
-    data: { classeId, semaine, disciplines: disciplineIds, quotas, lanceParId },
+    data: { classeId, semaine, disciplines: disciplineIds, quotas, affectationsForcees, lanceParId },
   });
 
   // S'assure que le référent choisi pour chaque discipline fait bien partie
@@ -380,6 +431,7 @@ export async function POST(req: Request) {
         poidsDiversiteKholleur: parametresGeneraux?.poidsDiversiteKholleur ?? 5,
         poidsEquilibrageHoraire: parametresGeneraux?.poidsEquilibrageHoraire ?? 1,
         poidsAlternanceLangue: parametresGeneraux?.poidsAlternanceLangue ?? 1000,
+        affectationsForcees,
         // En Docker de production, le solveur doit rappeler l'appli via le
         // réseau interne (ex. http://app:3000), pas via le nom de domaine
         // public : selon l'hébergeur, un conteneur ne peut pas forcément se
