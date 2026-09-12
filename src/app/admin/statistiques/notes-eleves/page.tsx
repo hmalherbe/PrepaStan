@@ -39,6 +39,7 @@ export default async function NotesElevesPage({
         note: { select: { valeur: true } },
         creneau: {
           select: {
+            date: true,
             kholleurId: true,
             kholleur: { select: { nom: true, prenom: true } },
             sessionKholle: {
@@ -67,6 +68,7 @@ export default async function NotesElevesPage({
     kholleurId: p.creneau.kholleurId,
     kholleurNom: `${p.creneau.kholleur.prenom} ${p.creneau.kholleur.nom}`,
     semaine: p.creneau.sessionKholle.semaine,
+    date: p.creneau.date.toISOString().slice(0, 10),
     valeur: Number(p.note!.valeur),
   }));
 
