@@ -255,6 +255,40 @@ export async function POST(req: Request) {
     }
   }
 
+  // Un même kholleur ne peut pas non plus être sur deux quotas qui se
+  // chevauchent le même jour (même logique que la salle ci-dessus, mais pour
+  // la personne) — deux quotas dans des salles différentes passeraient sinon
+  // le contrôle précédent tout en étant tout aussi infaisables pour OR-Tools
+  // (un kholleur ne peut pas faire passer deux groupes à la fois).
+  const erreursKholleur: string[] = [];
+  const parKholleurEtDate = new Map<string, typeof quotasDates>();
+  for (const q of quotasDates) {
+    const cle = `${q.date}|${q.kholleurId}`;
+    const liste = parKholleurEtDate.get(cle) ?? [];
+    liste.push(q);
+    parKholleurEtDate.set(cle, liste);
+  }
+  for (const liste of parKholleurEtDate.values()) {
+    const triee = [...liste].sort((a, b) => minutes(a.heureDebut) - minutes(b.heureDebut));
+    for (let i = 1; i < triee.length; i++) {
+      const precedent = triee[i - 1];
+      const finPrecedent =
+        minutes(precedent.heureDebut) + precedent.dureePreparationMinutes + precedent.nombreEleves * precedent.dureeKholleMinutes;
+      if (finPrecedent > minutes(triee[i].heureDebut)) {
+        const kholleur = await prisma.utilisateur.findUnique({ where: { id: triee[i].kholleurId } });
+        erreursKholleur.push(
+          `${kholleur ? `${kholleur.prenom} ${kholleur.nom}` : triee[i].kholleurId} le ${triee[i].date} : deux quotas se chevauchent`
+        );
+      }
+    }
+  }
+  if (erreursKholleur.length > 0) {
+    return NextResponse.json(
+      { error: `Conflit de kholleur :\n${erreursKholleur.join("\n")}` },
+      { status: 400 }
+    );
+  }
+
   // Une salle est une ressource partagée entre TOUTES les classes, pas
   // seulement entre les quotas de ce job : on vérifie donc aussi les
   // créneaux déjà en base (d'une autre classe, ou d'une autre discipline de
