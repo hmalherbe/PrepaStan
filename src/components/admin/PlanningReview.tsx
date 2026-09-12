@@ -14,10 +14,6 @@ type Creneau = {
   heureFin: string;
   kholleurId: string;
   kholleurNom: string;
-  // Référent choisi pour cette semaine dans cette discipline
-  // (SessionKholle.referentId, fixé à la génération du planning) — pas
-  // propre au créneau, donc jamais modifiable ici (voir LigneEdition).
-  referentNom: string;
   salleId: string;
   salleNom: string;
   eleves: string[];
@@ -160,13 +156,12 @@ export function PlanningReview({
           <table>
             <thead>
               <tr>
+                <th>Discipline</th>
+                <th>Étudiants</th>
                 <th>Préparation</th>
                 <th>Khôlle</th>
-                <th>Discipline</th>
                 <th>Kholleur</th>
-                <th>Référent</th>
                 <th>Salle</th>
-                <th>Étudiants</th>
                 {estBrouillon && <th className="no-print"></th>}
               </tr>
             </thead>
@@ -183,15 +178,14 @@ export function PlanningReview({
                   />
                 ) : (
                   <tr key={c.id}>
+                    <td>{c.discipline}</td>
+                    <td>{c.eleves.join(", ")}</td>
                     <td>{c.heureDebutPreparation ?? "—"}</td>
                     <td>
                       {c.heureDebut}-{c.heureFin}
                     </td>
-                    <td>{c.discipline}</td>
                     <td>{c.kholleurNom}</td>
-                    <td>{c.referentNom}</td>
                     <td>{c.salleNom}</td>
-                    <td>{c.eleves.join(", ")}</td>
                     {estBrouillon && (
                       <td className="no-print">
                         <button className="discret" onClick={() => setEnEdition(c.id)}>
@@ -265,6 +259,8 @@ function LigneEdition({
 
   return (
     <tr>
+      <td>{creneau.discipline}</td>
+      <td>{creneau.eleves.join(", ")}</td>
       <td>
         <input
           value={heureDebutPreparation}
@@ -279,7 +275,6 @@ function LigneEdition({
         <input value={heureDebut} onChange={(e) => setHeureDebut(e.target.value)} style={{ width: 60 }} />
         <input value={heureFin} onChange={(e) => setHeureFin(e.target.value)} style={{ width: 60 }} />
       </td>
-      <td>{creneau.discipline}</td>
       <td>
         <select value={kholleurId} onChange={(e) => setKholleurId(e.target.value)}>
           {kholleurs.map((k) => (
@@ -289,7 +284,6 @@ function LigneEdition({
           ))}
         </select>
       </td>
-      <td>{creneau.referentNom}</td>
       <td>
         <select value={salleId} onChange={(e) => setSalleId(e.target.value)}>
           {salles.map((s) => (
@@ -299,7 +293,6 @@ function LigneEdition({
           ))}
         </select>
       </td>
-      <td>{creneau.eleves.join(", ")}</td>
       <td style={{ display: "flex", gap: 6 }}>
         <button
           onClick={() =>

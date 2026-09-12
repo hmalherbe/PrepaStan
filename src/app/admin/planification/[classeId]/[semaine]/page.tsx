@@ -19,7 +19,6 @@ export default async function PlanningReviewPage({
     where: { classeId, semaine },
     include: {
       discipline: true,
-      referent: { select: { prenom: true, nom: true } },
       creneaux: {
         include: {
           kholleur: true,
@@ -49,7 +48,6 @@ export default async function PlanningReviewPage({
         heureFin: c.heureFin,
         kholleurId: c.kholleurId,
         kholleurNom: `${c.kholleur.prenom} ${c.kholleur.nom}`,
-        referentNom: s.referent ? `${s.referent.prenom} ${s.referent.nom}` : "—",
         salleId: c.salleId,
         salleNom: c.salle.nom,
         eleves: c.passages.map((p) => `${p.eleve.prenom} ${p.eleve.nom}`),
