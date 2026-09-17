@@ -93,6 +93,31 @@ export default async function GuidePage() {
           équilibrage des horaires) et de l&apos;alternance LV1/LV2.
         </p>
         <p>
+          Juste en dessous, la section optionnelle <strong>Affectations forcées</strong> permet de fixer par avance
+          le passage d&apos;un étudiant précis, pour une discipline donnée, avant même que le solveur ne
+          s&apos;exécute — utile par exemple pour un étudiant ayant un impératif d&apos;emploi du temps, ou un besoin
+          pédagogique avec un khôlleur en particulier. Renseignez un khôlleur et/ou un horaire (au moins l&apos;un
+          des deux) :
+        </p>
+        <ul>
+          <li>
+            <strong>Khôlleur seul</strong> — l&apos;étudiant passe forcément chez ce khôlleur, mais le solveur reste
+            libre de choisir l&apos;horaire parmi les créneaux de son quota.
+          </li>
+          <li>
+            <strong>Horaire seul</strong> (khôlleur sur « Peu importe ») — l&apos;étudiant passe forcément à cette
+            heure-là, quel que soit le khôlleur qui l&apos;interroge.
+          </li>
+          <li>
+            <strong>Khôlleur et horaire combinés</strong> — les deux sont fixés : chez ce khôlleur précis, à cette
+            heure précise.
+          </li>
+        </ul>
+        <p>
+          Une affectation forcée est ponctuelle : propre à la génération en cours, elle n&apos;est jamais mémorisée
+          pour les semaines suivantes — à ressaisir si le même besoin se représente.
+        </p>
+        <p>
           En dessous du tableau, choisissez le <strong>référent de la semaine</strong> pour chaque discipline
           utilisée (une seule sélection, valable pour toutes les lignes de cette discipline). Le
           <strong> récapitulatif par discipline</strong> vous indique, pour chacune, le nombre d&apos;étudiants
