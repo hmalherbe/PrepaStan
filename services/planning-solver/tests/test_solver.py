@@ -528,3 +528,66 @@ def test_affectation_forcee_incompatible_avec_langue_est_infaisable():
 
     assert result.statut == "INFAISABLE"
     assert "Affectation forcée impossible" in result.message
+
+
+# ---------- Affectations forcées (fixer un horaire) ------------------------
+
+
+def test_affectation_forcee_horaire_sans_kholleur():
+    """Forcer seulement l'horaire (sans préciser de kholleur) doit atterrir
+    E1 sur le créneau demandé, quel que soit le kholleur choisi par le
+    solveur pour ce créneau."""
+    eleves = [eleve("E1"), eleve("E2")]
+    quotas = [quota("K1", "Maths", "S1", heure_debut="14:00", duree_preparation=10, duree_kholle=20, nombre_eleves=2)]
+
+    result = resoudre(
+        eleves=eleves,
+        quotas=quotas,
+        affectations_forcees=[{"eleveId": "E1", "disciplineId": "Maths", "heureDebut": "14:30"}],
+    )
+
+    assert_toutes_contraintes_dures(eleves, quotas, result)
+    creneau_e1 = next(c for c in result.creneaux if "E1" in c["eleveIds"])
+    # heureDebut = début de préparation + durée préparation = 14:00 + 10min ;
+    # le 2e élève du quota (i=1) démarre donc sa khôlle à 14:30.
+    assert creneau_e1["heureDebut"] == "14:30"
+
+
+def test_affectation_forcee_kholleur_et_horaire_combines():
+    """Kholleur ET horaire forcés simultanément doivent tous deux être
+    respectés — ici pour distinguer un élève de deux quotas candidats du
+    même kholleur à des horaires différents."""
+    eleves = [eleve("E1"), eleve("E2"), eleve("E3")]
+    quotas = [
+        quota("K1", "Maths", "S1", heure_debut="14:00", duree_preparation=0, duree_kholle=20, nombre_eleves=1),
+        quota("K1", "Maths", "S1", heure_debut="16:00", duree_preparation=0, duree_kholle=20, nombre_eleves=2),
+    ]
+
+    result = resoudre(
+        eleves=eleves,
+        quotas=quotas,
+        affectations_forcees=[
+            {"eleveId": "E1", "disciplineId": "Maths", "kholleurId": "K1", "heureDebut": "16:00"}
+        ],
+    )
+
+    assert_toutes_contraintes_dures(eleves, quotas, result)
+    creneau_e1 = next(c for c in result.creneaux if "E1" in c["eleveIds"])
+    assert creneau_e1["kholleurId"] == "K1"
+    assert creneau_e1["heureDebut"] == "16:00"
+
+
+def test_affectation_forcee_horaire_impossible_est_infaisable():
+    """Forcer un horaire qui ne correspond à aucun créneau généré (même
+    discipline, même kholleur si précisé) doit échouer proprement."""
+    eleves = [eleve("E1")]
+    quotas = [quota("K1", "Maths", "S1", heure_debut="14:00", duree_preparation=0, duree_kholle=20, nombre_eleves=1)]
+
+    result = resoudre(
+        eleves=eleves,
+        quotas=quotas,
+        affectations_forcees=[{"eleveId": "E1", "disciplineId": "Maths", "heureDebut": "18:00"}],
+    )
+
+    assert result.statut == "INFAISABLE"
+    assert "Affectation forcée impossible" in result.message

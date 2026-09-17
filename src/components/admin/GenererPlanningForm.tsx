@@ -29,17 +29,22 @@ type Quota = {
   salleId: string;
 };
 
-// Fixe un élève précis chez un kholleur précis pour une discipline, AVANT le
-// passage par OR-Tools — utile par exemple pour un élève ayant un besoin
-// pédagogique particulier avec un kholleur donné. Ponctuel : propre à cette
-// génération, jamais mémorisé pour les semaines suivantes (voir jobs/route.ts,
-// qui ne fait que le transmettre tel quel au solveur sans le persister dans
-// une table dédiée).
+// Fixe un élève précis, pour une discipline donnée, chez un kholleur précis
+// et/ou à un horaire précis, AVANT le passage par OR-Tools — utile par
+// exemple pour un élève ayant un besoin pédagogique particulier avec un
+// kholleur donné, ou une contrainte d'emploi du temps qui n'autorise qu'un
+// seul créneau dans la semaine. kholleurId et heureDebut valent "" quand
+// "Peu importe" est choisi ; au moins l'un des deux doit être renseigné (voir
+// affectationsForceesIncompletes). Ponctuel : propre à cette génération,
+// jamais mémorisé pour les semaines suivantes (voir jobs/route.ts, qui ne
+// fait que le transmettre tel quel au solveur sans le persister dans une
+// table dédiée).
 type AffectationForcee = {
   cle: string;
   eleveId: string;
   disciplineId: string;
   kholleurId: string;
+  heureDebut: string;
 };
 
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
@@ -245,6 +250,7 @@ export function GenererPlanningForm({
         eleveId: classe?.eleves[0]?.id ?? "",
         disciplineId: premiereDiscipline?.id ?? "",
         kholleurId: premiereDiscipline?.kholleurs[0]?.id ?? "",
+        heureDebut: "",
       },
     ]);
   }
@@ -352,7 +358,7 @@ export function GenererPlanningForm({
   );
   const effectifsOk = recap.length > 0 && recap.every((r) => r.ok);
   const affectationsForceesIncompletes = affectationsForcees.some(
-    (a) => !a.eleveId || !a.disciplineId || !a.kholleurId
+    (a) => !a.eleveId || !a.disciplineId || (!a.kholleurId && !a.heureDebut)
   );
   const formulaireValide =
     !!classeId &&
@@ -387,7 +393,8 @@ export function GenererPlanningForm({
         affectationsForcees: affectationsForcees.map((a) => ({
           eleveId: a.eleveId,
           disciplineId: a.disciplineId,
-          kholleurId: a.kholleurId,
+          kholleurId: a.kholleurId || undefined,
+          heureDebut: a.heureDebut || undefined,
         })),
         forcerMalgreIndisponibilites,
       }),
@@ -616,9 +623,10 @@ export function GenererPlanningForm({
         {disciplinesUtilisees.length > 0 && (
           <>
             <p style={{ marginTop: 16 }}>
-              Affectations forcées (optionnel) — fixe un étudiant précis chez un kholleur précis pour une
-              discipline, avant le calcul du reste du planning par OR-Tools. Ponctuel : propre à cette
-              génération, à ressaisir si besoin la semaine suivante.
+              Affectations forcées (optionnel) — fixe un étudiant précis, pour une discipline donnée, chez
+              un kholleur précis et/ou à un horaire précis, avant le calcul du reste du planning par
+              OR-Tools (au moins l&apos;un des deux). Ponctuel : propre à cette génération, à ressaisir si
+              besoin la semaine suivante.
             </p>
             <table className="table table-compact">
               <thead>
@@ -626,6 +634,7 @@ export function GenererPlanningForm({
                   <th>Discipline</th>
                   <th>Étudiant</th>
                   <th>Kholleur</th>
+                  <th>Heure</th>
                   <th></th>
                 </tr>
               </thead>
@@ -679,15 +688,21 @@ export function GenererPlanningForm({
                           onChange={(e) => modifierAffectationForcee(a.cle, { kholleurId: e.target.value })}
                           disabled={enCours || kholleurs.length === 0}
                         >
-                          <option value="" disabled>
-                            —
-                          </option>
+                          <option value="">Peu importe</option>
                           {kholleurs.map((k) => (
                             <option key={k.id} value={k.id}>
                               {k.nom}
                             </option>
                           ))}
                         </select>
+                      </td>
+                      <td>
+                        <input
+                          type="time"
+                          value={a.heureDebut}
+                          onChange={(e) => modifierAffectationForcee(a.cle, { heureDebut: e.target.value })}
+                          disabled={enCours}
+                        />
                       </td>
                       <td>
                         <button type="button" onClick={() => retirerAffectationForcee(a.cle)} disabled={enCours}>

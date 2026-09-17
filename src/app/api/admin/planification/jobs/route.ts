@@ -31,13 +31,22 @@ const bodySchema = z.object({
   // dureesParDefaut.
   quotas: z.array(quotaSchema).min(1),
   // Affectations ponctuelles fixées par l'admin avant résolution (écran
-  // "Générer le planning") : force un élève précis chez un kholleur précis
-  // pour une discipline donnée. Jamais persisté dans une table dédiée
-  // (voir plus bas) — propre à cette génération, à ressaisir si besoin la
-  // semaine suivante. Validé ci-dessous (élève de la classe, quota
-  // correspondant existant) avant transmission au solveur.
+  // "Générer le planning") : force un élève précis, pour une discipline
+  // donnée, chez un kholleur précis et/ou à un horaire précis (kholleurId et
+  // heureDebut sont chacun optionnels, mais au moins l'un des deux doit être
+  // fourni — validé plus bas). Jamais persisté dans une table dédiée (voir
+  // plus bas) — propre à cette génération, à ressaisir si besoin la semaine
+  // suivante. Validé ci-dessous (élève de la classe, quota correspondant
+  // existant) avant transmission au solveur.
   affectationsForcees: z
-    .array(z.object({ eleveId: z.string(), disciplineId: z.string(), kholleurId: z.string() }))
+    .array(
+      z.object({
+        eleveId: z.string(),
+        disciplineId: z.string(),
+        kholleurId: z.string().optional(),
+        heureDebut: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+      })
+    )
     .optional()
     .default([]),
   // Si des quotas dépassent les disponibilités déclarées d'un kholleur, le
@@ -182,22 +191,61 @@ export async function POST(req: Request) {
   // Affectations forcées : validées ici plutôt que laissées au solveur, pour
   // un message d'erreur clair (le solveur, lui, renverrait juste INFAISABLE
   // sans pouvoir distinguer "élève hors classe" de "vrai conflit de
-  // planning"). Un élève déjà forcé deux fois pour la même discipline est
-  // par nature contradictoire (une seule khôlle possible par discipline).
+  // planning"). kholleurId et heureDebut sont chacun optionnels : forcer
+  // seulement l'horaire laisse le solveur choisir le kholleur (et
+  // inversement), mais au moins l'un des deux doit être précisé — sans ça
+  // l'affectation ne contraint rien. Un élève déjà forcé deux fois pour la
+  // même discipline est par nature contradictoire (une seule khôlle possible
+  // par discipline).
   const eleveIds = new Set(eleves.map((e) => e.id));
-  const combinaisonsQuotas = new Set(quotas.map((q) => `${q.disciplineId}|${q.kholleurId}`));
+  const nomDiscipline = new Map(toutesDisciplines.map((d) => [d.id, d.nom]));
   const disciplinesDejaForcees = new Set<string>();
   const erreursAffectation: string[] = [];
   for (const a of affectationsForcees) {
+    if (!a.kholleurId && !a.heureDebut) {
+      erreursAffectation.push(`Élève ${a.eleveId} : précisez un kholleur et/ou un horaire`);
+      continue;
+    }
     if (!eleveIds.has(a.eleveId)) {
       erreursAffectation.push(`Élève ${a.eleveId} n'appartient pas à cette classe`);
       continue;
     }
-    if (!combinaisonsQuotas.has(`${a.disciplineId}|${a.kholleurId}`)) {
+    // Quotas de la discipline demandée, filtrés par kholleur si précisé —
+    // sinon n'importe lequel des kholleurs de cette discipline convient.
+    const quotasCorrespondants = quotas.filter(
+      (q) => q.disciplineId === a.disciplineId && (!a.kholleurId || q.kholleurId === a.kholleurId)
+    );
+    if (quotasCorrespondants.length === 0) {
       erreursAffectation.push(
-        `Aucun quota pour ce kholleur dans cette discipline (élève ${a.eleveId})`
+        a.kholleurId
+          ? `Aucun quota pour ce kholleur dans cette discipline (élève ${a.eleveId})`
+          : `Aucun quota pour cette discipline (élève ${a.eleveId})`
       );
       continue;
+    }
+    if (a.heureDebut) {
+      // Horaires de khôlle réellement atteignables parmi ces quotas (chaque
+      // quota s'enchaîne toutes les dureeKholleMinutes à partir de
+      // heureDebut + dureePreparationMinutes, voir generer_slots_candidats
+      // côté solveur) : sert à la fois à valider et à lister les horaires
+      // possibles dans le message d'erreur si celui demandé n'y figure pas.
+      const heuresValides = new Set<string>();
+      for (const q of quotasCorrespondants) {
+        const { dureePreparationMinutes, dureeKholleMinutes } = dureesDe(q.disciplineId);
+        const premiereKholle = minutes(q.heureDebut) + dureePreparationMinutes;
+        for (let i = 0; i < q.nombreEleves; i++) {
+          heuresValides.add(minutesVersHeure(premiereKholle + i * dureeKholleMinutes));
+        }
+      }
+      if (!heuresValides.has(a.heureDebut)) {
+        erreursAffectation.push(
+          `Horaire ${a.heureDebut} impossible pour l'élève ${a.eleveId} en ${nomDiscipline.get(a.disciplineId) ?? a.disciplineId}` +
+            (heuresValides.size > 0
+              ? ` (horaires possibles : ${[...heuresValides].sort().join(", ")})`
+              : "")
+        );
+        continue;
+      }
     }
     const cleEleveDiscipline = `${a.eleveId}|${a.disciplineId}`;
     if (disciplinesDejaForcees.has(cleEleveDiscipline)) {
