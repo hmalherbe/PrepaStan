@@ -90,6 +90,18 @@ export default async function ParametresPage({
         poidsAlternanceLangueInitial={poidsAlternanceLangueInitial}
       />
       <ParametresDisciplineForm
+        // Force un remontage complet à chaque changement de classe : sans
+        // cette clé, changer de classe ne fait que re-rendre le même
+        // composant avec de nouvelles props, mais son état interne (useState
+        // lignesInitiales) n'est initialisé qu'au tout premier montage — il
+        // resterait donc bloqué sur les valeurs de l'ancienne classe. Un
+        // enregistrement déclenché dans cet état écrase alors la nouvelle
+        // classe avec le mélange de l'ancienne (sauf les cellules
+        // explicitement modifiées), et revenir sur l'écran après un
+        // changement de classe réaffiche ces anciennes valeurs — symptôme
+        // d'un "enregistrement qui ne prend pas en base" alors que la vraie
+        // cause est purement côté état React, pas la base de données.
+        key={classe.id}
         classes={classes.map((c) => ({ id: c.id, nom: c.nom }))}
         classeId={classe.id}
         lignesInitiales={lignes}
