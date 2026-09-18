@@ -89,8 +89,6 @@ export default async function ParametresPage({
         poidsEquilibrageHoraireInitial={poidsEquilibrageHoraireInitial}
         poidsAlternanceLangueInitial={poidsAlternanceLangueInitial}
       />
-      <h2>Durées par discipline</h2>
-      <p>Durée de préparation et durée de khôlle, par discipline, pour la classe sélectionnée.</p>
       <ParametresDisciplineForm
         classes={classes.map((c) => ({ id: c.id, nom: c.nom }))}
         classeId={classe.id}

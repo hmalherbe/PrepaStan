@@ -59,7 +59,11 @@ export function ParametresDisciplineForm({
   }
 
   return (
-    <div>
+    <div className="carte" style={{ marginBottom: 20 }}>
+      <h2>Durées par discipline</h2>
+      <p style={{ color: "#777", fontSize: "0.9rem" }}>
+        Durée de préparation et durée de khôlle, par discipline, pour la classe sélectionnée.
+      </p>
       <label>
         Classe
         <select value={classeId} onChange={(e) => router.push(`/admin/parametres?classeId=${e.target.value}`)}>
@@ -112,7 +116,7 @@ export function ParametresDisciplineForm({
             </tbody>
           </table>
           <button type="button" onClick={enregistrer} disabled={enCours} style={{ marginTop: 12 }}>
-            {enCours ? "Enregistrement..." : "Enregistrer"}
+            {enCours ? "Enregistrement..." : "Enregistrer les durées"}
           </button>
           {message && <p>{message}</p>}
         </>

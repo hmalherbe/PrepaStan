@@ -173,7 +173,7 @@ export function ParametresGenerauxForm({
       </label>
 
       <button type="button" onClick={enregistrer} disabled={enCours}>
-        {enCours ? "Enregistrement..." : "Enregistrer"}
+        {enCours ? "Enregistrement..." : "Enregistrer les paramètres généraux"}
       </button>
       {message && <p>{message}</p>}
     </div>
