@@ -81,17 +81,37 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   };
 
   const eleveIds = existant.passages.map((p) => p.eleveId);
+  // Un élève est occupé dès le début de sa préparation (voir solver.py côté
+  // microservice, qui pose la même contrainte à la génération) : la
+  // comparer uniquement sur heureDebut/heureFin, comme pour kholleur/salle,
+  // laisserait passer un chevauchement entre la préparation d'une khôlle et
+  // une autre khôlle du même élève — raté par la génération automatique mais
+  // introductible ici lors d'une modification manuelle.
+  const debutOccupationEleve = nouveau.heureDebutPreparation ?? nouveau.heureDebut;
 
   const chevauchants = await prisma.creneau.findMany({
     where: {
       id: { not: existant.id },
       date: existant.date,
-      heureDebut: { lt: nouveau.heureFin },
-      heureFin: { gt: nouveau.heureDebut },
       OR: [
-        { kholleurId: nouveau.kholleurId },
-        { salleId: nouveau.salleId },
-        { passages: { some: { eleveId: { in: eleveIds } } } },
+        {
+          kholleurId: nouveau.kholleurId,
+          heureDebut: { lt: nouveau.heureFin },
+          heureFin: { gt: nouveau.heureDebut },
+        },
+        {
+          salleId: nouveau.salleId,
+          heureDebut: { lt: nouveau.heureFin },
+          heureFin: { gt: nouveau.heureDebut },
+        },
+        {
+          passages: { some: { eleveId: { in: eleveIds } } },
+          heureFin: { gt: debutOccupationEleve },
+          OR: [
+            { heureDebutPreparation: { lt: nouveau.heureFin } },
+            { heureDebutPreparation: null, heureDebut: { lt: nouveau.heureFin } },
+          ],
+        },
       ],
     },
   });
