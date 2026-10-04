@@ -62,6 +62,11 @@ class SolveRequest(BaseModel):
     poidsDiversiteKholleur: int = 5
     poidsEquilibrageHoraire: int = 1
     poidsAlternanceLangue: int = 1000
+    poidsVarianceEcartKholles: int = 1
+    # Marge minimale (minutes) entre deux khôlles du même élève le même
+    # jour — contrainte DURE (voir resoudre() dans solver.py). 0 par défaut
+    # = comportement historique inchangé.
+    margeMinutesEntreKholles: int = 0
     # Affectations ponctuelles fixées par l'admin avant résolution (écran
     # "Générer le planning") : [{eleveId, disciplineId, kholleurId}]. Chacune
     # force l'élève concerné chez ce kholleur précis pour cette discipline —
@@ -110,6 +115,8 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
             poids_diversite_kholleur=payload.poidsDiversiteKholleur,
             poids_equilibrage_horaire=payload.poidsEquilibrageHoraire,
             poids_alternance_langue=payload.poidsAlternanceLangue,
+            poids_variance_ecart_kholles=payload.poidsVarianceEcartKholles,
+            marge_minutes_entre_kholles=payload.margeMinutesEntreKholles,
             affectations_forcees=payload.affectationsForcees,
         )
         logger.info("Job %s résolu : statut=%s", payload.jobId, result.statut)

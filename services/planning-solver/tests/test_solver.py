@@ -344,6 +344,92 @@ def test_objectif_horaire_privilegie_le_creneau_tot_pour_eleve_deja_penalise():
     assert heure_e1 == "14:00", "E1, déjà pénalisé par l'historique, aurait dû recevoir le créneau le plus tôt"
 
 
+def test_objectif_variance_rapproche_les_ecarts_entre_deux_kholles():
+    """Deux disciplines le même jour, chacune avec deux kholleurs (donc deux
+    horaires possibles), et un historique de diversité qui, à lui seul (SANS
+    l'objectif de variance, vérifié manuellement ci-dessous), pousse E1 vers
+    l'appariement "croisé" (écarts 30 et 70 min, très disparates) : E1 évite
+    à la fois K1a (Maths 14h10) et K2b (Physique 15h20), donc atterrit sur
+    (Maths 14h30, Physique 15h00) = 30 min d'écart, laissant E2 sur
+    (Maths 14h10, Physique 15h20) = 70 min d'écart. Un poids de variance
+    très supérieur doit renverser ce choix vers l'appariement "aligné" (50
+    et 50 min, écarts identiques) même si ça coûte la pénalité de diversité
+    — un résultat qui ne peut s'expliquer que par le nouvel objectif."""
+    eleves = [eleve("E1"), eleve("E2")]
+    quotas = [
+        quota("K1a", "Maths", "S1a", heure_debut="14:00", duree_preparation=10, duree_kholle=20, nombre_eleves=1),
+        quota("K1b", "Maths", "S1b", heure_debut="14:20", duree_preparation=10, duree_kholle=20, nombre_eleves=1),
+        quota("K2a", "Physique", "S2a", heure_debut="15:00", duree_preparation=0, duree_kholle=20, nombre_eleves=1),
+        quota("K2b", "Physique", "S2b", heure_debut="15:20", duree_preparation=0, duree_kholle=20, nombre_eleves=1),
+    ]
+    historique = {"E1|Maths|K1a": 100, "E1|Physique|K2b": 100}
+
+    result = resoudre(
+        eleves=eleves,
+        quotas=quotas,
+        historique_eleve_kholleur=historique,
+        poids_variance_ecart_kholles=1000,
+    )
+
+    assert_toutes_contraintes_dures(eleves, quotas, result)
+    heures_par_eleve: dict[str, list[str]] = {}
+    for c in result.creneaux:
+        for e in c["eleveIds"]:
+            heures_par_eleve.setdefault(e, []).append(c["heureDebut"])
+    ecarts = {}
+    for e, heures in heures_par_eleve.items():
+        h1, h2 = sorted(heures)
+        ecarts[e] = _minutes_test(h2) - _minutes_test(h1)
+    assert ecarts["E1"] == ecarts["E2"] == 50, (
+        f"Avec un poids de variance dominant, les deux étudiants devraient avoir le même écart (50 min), "
+        f"obtenu : {ecarts}"
+    )
+
+
+def _minutes_test(hhmm: str) -> int:
+    h, m = hhmm.split(":")
+    return int(h) * 60 + int(m)
+
+
+def test_marge_entre_kholles_respectee():
+    """Écart naturel de 10 min entre la fin de la khôlle de Maths (14h30) et
+    le début de celle de Physique (14h40) : une marge de 10 min demandée
+    doit donc rester faisable (égalité), sans que le solveur n'ait besoin
+    de bouger quoi que ce soit (un seul élève, un seul horaire possible par
+    discipline)."""
+    eleves = [eleve("E1")]
+    quotas = [
+        quota("K1", "Maths", "S1", heure_debut="14:00", duree_preparation=10, duree_kholle=20, nombre_eleves=1),
+        quota("K2", "Physique", "S2", heure_debut="14:40", duree_preparation=0, duree_kholle=20, nombre_eleves=1),
+    ]
+
+    result = resoudre(eleves=eleves, quotas=quotas, marge_minutes_entre_kholles=10)
+
+    assert_toutes_contraintes_dures(eleves, quotas, result)
+    heures = sorted(c["heureDebut"] for c in result.creneaux)
+    fin_maths = next(c["heureFin"] for c in result.creneaux if c["disciplineId"] == "Maths")
+    debut_physique = next(c["heureDebut"] for c in result.creneaux if c["disciplineId"] == "Physique")
+    assert _minutes_test(debut_physique) - _minutes_test(fin_maths) >= 10
+
+
+def test_marge_trop_grande_rend_infaisable():
+    """Même scénario que ci-dessus, mais avec une marge (15 min) supérieure
+    à l'écart naturel (10 min) : comme un seul élève et un seul horaire
+    possible par discipline existent, aucune réaffectation ne peut
+    satisfaire la marge — INFAISABLE structurel, pas un simple mauvais
+    choix du solveur (même principe que
+    test_infaisable_conflit_horaire_structurel_meme_kholleur)."""
+    eleves = [eleve("E1")]
+    quotas = [
+        quota("K1", "Maths", "S1", heure_debut="14:00", duree_preparation=10, duree_kholle=20, nombre_eleves=1),
+        quota("K2", "Physique", "S2", heure_debut="14:40", duree_preparation=0, duree_kholle=20, nombre_eleves=1),
+    ]
+
+    result = resoudre(eleves=eleves, quotas=quotas, marge_minutes_entre_kholles=15)
+
+    assert result.statut == "INFAISABLE"
+
+
 # ---------- Sanity du vérificateur lui-même --------------------------------
 # Un vérificateur qui ne peut jamais échouer ne prouve rien : les tests
 # ci-dessous injectent volontairement une violation dans un résultat par

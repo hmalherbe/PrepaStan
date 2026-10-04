@@ -513,6 +513,8 @@ export async function POST(req: Request) {
         poidsDiversiteKholleur: parametresGeneraux?.poidsDiversiteKholleur ?? 5,
         poidsEquilibrageHoraire: parametresGeneraux?.poidsEquilibrageHoraire ?? 1,
         poidsAlternanceLangue: parametresGeneraux?.poidsAlternanceLangue ?? 1000,
+        poidsVarianceEcartKholles: parametresGeneraux?.poidsVarianceEcartKholles ?? 1,
+        margeMinutesEntreKholles: parametresGeneraux?.margeMinutesEntreKholles ?? 0,
         affectationsForcees,
         // En Docker de production, le solveur doit rappeler l'appli via le
         // réseau interne (ex. http://app:3000), pas via le nom de domaine

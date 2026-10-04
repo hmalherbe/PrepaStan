@@ -29,6 +29,8 @@ export default async function ParametresPage({
   const poidsDiversiteKholleurInitial = parametresGeneraux?.poidsDiversiteKholleur ?? 5;
   const poidsEquilibrageHoraireInitial = parametresGeneraux?.poidsEquilibrageHoraire ?? 1;
   const poidsAlternanceLangueInitial = parametresGeneraux?.poidsAlternanceLangue ?? 1000;
+  const poidsVarianceEcartKhollesInitial = parametresGeneraux?.poidsVarianceEcartKholles ?? 1;
+  const margeMinutesEntreKhollesInitial = parametresGeneraux?.margeMinutesEntreKholles ?? 0;
 
   if (!classe) {
     return (
@@ -46,6 +48,8 @@ export default async function ParametresPage({
           poidsDiversiteKholleurInitial={poidsDiversiteKholleurInitial}
           poidsEquilibrageHoraireInitial={poidsEquilibrageHoraireInitial}
           poidsAlternanceLangueInitial={poidsAlternanceLangueInitial}
+          poidsVarianceEcartKhollesInitial={poidsVarianceEcartKhollesInitial}
+          margeMinutesEntreKhollesInitial={margeMinutesEntreKhollesInitial}
         />
         <p>Aucune classe créée pour le moment.</p>
       </main>
@@ -88,6 +92,8 @@ export default async function ParametresPage({
         poidsDiversiteKholleurInitial={poidsDiversiteKholleurInitial}
         poidsEquilibrageHoraireInitial={poidsEquilibrageHoraireInitial}
         poidsAlternanceLangueInitial={poidsAlternanceLangueInitial}
+        poidsVarianceEcartKhollesInitial={poidsVarianceEcartKhollesInitial}
+        margeMinutesEntreKhollesInitial={margeMinutesEntreKhollesInitial}
       />
       <ParametresDisciplineForm
         // Force un remontage complet à chaque changement de classe : sans

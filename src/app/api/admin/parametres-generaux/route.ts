@@ -15,6 +15,8 @@ const bodySchema = z.object({
   poidsDiversiteKholleur: z.number().int().min(0).max(100000),
   poidsEquilibrageHoraire: z.number().int().min(0).max(100000),
   poidsAlternanceLangue: z.number().int().min(0).max(100000),
+  poidsVarianceEcartKholles: z.number().int().min(0).max(100000),
+  margeMinutesEntreKholles: z.number().int().min(0).max(240),
 });
 
 // PUT /api/admin/parametres-generaux

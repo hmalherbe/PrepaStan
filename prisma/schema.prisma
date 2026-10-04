@@ -380,6 +380,17 @@ model ParametresApplication {
   poidsDiversiteKholleur   Int @default(5)
   poidsEquilibrageHoraire  Int @default(1)
   poidsAlternanceLangue    Int @default(1000)
+  // Pénalise l'écart entre la plus grande et la plus petite "différence
+  // entre les deux heures de khôlle d'un même jour" réalisées cette
+  // semaine, tous élèves confondus ayant deux khôlles le même jour (voir
+  // resoudre() dans solver.py) : rapproche ces écarts les uns des autres
+  // plutôt que de les laisser très disparates d'un élève à l'autre.
+  poidsVarianceEcartKholles Int @default(1)
+  // Durée minimale (minutes) devant séparer la fin d'une khôlle (ou de sa
+  // préparation, si elle commence plus tôt) et le début de la khôlle
+  // suivante du même élève le même jour. Contrainte DURE côté solveur
+  // (0 = comportement historique inchangé, aucune marge imposée).
+  margeMinutesEntreKholles Int @default(0)
 }
 
 // Empêche de renvoyer plusieurs fois le même rappel à un kholleur pour une

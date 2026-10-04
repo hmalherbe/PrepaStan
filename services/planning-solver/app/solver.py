@@ -37,10 +37,24 @@ Objectifs "soft" (somme pondérée, pondérations ajustables ci-dessous) :
   plutôt que de juste pénaliser un seuil "tardif" binaire — un élève souvent
   à 14h et un autre souvent à 18h ont un score très différent même si aucun
   des deux n'a jamais dépassé un seuil arbitraire.
+- réduire la dispersion de l'écart entre les deux heures de khôlle d'un
+  même élève quand il en a deux le même jour (ex. Maths à 14h et Physique à
+  16h30 -> écart de 150 min) : on veut que cet écart soit comparable d'un
+  élève à l'autre, pas très variable. Comme pour les deux points ci-dessus,
+  CP-SAT ne calcule pas de variance statistique exacte (elle nécessiterait
+  de diviser par un nombre de termes qui dépend lui-même de l'affectation) :
+  on minimise à la place l'écart entre le plus grand et le plus petit de ces
+  écarts réellement réalisés cette semaine (son étendue), un indicateur de
+  dispersion équivalent en pratique et linéaire pour le solveur.
+
+Contrainte dure supplémentaire :
+- marge minimale (minutes, configurable, 0 = désactivée) entre la fin d'une
+  khôlle (ou de sa préparation si elle commence plus tôt) et le début de la
+  khôlle suivante du même élève le même jour.
 
 Ces objectifs ont des unités différentes (nombre de créneaux vs nombre de
-répétitions vs rang horaire cumulé) : leur pondération relative est une
-heuristique de départ, à ajuster empiriquement.
+répétitions vs rang horaire cumulé vs minutes d'écart) : leur pondération
+relative est une heuristique de départ, à ajuster empiriquement.
 """
 
 # Nécessaire pour rester compatible Python 3.9 : sans ceci, la syntaxe
@@ -68,6 +82,15 @@ POIDS_EQUILIBRAGE_HORAIRE = 1
 # plutôt que dure pour ne jamais rendre une semaine infaisable si les quotas
 # historiques ne permettent pas une alternance parfaite pour tout le monde.
 POIDS_ALTERNANCE_LANGUE = 1000
+# Poids par défaut de la réduction de dispersion de l'écart entre les deux
+# heures de khôlle d'un même jour (voir docstring ci-dessus). Même ordre de
+# grandeur que POIDS_EQUILIBRAGE_HORAIRE, autre objectif portant lui aussi
+# sur des minutes/rangs horaires plutôt que des nombres de créneaux.
+POIDS_VARIANCE_ECART_KHOLLES = 1
+# Marge minimale (minutes) entre deux khôlles du même élève le même jour,
+# PAR DÉFAUT si resoudre() est appelée sans préciser ce paramètre (voir
+# POIDS_* ci-dessus) : 0 = comportement historique inchangé.
+MARGE_MINUTES_ENTRE_KHOLLES = 0
 
 
 @dataclass
@@ -155,6 +178,8 @@ def resoudre(
     poids_diversite_kholleur: int = POIDS_DIVERSITE_KHOLLEUR,
     poids_equilibrage_horaire: int = POIDS_EQUILIBRAGE_HORAIRE,
     poids_alternance_langue: int = POIDS_ALTERNANCE_LANGUE,
+    poids_variance_ecart_kholles: int = POIDS_VARIANCE_ECART_KHOLLES,
+    marge_minutes_entre_kholles: int = MARGE_MINUTES_ENTRE_KHOLLES,
     affectations_forcees: list[dict] | None = None,
 ) -> SolveResult:
     """`disciplines_langue` : sous-ensemble de disciplines de la semaine
@@ -217,11 +242,16 @@ def resoudre(
             # L'élève, lui, est occupé dès le début de sa préparation : sans
             # cet intervalle plus large, le solveur pourrait lui planifier
             # une autre khôlle qui chevauche sa préparation (l'élève ne
-            # serait alors nulle part au bon moment).
+            # serait alors nulle part au bon moment). La fin est en plus
+            # repoussée de `marge_minutes_entre_kholles` (0 par défaut) :
+            # AddNoOverlap impose déjà fin(i) <= début(j) pour deux
+            # intervalles d'un même élève, donc élargir artificiellement la
+            # fin de chacun impose mécaniquement un écart d'au moins cette
+            # marge entre deux khôlles du même jour, sans contrainte séparée.
             iv_eleve = model.NewOptionalIntervalVar(
                 offset + slot.debut_preparation_minutes,
-                slot.fin_minutes - slot.debut_preparation_minutes,
-                offset + slot.fin_minutes,
+                slot.fin_minutes - slot.debut_preparation_minutes + marge_minutes_entre_kholles,
+                offset + slot.fin_minutes + marge_minutes_entre_kholles,
                 b,
                 f"iv_eleve_{e['id']}_{s_idx}",
             )
@@ -395,11 +425,66 @@ def resoudre(
                     termes_alternance.append(presence[key])
     alternance_penalite = sum(termes_alternance) if termes_alternance else 0
 
+    # --- Objectif 5 : réduire la dispersion de l'écart entre deux khôlles --
+    # le même jour pour un même élève (voir docstring en tête de fichier).
+    # L'écart entre deux créneaux candidats donnés est une constante connue
+    # à l'avance (les horaires découlent des quotas, pas d'une décision du
+    # solveur) : seul le fait qu'UN élève donné se retrouve sur CETTE paire
+    # précise dépend de l'affectation. Pour chaque paire de créneaux du même
+    # jour (disciplines différentes - un élève ne peut jamais avoir deux
+    # créneaux de la même discipline, voir la contrainte "exactement une
+    # fois par discipline" ci-dessus, donc une paire de même discipline ne
+    # serait jamais réalisable), on crée pour chaque élève une variable
+    # booléenne "a les deux", qui alimente le min/max calculés plus bas.
+    slots_par_jour: dict[str, list[int]] = {}
+    for s_idx, slot in enumerate(slots):
+        slots_par_jour.setdefault(slot.jour, []).append(s_idx)
+
+    ecarts_realises: list[tuple[cp_model.IntVar, int]] = []
+    for indices_jour in slots_par_jour.values():
+        for pos, i in enumerate(indices_jour):
+            for j in indices_jour[pos + 1 :]:
+                if slots[i].discipline_id == slots[j].discipline_id:
+                    continue
+                ecart = abs(slots[j].debut_minutes - slots[i].debut_minutes)
+                for e in eleves:
+                    cle_i, cle_j = (e["id"], i), (e["id"], j)
+                    if cle_i not in presence or cle_j not in presence:
+                        continue
+                    a, b_var = presence[cle_i], presence[cle_j]
+                    z = model.NewBoolVar(f"deux_kholles_{e['id']}_{i}_{j}")
+                    # z == 1 ssi les deux créneaux sont pris par cet élève
+                    # (ET logique linéarisé) : sans les trois contraintes,
+                    # le solveur pourrait laisser z à 0 même quand les deux
+                    # présences valent 1, ce qui rendrait l'objectif ci-
+                    # dessous inopérant (aucune paire jamais "active").
+                    model.Add(z <= a)
+                    model.Add(z <= b_var)
+                    model.Add(z >= a + b_var - 1)
+                    ecarts_realises.append((z, ecart))
+
+    ecart_max_possible = max((ecart for _, ecart in ecarts_realises), default=0)
+    max_ecart = model.NewIntVar(0, ecart_max_possible, "max_ecart_jour")
+    min_ecart = model.NewIntVar(0, ecart_max_possible, "min_ecart_jour")
+    # Sans cette borne, rien n'empêcherait le solveur de pousser min_ecart
+    # au-delà de max_ecart quand aucune paire n'est active cette semaine
+    # (aucune contrainte OnlyEnforceIf ci-dessous ne serait alors déclenchée),
+    # ce qui rendrait la différence artificiellement négative — un gain
+    # fictif que le solveur exploiterait sans rapport avec une vraie
+    # dispersion. Elle garantit au contraire une dispersion nulle (0 paire
+    # active = rien à équilibrer) plutôt qu'un gain fictif.
+    model.Add(min_ecart <= max_ecart)
+    for z, ecart in ecarts_realises:
+        model.Add(max_ecart >= ecart).OnlyEnforceIf(z)
+        model.Add(min_ecart <= ecart).OnlyEnforceIf(z)
+    variance_ecart_kholles = max_ecart - min_ecart
+
     model.Minimize(
         poids_alternance_langue * alternance_penalite
         + poids_equilibrage_kholleur * charge_max
         + poids_diversite_kholleur * diversite_penalite
         + poids_equilibrage_horaire * score_horaire_max
+        + poids_variance_ecart_kholles * variance_ecart_kholles
     )
 
     solver = cp_model.CpSolver()

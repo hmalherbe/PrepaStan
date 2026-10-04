@@ -15,6 +15,8 @@ export function ParametresGenerauxForm({
   poidsDiversiteKholleurInitial,
   poidsEquilibrageHoraireInitial,
   poidsAlternanceLangueInitial,
+  poidsVarianceEcartKhollesInitial,
+  margeMinutesEntreKhollesInitial,
 }: {
   delaiInitial: number;
   modeleKholleurInitial: string;
@@ -27,6 +29,8 @@ export function ParametresGenerauxForm({
   poidsDiversiteKholleurInitial: number;
   poidsEquilibrageHoraireInitial: number;
   poidsAlternanceLangueInitial: number;
+  poidsVarianceEcartKhollesInitial: number;
+  margeMinutesEntreKhollesInitial: number;
 }) {
   const [delai, setDelai] = useState(delaiInitial);
   const [modeleKholleur, setModeleKholleur] = useState(modeleKholleurInitial);
@@ -39,6 +43,8 @@ export function ParametresGenerauxForm({
   const [poidsDiversiteKholleur, setPoidsDiversiteKholleur] = useState(poidsDiversiteKholleurInitial);
   const [poidsEquilibrageHoraire, setPoidsEquilibrageHoraire] = useState(poidsEquilibrageHoraireInitial);
   const [poidsAlternanceLangue, setPoidsAlternanceLangue] = useState(poidsAlternanceLangueInitial);
+  const [poidsVarianceEcartKholles, setPoidsVarianceEcartKholles] = useState(poidsVarianceEcartKhollesInitial);
+  const [margeMinutesEntreKholles, setMargeMinutesEntreKholles] = useState(margeMinutesEntreKhollesInitial);
   const [enCours, setEnCours] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -61,6 +67,8 @@ export function ParametresGenerauxForm({
           poidsDiversiteKholleur,
           poidsEquilibrageHoraire,
           poidsAlternanceLangue,
+          poidsVarianceEcartKholles,
+          margeMinutesEntreKholles,
         }),
       });
       if (!res.ok) {
@@ -125,7 +133,7 @@ export function ParametresGenerauxForm({
       <p style={{ color: "#777", fontSize: "0.9rem" }}>
         Pondérations de l&apos;objectif du solveur de planification (OR-Tools) : plus une pondération est élevée,
         plus l&apos;objectif correspondant est prioritaire par rapport aux autres lors de la génération d&apos;un
-        planning. Valeurs par défaut d&apos;origine : 10 / 5 / 1 / 1000.
+        planning. Valeurs par défaut d&apos;origine : 10 / 5 / 1 / 1000 / 1.
       </p>
       <label style={{ display: "block", marginBottom: 10 }}>
         Équilibrage de la charge des kholleurs
@@ -171,6 +179,41 @@ export function ParametresGenerauxForm({
           style={{ width: 100 }}
         />
       </label>
+      <label style={{ display: "block", marginBottom: 10 }}>
+        Minimiser la variance (écart entre les deux heures de khôlle d&apos;un même jour)
+        <input
+          type="number"
+          min={0}
+          max={100000}
+          value={poidsVarianceEcartKholles}
+          onChange={(e) => setPoidsVarianceEcartKholles(Number(e.target.value))}
+          style={{ width: 100 }}
+        />
+      </label>
+      <p style={{ color: "#777", fontSize: "0.9rem" }}>
+        Quand un même étudiant passe deux khôlles le même jour, rapproche l&apos;écart entre leurs deux heures de
+        début de celui observé pour les autres étudiants dans le même cas, plutôt que de laisser cet écart très
+        disparate d&apos;un étudiant à l&apos;autre.
+      </p>
+
+      <h3>Contraintes dures</h3>
+      <label style={{ display: "block", marginBottom: 10 }}>
+        Marge minimale entre deux khôlles le même jour pour un même étudiant (minutes)
+        <input
+          type="number"
+          min={0}
+          max={240}
+          value={margeMinutesEntreKholles}
+          onChange={(e) => setMargeMinutesEntreKholles(Number(e.target.value))}
+          style={{ width: 100 }}
+        />
+      </label>
+      <p style={{ color: "#777", fontSize: "0.9rem" }}>
+        Durée minimale devant séparer la fin d&apos;une khôlle (ou de sa préparation si elle commence plus tôt) et
+        le début de la khôlle suivante du même étudiant le même jour. 0 = aucune marge imposée (comportement
+        historique). Contrairement aux pondérations ci-dessus, c&apos;est une contrainte dure : le solveur refusera
+        tout planning qui ne la respecte pas (plutôt que de simplement la défavoriser).
+      </p>
 
       <button type="button" onClick={enregistrer} disabled={enCours}>
         {enCours ? "Enregistrement..." : "Enregistrer les paramètres généraux"}
