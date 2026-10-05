@@ -337,12 +337,14 @@ export function GenererPlanningForm({
     if (classeADesLV2 && disciplineIdsLangue.length > 0 && classe) {
       const totalLangues = disciplineIdsLangue.reduce((s, id) => s + (totaux.get(id) ?? 0), 0);
       const noms = disciplineIdsLangue.map((id) => disciplines.find((d) => d.id === id)?.nom ?? id);
-      // Un élève compte dans l'effectif attendu sauf si TOUTES les langues
-      // de la semaine auxquelles il serait éligible (LV1/LV2) sont
-      // dispensées pour lui — même règle que côté route jobs/route.ts.
+      // Un élève compte dans l'effectif attendu seulement s'il lui reste au
+      // moins une langue de la semaine à la fois éligible (LV1/LV2) et non
+      // dispensée (couvre aussi "aucune LV1/LV2 du tout" ou "sa langue
+      // n'est pas offerte cette semaine") — même règle que côté route
+      // jobs/route.ts.
       const attenduLangues = classe.eleves.filter((e) => {
         const languesEligibles = disciplineIdsLangue.filter((id) => id === e.lv1Id || id === e.lv2Id);
-        return languesEligibles.length === 0 || languesEligibles.some((id) => !e.disciplinesDispenseesIds.includes(id));
+        return languesEligibles.some((id) => !e.disciplinesDispenseesIds.includes(id));
       }).length;
       lignes.push({
         cle: "langues",

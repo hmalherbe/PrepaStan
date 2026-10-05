@@ -169,14 +169,18 @@ export async function POST(req: Request) {
   // certains élèves sans aucun créneau cette semaine-là — ce que ce total
   // doit précisément empêcher de passer inaperçu.
   if (disciplinesLangue.length > 0) {
-    // Un élève compte dans l'effectif attendu des langues sauf si TOUTES les
-    // langues de la semaine auxquelles il serait normalement éligible
-    // (LV1/LV2) sont dispensées pour lui — mêmes règles que
-    // `mes_langues_offertes` côté solveur (solver.py) : s'il lui reste au
-    // moins une langue possible, il doit toujours en passer une.
+    // Un élève compte dans l'effectif attendu des langues seulement s'il lui
+    // reste au moins une langue de la semaine à la fois éligible (LV1/LV2)
+    // ET non dispensée — mêmes règles que `mes_langues_offertes` côté
+    // solveur (solver.py), qui ne lui impose alors aucune contrainte de
+    // langue cette semaine-là. Couvre aussi bien le cas "toutes ses langues
+    // éligibles sont dispensées" que "aucune LV1/LV2 enregistrée du tout"
+    // ou "sa LV1/LV2 n'est pas offerte cette semaine" : dans tous ces cas,
+    // il ne peut structurellement recevoir aucun créneau de langue, donc ne
+    // doit pas compter dans le total attendu.
     const effectifAttenduLangues = eleves.filter((e) => {
       const languesEligibles = disciplinesLangue.filter((d) => d === e.lv1Id || d === e.lv2Id);
-      return languesEligibles.length === 0 || languesEligibles.some((d) => !estDispense(e, d));
+      return languesEligibles.some((d) => !estDispense(e, d));
     }).length;
     const totalLangue = quotas
       .filter((q) => disciplinesLangue.includes(q.disciplineId))
