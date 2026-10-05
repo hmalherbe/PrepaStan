@@ -60,6 +60,10 @@ export default async function HistoriquePlanningsPage() {
     disciplines: Set<string>;
     nbKholles: number;
     eleves: Set<string>;
+    // Statuts de toutes les SessionKholle du groupe (une par discipline) :
+    // sert à déterminer si le groupe est encore un brouillon ou déjà publié
+    // (voir le calcul de `publie` plus bas).
+    statuts: Set<string>;
     // clé = `${kholleurId}_${disciplineId}` ou `${referentId}_${disciplineId}`
     kholleurs: Map<string, Personne>;
     referents: Map<string, Personne>;
@@ -78,12 +82,14 @@ export default async function HistoriquePlanningsPage() {
         disciplines: new Set(),
         nbKholles: 0,
         eleves: new Set(),
+        statuts: new Set(),
         kholleurs: new Map(),
         referents: new Map(),
       };
       groupes.set(cle, g);
     }
     g.disciplines.add(s.discipline.nom);
+    g.statuts.add(s.statut);
 
     const statutParKholleur = new Map(s.validationGrilles.map((v) => [v.kholleurId, v.statut]));
     for (const c of s.creneaux) {
@@ -128,6 +134,11 @@ export default async function HistoriquePlanningsPage() {
         nbKholles: g.nbKholles,
         nbEleves: g.eleves.size,
         nbDisciplines: g.disciplines.size,
+        // Publié seulement si TOUTES les disciplines du groupe ont quitté le
+        // brouillon ("PLANIFICATION") : si une seule discipline vient d'être
+        // (re)générée sans encore être republiée, le groupe n'est pas
+        // intégralement visible des kholleurs/étudiants, donc pas "Publié".
+        publie: ![...g.statuts].includes("PLANIFICATION"),
         kholleurs: [...g.kholleurs.values()].sort(tri),
         referents: [...g.referents.values()].sort(tri),
       };

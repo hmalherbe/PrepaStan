@@ -14,6 +14,7 @@ type Ligne = {
   nbKholles: number;
   nbEleves: number;
   nbDisciplines: number;
+  publie: boolean;
   kholleurs: (Personne & { valide: boolean })[];
   referents: (Personne & { valide: boolean })[];
 };
@@ -120,6 +121,7 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
             <th>Disciplines</th>
             <th>Khôlles dispensées</th>
             <th>Étudiants interrogés</th>
+            <th>Publication</th>
             <th>État</th>
           </tr>
         </thead>
@@ -147,6 +149,11 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
                   <td>{l.disciplines}</td>
                   <td>{l.nbKholles}</td>
                   <td>{l.nbEleves}</td>
+                  <td>
+                    <span style={{ color: l.publie ? "#1a7f37" : "#777" }}>
+                      {l.publie ? "Publié" : "Non publié"}
+                    </span>
+                  </td>
                   <td>
                     <div>
                       Kholleurs :{" "}
@@ -195,14 +202,14 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
                 </tr>
                 {ouverts.has(cleKV) && kholleursValides.length > 0 && (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={8}>
                       <strong>Kholleurs ayant validé :</strong> <ListePersonnes personnes={kholleursValides} />
                     </td>
                   </tr>
                 )}
                 {ouverts.has(cleKNV) && kholleursNonValides.length > 0 && (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={8}>
                       <strong>Kholleurs n&apos;ayant pas validé :</strong>{" "}
                       <ListePersonnes personnes={kholleursNonValides} />
                     </td>
@@ -210,14 +217,14 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
                 )}
                 {ouverts.has(cleRV) && referentsValides.length > 0 && (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={8}>
                       <strong>Référents ayant validé :</strong> <ListePersonnes personnes={referentsValides} />
                     </td>
                   </tr>
                 )}
                 {ouverts.has(cleRNV) && referentsNonValides.length > 0 && (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={8}>
                       <strong>Référents n&apos;ayant pas validé :</strong>{" "}
                       <ListePersonnes personnes={referentsNonValides} />
                     </td>
@@ -228,7 +235,7 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
           })}
           {lignesAffichees.length === 0 && (
             <tr>
-              <td colSpan={7}>
+              <td colSpan={8}>
                 {lignes.length === 0 ? "Aucun planning généré pour le moment." : "Aucun planning pour cette classe."}
               </td>
             </tr>
