@@ -116,7 +116,16 @@ async function main() {
 
   type Violation = { c: CreneauEleve; precedent: CreneauEleve; gap: number };
   const violations: Violation[] = [];
-  const ecartsDeuxKholles: { c: CreneauEleve; ecart: number }[] = [];
+  const ecartsDeuxKholles: {
+    premiere: CreneauEleve;
+    deuxieme: CreneauEleve;
+    ecart: number;
+    // Au sens littéral de "chevauchement" sur les deux khôlles elles-mêmes
+    // (hors préparation) : fin de la 1re - début de la 2e. Positif = les
+    // deux khôlles se chevauchent réellement ; négatif = le nombre de
+    // minutes qui les sépare, sans chevauchement.
+    finPremiereMoinsDebutDeuxieme: number;
+  }[] = [];
 
   for (const liste of parEleveEtJour.values()) {
     if (liste.length < 2) continue;
@@ -136,7 +145,12 @@ async function main() {
     // deux, "la première" et "la deuxième" ne désignent plus une paire
     // unique).
     if (triee.length === 2) {
-      ecartsDeuxKholles.push({ c: triee[1], ecart: minutes(triee[1].heureDebut) - minutes(triee[0].heureDebut) });
+      ecartsDeuxKholles.push({
+        premiere: triee[0],
+        deuxieme: triee[1],
+        ecart: minutes(triee[1].heureDebut) - minutes(triee[0].heureDebut),
+        finPremiereMoinsDebutDeuxieme: minutes(triee[0].heureFin) - minutes(triee[1].heureDebut),
+      });
     }
   }
 
@@ -163,16 +177,32 @@ async function main() {
     console.log(`\n${violations.length} violation(s) sur ${parEleveEtJour.size} jour(s) élève à 2+ khôlles.`);
   }
 
-  console.log("\n=== Dispersion de l'écart entre les deux heures de khôlle d'un même jour ===");
-  console.log("(écart = heureDebut de la 2e khôlle - heureDebut de la 1re, en minutes ; jours à exactement 2 khôlles)");
+  console.log("\n=== Écart entre les deux heures de khôlle d'un même jour, par étudiant ===");
+  console.log(
+    "(jours à exactement 2 khôlles ; écart = heureDebut 2e - heureDebut 1re ; " +
+      "fin1-début2 = heureFin de la 1re - heureDebut de la 2e : positif = chevauchement réel des khôlles elles-mêmes, " +
+      "négatif = minutes d'écart sans chevauchement)"
+  );
   if (ecartsDeuxKholles.length === 0) {
     console.log("Aucun élève n'a passé exactement deux khôlles le même jour sur ce périmètre.");
   } else {
+    const triee = [...ecartsDeuxKholles].sort(
+      (a, b) => a.premiere.date.localeCompare(b.premiere.date) || a.premiere.eleveNom.localeCompare(b.premiere.eleveNom)
+    );
+    for (const { premiere, deuxieme, ecart, finPremiereMoinsDebutDeuxieme } of triee) {
+      console.log(
+        `  ${premiere.elevePrenom} ${premiere.eleveNom} (${premiere.classeNom}, semaine ${premiere.semaine}) — ${premiere.date} : ` +
+          `${premiere.disciplineNom} ${premiere.heureDebut}-${premiere.heureFin} puis ` +
+          `${deuxieme.disciplineNom} ${deuxieme.heureDebut}-${deuxieme.heureFin} ` +
+          `=> écart ${ecart} min ; fin1-début2 = ${finPremiereMoinsDebutDeuxieme} min`
+      );
+    }
+
     const valeurs = ecartsDeuxKholles.map((e) => e.ecart);
     const m = moyenne(valeurs);
     const v = variance(valeurs);
     console.log(
-      `  n=${valeurs.length}  moyenne=${m.toFixed(1)} min  écart-type=${Math.sqrt(v).toFixed(1)} min  ` +
+      `\n  n=${valeurs.length}  moyenne=${m.toFixed(1)} min  écart-type=${Math.sqrt(v).toFixed(1)} min  ` +
         `variance=${v.toFixed(1)}  min=${Math.min(...valeurs)}  max=${Math.max(...valeurs)}`
     );
   }
