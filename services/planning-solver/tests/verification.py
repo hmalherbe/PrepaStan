@@ -45,8 +45,9 @@ def assert_toutes_contraintes_dures(
     dures documentées dans la docstring de resoudre() : pas de
     chevauchement (élève/kholleur/salle, préparation incluse pour
     l'élève), chaque élève une fois par discipline demandée (ou 0/1 en
-    effectif_partiel), éligibilité langue (LV1/LV2 uniquement, une seule
-    langue par semaine), et remplissage exact de chaque quota."""
+    effectif_partiel, ou 0 si dispensé — voir `disciplinesDispenseesIds`
+    optionnel sur chaque élève), éligibilité langue (LV1/LV2 uniquement,
+    une seule langue par semaine), et remplissage exact de chaque quota."""
     assert result.statut == "SUCCES", f"Résolution attendue en succès, obtenu : {result.statut} — {result.message}"
     disciplines_langue = disciplines_langue or set()
     creneaux = result.creneaux
@@ -87,10 +88,14 @@ def assert_toutes_contraintes_dures(
             passages_par_eleve_discipline[cle] = passages_par_eleve_discipline.get(cle, 0) + 1
 
     for e in eleves:
+        mes_dispenses = set(e.get("disciplinesDispenseesIds") or [])
         for discipline_id in disciplines_semaine:
             if discipline_id in disciplines_langue:
                 continue
             n = passages_par_eleve_discipline.get((e["id"], discipline_id), 0)
+            if discipline_id in mes_dispenses:
+                assert n == 0, f"Élève {e['id']} dispensé de {discipline_id} mais {n} passage(s) trouvé(s)"
+                continue
             attendu = "<= 1" if effectif_partiel else "== 1"
             ok = n <= 1 if effectif_partiel else n == 1
             assert ok, f"Élève {e['id']} discipline {discipline_id} : {n} passage(s), attendu {attendu}"
@@ -98,7 +103,8 @@ def assert_toutes_contraintes_dures(
     # --- Langues : éligibilité stricte + une seule langue par semaine
     for e in eleves:
         lv1, lv2 = e.get("lv1DisciplineId"), e.get("lv2DisciplineId")
-        mes_langues_offertes = {d for d in disciplines_langue if d in (lv1, lv2)}
+        mes_dispenses = set(e.get("disciplinesDispenseesIds") or [])
+        mes_langues_offertes = {d for d in disciplines_langue if d in (lv1, lv2) and d not in mes_dispenses}
         n_langue = sum(
             passages_par_eleve_discipline.get((e["id"], d), 0) for d in disciplines_langue
         )

@@ -44,12 +44,16 @@ def quota(
     }
 
 
-def eleve(id_: str, lv1: str | None = None, lv2: str | None = None) -> dict:
+def eleve(
+    id_: str, lv1: str | None = None, lv2: str | None = None, dispense: list[str] | None = None
+) -> dict:
     e: dict = {"id": id_}
     if lv1 is not None:
         e["lv1DisciplineId"] = lv1
     if lv2 is not None:
         e["lv2DisciplineId"] = lv2
+    if dispense is not None:
+        e["disciplinesDispenseesIds"] = dispense
     return e
 
 
@@ -176,6 +180,53 @@ def test_une_seule_langue_par_semaine_quand_les_deux_sont_offertes():
         "1 seul élève éligible pour 2 quotas de langue à remplir chacun exactement : "
         "infaisable puisque l'élève ne peut prendre les deux (une langue par semaine)."
     )
+
+
+def test_dispense_exclut_l_eleve_du_quota_de_cette_discipline():
+    """E1 dispensé de Maths : le quota (nombreEleves=1, déjà réduit par
+    l'admin pour exclure E1) ne doit être rempli que par E2, et E1 ne doit
+    apparaître dans aucun créneau de Maths."""
+    eleves = [eleve("E1", dispense=["Maths"]), eleve("E2")]
+    quotas = [quota("K1", "Maths", "S1", heure_debut="14:00", nombre_eleves=1)]
+
+    result = resoudre(eleves=eleves, quotas=quotas, effectif_partiel=True)
+
+    assert_toutes_contraintes_dures(eleves, quotas, result, effectif_partiel=True)
+    assert all("E1" not in c["eleveIds"] for c in result.creneaux)
+    assert any("E2" in c["eleveIds"] for c in result.creneaux)
+
+
+def test_dispense_sans_effectif_partiel_reste_coherent():
+    """Sans effectif_partiel, le quota doit correspondre exactement au
+    nombre d'élèves NON dispensés (comme calculé côté route jobs/route.ts) :
+    ici 1 seul élève éligible (E2) pour nombreEleves=1, E1 étant dispensé."""
+    eleves = [eleve("E1", dispense=["Maths"]), eleve("E2")]
+    quotas = [quota("K1", "Maths", "S1", heure_debut="14:00", nombre_eleves=1)]
+
+    result = resoudre(eleves=eleves, quotas=quotas, effectif_partiel=False)
+
+    assert_toutes_contraintes_dures(eleves, quotas, result, effectif_partiel=False)
+    assert result.creneaux[0]["eleveIds"] == ["E2"]
+
+
+def test_dispense_de_la_seule_langue_offerte_n_est_pas_infaisable():
+    """E1 n'a que l'Espagnol comme langue, et en est dispensé : sans la
+    correction, mes_langues_offertes resterait non vide côté solveur alors
+    qu'aucune variable de présence n'existe plus pour E1 sur cette langue
+    (vars_langue vide), rendant le modèle infaisable à tort. E2, non
+    dispensé, doit lui être normalement affecté."""
+    eleves = [eleve("E1", lv1="Espagnol", dispense=["Espagnol"]), eleve("E2", lv1="Espagnol")]
+    quotas = [
+        quota("KEsp", "Espagnol", "S1", heure_debut="14:00", duree_preparation=0, duree_kholle=20, nombre_eleves=1)
+    ]
+
+    result = resoudre(eleves=eleves, quotas=quotas, disciplines_langue={"Espagnol"}, effectif_partiel=True)
+
+    assert_toutes_contraintes_dures(
+        eleves, quotas, result, disciplines_langue={"Espagnol"}, effectif_partiel=True
+    )
+    assert all("E1" not in c["eleveIds"] for c in result.creneaux)
+    assert any("E2" in c["eleveIds"] for c in result.creneaux)
 
 
 def test_alternance_lv1_lv2_penalise_repeter_la_meme_langue():

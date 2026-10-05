@@ -12,6 +12,8 @@ type Eleve = {
   lv1: string | null;
   lv2Id: string | null;
   lv2: string | null;
+  disciplinesDispenseesIds: string[];
+  disciplinesDispensees: string[];
   aUnCompte: boolean;
   email: string | null;
   emailContact: string | null;
@@ -22,14 +24,49 @@ type Eleve = {
 type Classe = { id: string; nom: string };
 type Discipline = { id: string; nom: string };
 
+// Liste de cases à cocher pour choisir 0..n disciplines parmi celles
+// pratiquées par la classe sélectionnée — pas de sens à dispenser d'une
+// discipline que la classe ne khôlle même pas.
+function CasesDisciplinesDispensees({
+  disciplines,
+  valeurs,
+  onChange,
+}: {
+  disciplines: Discipline[];
+  valeurs: string[];
+  onChange: (valeurs: string[]) => void;
+}) {
+  if (disciplines.length === 0) {
+    return <span style={{ color: "#777", fontSize: "0.85rem" }}>Aucune discipline pour cette classe.</span>;
+  }
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+      {disciplines.map((d) => (
+        <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: "normal" }}>
+          <input
+            type="checkbox"
+            checked={valeurs.includes(d.id)}
+            onChange={(e) =>
+              onChange(e.target.checked ? [...valeurs, d.id] : valeurs.filter((id) => id !== d.id))
+            }
+          />
+          {d.nom}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 export function ElevesForm({
   elevesInitiaux,
   classes,
   languesVivantes,
+  disciplinesParClasse,
 }: {
   elevesInitiaux: Eleve[];
   classes: Classe[];
   languesVivantes: Discipline[];
+  disciplinesParClasse: Record<string, Discipline[]>;
 }) {
   const [eleves, setEleves] = useState(elevesInitiaux);
   const [nom, setNom] = useState("");
@@ -37,6 +74,7 @@ export function ElevesForm({
   const [classeId, setClasseId] = useState(classes[0]?.id ?? "");
   const [lv1Id, setLv1Id] = useState("");
   const [lv2Id, setLv2Id] = useState("");
+  const [disciplinesDispenseesIds, setDisciplinesDispenseesIds] = useState<string[]>([]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailContact, setEmailContact] = useState("");
@@ -75,6 +113,7 @@ export function ElevesForm({
           classeId,
           lv1Id: lv1Id || undefined,
           lv2Id: lv2Id || undefined,
+          disciplinesDispenseesIds,
           email: email || undefined,
           password: password || undefined,
           emailContact: emailContact || undefined,
@@ -88,6 +127,7 @@ export function ElevesForm({
         setErreur(data.error ?? "Erreur lors de l'ajout");
         return;
       }
+      const disciplinesClasse = disciplinesParClasse[classeId] ?? [];
       setEleves((prev) => [
         ...prev,
         {
@@ -100,6 +140,10 @@ export function ElevesForm({
           lv1: languesVivantes.find((d) => d.id === lv1Id)?.nom ?? null,
           lv2Id: lv2Id || null,
           lv2: languesVivantes.find((d) => d.id === lv2Id)?.nom ?? null,
+          disciplinesDispenseesIds,
+          disciplinesDispensees: disciplinesClasse
+            .filter((d) => disciplinesDispenseesIds.includes(d.id))
+            .map((d) => d.nom),
           aUnCompte: Boolean(email),
           email: email || null,
           emailContact: emailContact || null,
@@ -112,6 +156,7 @@ export function ElevesForm({
       setPrenom("");
       setLv1Id("");
       setLv2Id("");
+      setDisciplinesDispenseesIds([]);
       setEmail("");
       setPassword("");
       setEmailContact("");
@@ -168,6 +213,7 @@ export function ElevesForm({
       classeId: string;
       lv1Id?: string;
       lv2Id?: string;
+      disciplinesDispenseesIds: string[];
       email?: string;
       password?: string;
       emailContact?: string;
@@ -187,6 +233,7 @@ export function ElevesForm({
       setErreurEdition(data.error ?? "Erreur lors de la modification");
       return;
     }
+    const disciplinesClasse = disciplinesParClasse[patch.classeId] ?? [];
     setEleves((prev) =>
       prev.map((e) =>
         e.id === eleveId
@@ -200,6 +247,10 @@ export function ElevesForm({
               lv1: languesVivantes.find((d) => d.id === patch.lv1Id)?.nom ?? null,
               lv2Id: patch.lv2Id ?? null,
               lv2: languesVivantes.find((d) => d.id === patch.lv2Id)?.nom ?? null,
+              disciplinesDispenseesIds: patch.disciplinesDispenseesIds,
+              disciplinesDispensees: disciplinesClasse
+                .filter((d) => patch.disciplinesDispenseesIds.includes(d.id))
+                .map((d) => d.nom),
               email: patch.email ?? e.email,
               aUnCompte: e.aUnCompte || Boolean(patch.email),
               emailContact: patch.emailContact ?? null,
@@ -267,6 +318,7 @@ export function ElevesForm({
             <th>Classe</th>
             <th>LV1</th>
             <th>LV2</th>
+            <th>Dispenses</th>
             <th>Compte</th>
             <th>Email contact</th>
             <th>Téléphone</th>
@@ -281,6 +333,7 @@ export function ElevesForm({
                 eleve={e}
                 classes={classes}
                 languesVivantes={languesVivantes}
+                disciplinesParClasse={disciplinesParClasse}
                 onAnnuler={() => setEnEdition(null)}
                 onSauvegarder={(patch) => sauvegarderEdition(e.id, patch)}
               />
@@ -299,6 +352,7 @@ export function ElevesForm({
                 <td>{e.classe}</td>
                 <td>{e.lv1 ?? "—"}</td>
                 <td>{e.lv2 ?? "—"}</td>
+                <td>{e.disciplinesDispensees.length > 0 ? e.disciplinesDispensees.join(", ") : "—"}</td>
                 <td>{e.aUnCompte ? "Oui" : "Non"}</td>
                 <td>{e.emailContact ?? "—"}</td>
                 <td>{e.telephone ?? "—"}</td>
@@ -308,7 +362,7 @@ export function ElevesForm({
           )}
           {elevesAffiches.length === 0 && (
             <tr>
-              <td colSpan={10}>{eleves.length === 0 ? "Aucun étudiant pour le moment." : "Aucun étudiant pour ces filtres."}</td>
+              <td colSpan={11}>{eleves.length === 0 ? "Aucun étudiant pour le moment." : "Aucun étudiant pour ces filtres."}</td>
             </tr>
           )}
         </tbody>
@@ -327,7 +381,14 @@ export function ElevesForm({
         </label>
         <label>
           Classe
-          <select value={classeId} onChange={(e) => setClasseId(e.target.value)} required>
+          <select
+            value={classeId}
+            onChange={(e) => {
+              setClasseId(e.target.value);
+              setDisciplinesDispenseesIds([]);
+            }}
+            required
+          >
             <option value="" disabled>
               Choisir…
             </option>
@@ -342,6 +403,14 @@ export function ElevesForm({
               Aucune classe créée pour le moment (voir l'écran Classes).
             </span>
           )}
+        </label>
+        <label>
+          Disciplines dispensées (jamais khôllé dedans)
+          <CasesDisciplinesDispensees
+            disciplines={disciplinesParClasse[classeId] ?? []}
+            valeurs={disciplinesDispenseesIds}
+            onChange={setDisciplinesDispenseesIds}
+          />
         </label>
         <label>
           LV1
@@ -415,12 +484,14 @@ function LigneEdition({
   eleve,
   classes,
   languesVivantes,
+  disciplinesParClasse,
   onAnnuler,
   onSauvegarder,
 }: {
   eleve: Eleve;
   classes: Classe[];
   languesVivantes: Discipline[];
+  disciplinesParClasse: Record<string, Discipline[]>;
   onAnnuler: () => void;
   onSauvegarder: (patch: {
     nom: string;
@@ -428,6 +499,7 @@ function LigneEdition({
     classeId: string;
     lv1Id?: string;
     lv2Id?: string;
+    disciplinesDispenseesIds: string[];
     email?: string;
     password?: string;
     emailContact?: string;
@@ -441,6 +513,7 @@ function LigneEdition({
   const [classeId, setClasseId] = useState(eleve.classeId);
   const [lv1Id, setLv1Id] = useState(eleve.lv1Id ?? "");
   const [lv2Id, setLv2Id] = useState(eleve.lv2Id ?? "");
+  const [disciplinesDispenseesIds, setDisciplinesDispenseesIds] = useState(eleve.disciplinesDispenseesIds);
   const [email, setEmail] = useState(eleve.email ?? "");
   const [password, setPassword] = useState("");
   const [emailContact, setEmailContact] = useState(eleve.emailContact ?? "");
@@ -452,7 +525,7 @@ function LigneEdition({
 
   return (
     <tr>
-      <td colSpan={10}>
+      <td colSpan={11}>
         <div className="carte" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" style={{ flex: 1 }} />
@@ -495,6 +568,14 @@ function LigneEdition({
             </label>
           </div>
           {lv2Invalide && <p className="champ-erreur">LV1 et LV2 doivent être différentes.</p>}
+          <label>
+            Disciplines dispensées (jamais khôllé dedans)
+            <CasesDisciplinesDispensees
+              disciplines={disciplinesParClasse[classeId] ?? []}
+              valeurs={disciplinesDispenseesIds}
+              onChange={setDisciplinesDispenseesIds}
+            />
+          </label>
           <label>
             {eleve.aUnCompte ? "Email du compte" : "Email (optionnel, crée un compte de connexion)"}
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -539,6 +620,7 @@ function LigneEdition({
                   classeId,
                   lv1Id: lv1Id || undefined,
                   lv2Id: lv2Id || undefined,
+                  disciplinesDispenseesIds,
                   email: email || undefined,
                   password: password || undefined,
                   emailContact: emailContact || undefined,

@@ -37,6 +37,7 @@ export function PlanningReview({
   aucuneSession,
   kholleurs,
   salles,
+  dispensesParDiscipline,
 }: {
   classeId: string;
   // Repris dans le titre de chaque jour (voir .jour-titre) : le <h1> de la
@@ -53,6 +54,11 @@ export function PlanningReview({
   aucuneSession: boolean;
   kholleurs: Option[];
   salles: Option[];
+  // Élèves dispensés d'une des disciplines de cette semaine (voir
+  // EleveDispense) : n'apparaissent dans aucun créneau ci-dessus (exclus
+  // par le solveur), affichés ici à part pour que ça ne ressemble pas à un
+  // oubli.
+  dispensesParDiscipline: { discipline: string; eleves: string[] }[];
 }) {
   const router = useRouter();
   const [creneaux, setCreneaux] = useState(creneauxInitiaux);
@@ -206,6 +212,19 @@ export function PlanningReview({
           </table>
         </div>
       ))}
+
+      {dispensesParDiscipline.length > 0 && (
+        <div className="jour-planning">
+          <p className="jour-titre">Étudiants dispensés</p>
+          <ul>
+            {dispensesParDiscipline.map(({ discipline, eleves }) => (
+              <li key={discipline}>
+                {discipline} — {eleves.join(", ")} dispensé(e)s
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {erreur && <p className="champ-erreur no-print">{erreur}</p>}
 

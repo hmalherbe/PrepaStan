@@ -193,6 +193,15 @@ def resoudre(
     les deux (jamais les deux, jamais aucune) ; `historique_derniere_langue`
     (élève -> "LV1"/"LV2" du dernier passage en langue) alimente l'objectif
     d'alternance ci-dessous.
+
+    Chaque élève de `eleves` peut aussi porter une clé optionnelle
+    `disciplinesDispenseesIds` (liste d'identifiants de discipline) : cet
+    élève n'est alors jamais éligible à une khôlle de ces disciplines-là,
+    quelle que soit la semaine — même mécanisme que l'éligibilité langue
+    ci-dessus (aucune variable de présence créée), mais indépendant de
+    `disciplines_langue`. L'effectif attendu de chaque discipline (quotas
+    fixés par l'admin) doit déjà exclure ces élèves-là en amont, sans quoi
+    le quota resterait structurellement sous-rempli.
     """
     historique_eleve_kholleur = historique_eleve_kholleur or {}
     historique_charge_kholleur = historique_charge_kholleur or {}
@@ -214,7 +223,15 @@ def resoudre(
 
     for e in eleves:
         mes_langues = {e.get("lv1DisciplineId"), e.get("lv2DisciplineId")}
+        mes_dispenses = set(e.get("disciplinesDispenseesIds") or [])
         for s_idx, slot in enumerate(slots):
+            # Un élève dispensé d'une discipline n'y est jamais éligible, quel
+            # que soit le quota : même logique que l'éligibilité langue
+            # juste en dessous (aucune variable de présence créée), mais
+            # indépendante d'elle — un élève peut être dispensé d'une
+            # discipline qui n'est même pas une langue.
+            if slot.discipline_id in mes_dispenses:
+                continue
             # Une discipline "langue" n'est proposée qu'aux élèves dont c'est
             # justement la LV1 ou la LV2 : on ne crée même pas la variable de
             # présence pour les autres, plutôt que de la contraindre à 0 —
@@ -320,8 +337,16 @@ def resoudre(
     # est identique à "== 1" : la contrainte de remplissage des quotas
     # ci-dessous force de toute façon le compte à correspondre.
     for e in eleves:
+        mes_dispenses = set(e.get("disciplinesDispenseesIds") or [])
         for discipline_id in disciplines_semaine:
             if discipline_id in disciplines_langue:
+                continue
+            # Élève dispensé de cette discipline : aucune variable de
+            # présence n'existe pour lui ici (voir boucle de génération
+            # ci-dessus), donc `vars_ed` serait vide et "== 1" rendrait le
+            # modèle à tort infaisable — on l'exclut entièrement du lieu de
+            # cette contrainte plutôt que de la poser à 0.
+            if discipline_id in mes_dispenses:
                 continue
             vars_ed = [
                 presence[(e["id"], s_idx)]
@@ -331,8 +356,11 @@ def resoudre(
             model.Add(sum(vars_ed) <= 1) if effectif_partiel else model.Add(sum(vars_ed) == 1)
 
     for e in eleves:
+        mes_dispenses = set(e.get("disciplinesDispenseesIds") or [])
         mes_langues_offertes = {
-            d for d in disciplines_langue if d in (e.get("lv1DisciplineId"), e.get("lv2DisciplineId"))
+            d
+            for d in disciplines_langue
+            if d in (e.get("lv1DisciplineId"), e.get("lv2DisciplineId")) and d not in mes_dispenses
         }
         if not mes_langues_offertes:
             continue

@@ -87,7 +87,18 @@ export async function POST(req: Request) {
   const disciplineIds = [...new Set(quotas.map((q) => q.disciplineId))];
   const kholleurIds = [...new Set(quotas.map((q) => q.kholleurId))];
 
-  const eleves = await prisma.eleve.findMany({ where: { classeId } });
+  const eleves = await prisma.eleve.findMany({
+    where: { classeId },
+    include: { dispenses: { select: { disciplineId: true } } },
+  });
+
+  // Un élève dispensé d'une discipline n'y est jamais éligible (voir
+  // resoudre() côté solveur) : son effectif attendu doit donc déjà
+  // l'exclure, sous peine de laisser un quota structurellement
+  // sous-remplissable (aucun élève dispensé disponible pour le compléter).
+  function estDispense(eleve: (typeof eleves)[number], disciplineId: string): boolean {
+    return eleve.dispenses.some((d) => d.disciplineId === disciplineId);
+  }
 
   // Sous-ensemble des disciplines de cette semaine marquées "langue vivante" :
   // seuls les élèves dont c'est la LV1 ou la LV2 y sont éligibles (voir
@@ -129,11 +140,15 @@ export async function POST(req: Request) {
   const erreursEffectif: string[] = [];
   for (const disciplineId of disciplineIds) {
     if (disciplinesLangue.includes(disciplineId)) continue;
+    const effectifAttendu = eleves.filter((e) => !estDispense(e, disciplineId)).length;
     const total = quotas.filter((q) => q.disciplineId === disciplineId).reduce((s, q) => s + q.nombreEleves, 0);
-    if (total > eleves.length || (total < eleves.length && !permettreEffectifPartiel)) {
+    if (total > effectifAttendu || (total < effectifAttendu && !permettreEffectifPartiel)) {
       const discipline = await prisma.discipline.findUnique({ where: { id: disciplineId } });
       erreursEffectif.push(
-        `${discipline?.nom ?? disciplineId} : ${total} étudiant(s) affecté(s) au total, attendu ${eleves.length}`
+        `${discipline?.nom ?? disciplineId} : ${total} étudiant(s) affecté(s) au total, attendu ${effectifAttendu}` +
+          (effectifAttendu !== eleves.length
+            ? ` (${eleves.length - effectifAttendu} dispensé(s) exclu(s) de l'effectif de la classe)`
+            : "")
       );
     }
   }
@@ -154,13 +169,23 @@ export async function POST(req: Request) {
   // certains élèves sans aucun créneau cette semaine-là — ce que ce total
   // doit précisément empêcher de passer inaperçu.
   if (disciplinesLangue.length > 0) {
+    // Un élève compte dans l'effectif attendu des langues sauf si TOUTES les
+    // langues de la semaine auxquelles il serait normalement éligible
+    // (LV1/LV2) sont dispensées pour lui — mêmes règles que
+    // `mes_langues_offertes` côté solveur (solver.py) : s'il lui reste au
+    // moins une langue possible, il doit toujours en passer une.
+    const effectifAttenduLangues = eleves.filter((e) => {
+      const languesEligibles = disciplinesLangue.filter((d) => d === e.lv1Id || d === e.lv2Id);
+      return languesEligibles.length === 0 || languesEligibles.some((d) => !estDispense(e, d));
+    }).length;
     const totalLangue = quotas
       .filter((q) => disciplinesLangue.includes(q.disciplineId))
       .reduce((s, q) => s + q.nombreEleves, 0);
-    if (totalLangue > eleves.length || (totalLangue < eleves.length && !permettreEffectifPartiel)) {
+    if (totalLangue > effectifAttenduLangues || (totalLangue < effectifAttenduLangues && !permettreEffectifPartiel)) {
       erreursEffectif.push(
         `Langues (${disciplinesLangue.length} discipline(s)) : ${totalLangue} étudiant(s) affecté(s) au total, ` +
-          `attendu ${eleves.length} (effectif de la classe)`
+          `attendu ${effectifAttenduLangues}` +
+          (effectifAttenduLangues !== eleves.length ? " (dispensé(s) exclu(s))" : " (effectif de la classe)")
       );
     }
   }
@@ -504,7 +529,12 @@ export async function POST(req: Request) {
         classeId,
         semaine,
         dateDebutSemaine,
-        eleves: eleves.map((e) => ({ ...e, lv1DisciplineId: e.lv1Id, lv2DisciplineId: e.lv2Id })),
+        eleves: eleves.map((e) => ({
+          ...e,
+          lv1DisciplineId: e.lv1Id,
+          lv2DisciplineId: e.lv2Id,
+          disciplinesDispenseesIds: e.dispenses.map((d) => d.disciplineId),
+        })),
         quotas: quotasDates,
         historique: { ...historique, derniereLangue },
         disciplinesLangue,

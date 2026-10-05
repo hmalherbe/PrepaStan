@@ -48,6 +48,9 @@ const bodySchema = z
     // rester vide, mais si les deux sont renseignées elles doivent différer.
     lv1Id: z.string().min(1).optional(),
     lv2Id: z.string().min(1).optional(),
+    // Disciplines dont l'élève est dispensé (jamais khôllé dedans, quelle
+    // que soit la semaine) — voir EleveDispense dans schema.prisma.
+    disciplinesDispenseesIds: z.array(z.string()).optional().default([]),
     // Si fourni, crée aussi un compte de connexion ELEVE pour cet élève.
     email: z.string().email().optional(),
     password: z.string().min(4).optional(),
@@ -102,6 +105,7 @@ export async function POST(req: Request) {
       telephone: body.telephone,
       numeroParcoursup: body.numeroParcoursup,
       etablissementOrigine: body.etablissementOrigine,
+      dispenses: { create: body.disciplinesDispenseesIds.map((disciplineId) => ({ disciplineId })) },
     },
     include: { classe: { select: { id: true, nom: true } } },
   });

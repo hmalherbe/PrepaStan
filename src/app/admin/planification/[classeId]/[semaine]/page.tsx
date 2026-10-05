@@ -30,10 +30,30 @@ export default async function PlanningReviewPage({
     },
   });
 
-  const [kholleurs, salles] = await Promise.all([
+  const disciplineIds = [...new Set(sessions.map((s) => s.disciplineId))];
+
+  const [kholleurs, salles, dispenses] = await Promise.all([
     prisma.utilisateur.findMany({ where: { roles: { has: "KHOLLEUR" } }, orderBy: { nom: "asc" } }),
     prisma.salle.findMany({ orderBy: { nom: "asc" } }),
+    // Élèves dispensés d'une des disciplines de cette semaine (voir
+    // EleveDispense dans schema.prisma) : n'apparaissent dans aucun
+    // créneau (exclus par le solveur, voir solver.py), donc affichés à
+    // part pour que leur absence ne ressemble pas à un oubli.
+    disciplineIds.length > 0
+      ? prisma.eleveDispense.findMany({
+          where: { disciplineId: { in: disciplineIds }, eleve: { classeId } },
+          include: { eleve: { select: { nom: true, prenom: true } }, discipline: { select: { nom: true } } },
+          orderBy: [{ discipline: { nom: "asc" } }, { eleve: { nom: "asc" } }],
+        })
+      : Promise.resolve([]),
   ]);
+
+  const dispensesParDiscipline = new Map<string, string[]>();
+  for (const d of dispenses) {
+    const liste = dispensesParDiscipline.get(d.discipline.nom) ?? [];
+    liste.push(`${d.eleve.prenom} ${d.eleve.nom}`);
+    dispensesParDiscipline.set(d.discipline.nom, liste);
+  }
 
   const estBrouillon = sessions.every((s) => s.statut === "PLANIFICATION");
 
@@ -81,6 +101,10 @@ export default async function PlanningReviewPage({
         creneauxInitiaux={creneaux}
         estBrouillon={estBrouillon}
         aucuneSession={sessions.length === 0}
+        dispensesParDiscipline={[...dispensesParDiscipline.entries()].map(([discipline, eleves]) => ({
+          discipline,
+          eleves,
+        }))}
         kholleurs={kholleurs.map((k) => ({ id: k.id, nom: `${k.prenom} ${k.nom}` }))}
         salles={salles.map((s) => ({ id: s.id, nom: s.nom }))}
       />

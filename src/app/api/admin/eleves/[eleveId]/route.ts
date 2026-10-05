@@ -31,6 +31,10 @@ const bodySchema = z
     // rester vide, mais si les deux sont renseignées elles doivent différer.
     lv1Id: z.string().min(1).optional(),
     lv2Id: z.string().min(1).optional(),
+    // Disciplines dont l'élève est dispensé (jamais khôllé dedans, quelle
+    // que soit la semaine) — remplace entièrement la liste existante (voir
+    // plus bas), pas un simple ajout.
+    disciplinesDispenseesIds: z.array(z.string()).optional().default([]),
     // Si fourni sans compte existant, en crée un. Si fourni avec un compte
     // existant, met à jour son email. Mot de passe optionnel dans les deux cas
     // (obligatoire seulement à la création du compte).
@@ -85,6 +89,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ eleveId:
         await tx.eleve.update({ where: { id: eleveId }, data: { utilisateurId: utilisateur.id } });
         nouveauCompte = { id: utilisateur.id, email: utilisateur.email, prenom: utilisateur.prenom };
       }
+      // Remplace entièrement la liste des dispenses plutôt que de la fondre
+      // avec l'existante : pas de relation many-to-many implicite ici
+      // (EleveDispense est une vraie table pivot, comme ClasseDiscipline),
+      // donc pas de "set" natif Prisma — delete puis recreate dans la même
+      // transaction.
+      await tx.eleveDispense.deleteMany({ where: { eleveId } });
+      if (body.disciplinesDispenseesIds.length > 0) {
+        await tx.eleveDispense.createMany({
+          data: body.disciplinesDispenseesIds.map((disciplineId) => ({ eleveId, disciplineId })),
+        });
+      }
+
       const eleve = await tx.eleve.update({
         where: { id: eleveId },
         data: {

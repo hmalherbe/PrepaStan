@@ -105,7 +105,8 @@ model Eleve {
   lv1         Discipline?  @relation("EleveLV1", fields: [lv1Id], references: [id])
   lv2         Discipline?  @relation("EleveLV2", fields: [lv2Id], references: [id])
 
-  passages Passage[]
+  passages  Passage[]
+  dispenses EleveDispense[]
 }
 
 model Discipline {
@@ -120,6 +121,23 @@ model Discipline {
   parametres  ParametreDiscipline[]
   elevesLV1   Eleve[]               @relation("EleveLV1")
   elevesLV2   Eleve[]               @relation("EleveLV2")
+  dispenses   EleveDispense[]
+}
+
+// Un élève dispensé d'une discipline n'est jamais khôllé dedans, quelle que
+// soit la semaine : exclu des variables de présence du solveur pour cette
+// discipline (voir resoudre() dans solver.py, même mécanisme que
+// l'éligibilité LV1/LV2), et de l'effectif attendu côté écran de
+// génération/route jobs.
+model EleveDispense {
+  id           String @id @default(cuid())
+  eleveId      String
+  disciplineId String
+
+  eleve      Eleve      @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  discipline Discipline @relation(fields: [disciplineId], references: [id])
+
+  @@unique([eleveId, disciplineId])
 }
 
 // Déclare qu'une discipline est khôllée dans une classe, indépendamment de

@@ -15,7 +15,13 @@ type Discipline = {
   referents: Referent[];
   referentActuelId: string | null;
 };
-type EleveLangues = { id: string; nom: string; lv1Id: string | null; lv2Id: string | null };
+type EleveLangues = {
+  id: string;
+  nom: string;
+  lv1Id: string | null;
+  lv2Id: string | null;
+  disciplinesDispenseesIds: string[];
+};
 type Salle = { id: string; nom: string };
 type Classe = { id: string; nom: string; effectif: number; eleves: EleveLangues[]; disciplines: Discipline[] };
 
@@ -312,28 +318,38 @@ export function GenererPlanningForm({
           disciplineIdsLangue.push(disciplineId);
           continue;
         }
-        const attendu = classe?.eleves.filter((e) => e.lv1Id === disciplineId).length ?? 0;
+        const attendu =
+          classe?.eleves.filter((e) => e.lv1Id === disciplineId && !e.disciplinesDispenseesIds.includes(disciplineId))
+            .length ?? 0;
         lignes.push({ cle: disciplineId, nom: discipline.nom, total, attendu, ok: total === attendu });
         continue;
       }
+      const attendu = classe?.eleves.filter((e) => !e.disciplinesDispenseesIds.includes(disciplineId)).length ?? 0;
       lignes.push({
         cle: disciplineId,
         nom: discipline?.nom ?? disciplineId,
         total,
-        attendu: classe?.effectif ?? 0,
-        ok: total === (classe?.effectif ?? 0),
+        attendu,
+        ok: total === attendu,
       });
     }
 
     if (classeADesLV2 && disciplineIdsLangue.length > 0 && classe) {
       const totalLangues = disciplineIdsLangue.reduce((s, id) => s + (totaux.get(id) ?? 0), 0);
       const noms = disciplineIdsLangue.map((id) => disciplines.find((d) => d.id === id)?.nom ?? id);
+      // Un élève compte dans l'effectif attendu sauf si TOUTES les langues
+      // de la semaine auxquelles il serait éligible (LV1/LV2) sont
+      // dispensées pour lui — même règle que côté route jobs/route.ts.
+      const attenduLangues = classe.eleves.filter((e) => {
+        const languesEligibles = disciplineIdsLangue.filter((id) => id === e.lv1Id || id === e.lv2Id);
+        return languesEligibles.length === 0 || languesEligibles.some((id) => !e.disciplinesDispenseesIds.includes(id));
+      }).length;
       lignes.push({
         cle: "langues",
         nom: `Langues (${noms.join(", ")})`,
         total: totalLangues,
-        attendu: classe.effectif,
-        ok: totalLangues === classe.effectif,
+        attendu: attenduLangues,
+        ok: totalLangues === attenduLangues,
       });
     }
 
@@ -675,11 +691,13 @@ export function GenererPlanningForm({
                           <option value="" disabled>
                             —
                           </option>
-                          {(classe?.eleves ?? []).map((e) => (
-                            <option key={e.id} value={e.id}>
-                              {e.nom}
-                            </option>
-                          ))}
+                          {(classe?.eleves ?? [])
+                            .filter((e) => !a.disciplineId || !e.disciplinesDispenseesIds.includes(a.disciplineId))
+                            .map((e) => (
+                              <option key={e.id} value={e.id}>
+                                {e.nom}
+                              </option>
+                            ))}
                         </select>
                       </td>
                       <td>
