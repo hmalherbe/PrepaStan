@@ -412,8 +412,25 @@ form label {
 }
 
 .jour-titre {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.3rem;
   margin: 20px 0 8px;
+}
+
+/* Préparation / horaire de khôlle dans le tableau de détail d'une semaine
+   (PlanningReview) : l'info la plus consultée d'un coup d'œil, à distinguer
+   du reste de la ligne. */
+.cellule-horaire {
+  font-weight: 700;
+}
+
+/* Sépare visuellement les créneaux d'un kholleur à l'autre dans le même
+   tableau (PlanningReview) : une ligne plus épaisse qu'une simple bordure de
+   ligne. border-collapse: collapse (voir règle "table" ci-dessus) fait
+   gagner cette bordure plus large sur le border-bottom fin de la ligne
+   précédente, donc pas besoin de la poser des deux côtés. */
+.ligne-nouveau-kholleur td {
+  border-top: 3px solid var(--couleur-texte-discret);
 }
 
 /* ---------- Graphiques en barres (statistiques) ---------- */
@@ -650,6 +667,13 @@ th.triable:hover {
     padding: 3px 6px;
     font-size: 0.72rem;
     line-height: 1.2;
+  }
+
+  /* Allégée par rapport à l'écran (3px) : sur les lignes resserrées
+     ci-dessus, la même épaisseur prendrait une part disproportionnée de la
+     hauteur de chaque ligne. */
+  .ligne-nouveau-kholleur td {
+    border-top-width: 2px;
   }
 
   .jour-titre {

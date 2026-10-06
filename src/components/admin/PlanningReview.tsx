@@ -178,22 +178,29 @@ export function PlanningReview({
               </tr>
             </thead>
             <tbody>
-              {liste.map((c) =>
-                enEdition === c.id ? (
+              {liste.map((c, index) => {
+                // Sépare visuellement les créneaux d'un kholleur à l'autre
+                // (voir .ligne-nouveau-kholleur dans globals.css) : jamais
+                // sur la toute première ligne du jour, qui n'a rien à
+                // séparer d'une ligne précédente.
+                const nouveauKholleur = index > 0 && liste[index - 1].kholleurId !== c.kholleurId;
+                const classeLigne = nouveauKholleur ? "ligne-nouveau-kholleur" : undefined;
+                return enEdition === c.id ? (
                   <LigneEdition
                     key={c.id}
                     creneau={c}
                     kholleurs={kholleurs}
                     salles={salles}
+                    className={classeLigne}
                     onAnnuler={() => setEnEdition(null)}
                     onSauvegarder={(champs) => sauvegarderEdition(c.id, champs)}
                   />
                 ) : (
-                  <tr key={c.id}>
+                  <tr key={c.id} className={classeLigne}>
                     <td>{c.discipline}</td>
                     <td>{c.eleves.join(", ")}</td>
-                    <td>{c.heureDebutPreparation ?? "—"}</td>
-                    <td>
+                    <td className="cellule-horaire">{c.heureDebutPreparation ?? "—"}</td>
+                    <td className="cellule-horaire">
                       {c.heureDebut}-{c.heureFin}
                     </td>
                     <td>{c.kholleurNom}</td>
@@ -206,8 +213,8 @@ export function PlanningReview({
                       )}
                     </td>
                   </tr>
-                )
-              )}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -263,12 +270,14 @@ function LigneEdition({
   creneau,
   kholleurs,
   salles,
+  className,
   onAnnuler,
   onSauvegarder,
 }: {
   creneau: Creneau;
   kholleurs: Option[];
   salles: Option[];
+  className?: string;
   onAnnuler: () => void;
   onSauvegarder: (champs: Partial<Creneau>) => void;
 }) {
@@ -283,7 +292,7 @@ function LigneEdition({
   const [prepModifieeManuel, setPrepModifieeManuel] = useState(false);
 
   return (
-    <tr>
+    <tr className={className}>
       <td>{creneau.discipline}</td>
       <td>{creneau.eleves.join(", ")}</td>
       <td>
