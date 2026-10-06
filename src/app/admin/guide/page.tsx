@@ -62,7 +62,9 @@ export default async function GuidePage() {
             <strong>Étudiants</strong> — ajout un par un ou import CSV. LV1/LV2 pour les langues vivantes,
             coordonnées (email de contact, téléphone, Parcoursup, établissement d&apos;origine) purement
             informationnelles et sans lien avec un compte de connexion. Un compte de connexion est optionnel : il ne
-            se crée que si vous renseignez un email.
+            se crée que si vous renseignez un email. Vous pouvez aussi cocher une ou plusieurs disciplines dont
+            l&apos;étudiant est <strong>dispensé</strong> (jamais khôllé dedans) : il est alors exclu du solveur et de
+            l&apos;effectif attendu de ces disciplines, et listé à part sur le détail de chaque semaine concernée.
           </li>
           <li>
             <strong>Khôlleurs</strong> — un compte par khôlleur, avec les disciplines qu&apos;il peut faire passer
