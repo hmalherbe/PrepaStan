@@ -125,6 +125,13 @@ async function main() {
     // deux khôlles se chevauchent réellement ; négatif = le nombre de
     // minutes qui les sépare, sans chevauchement.
     finPremiereMoinsDebutDeuxieme: number;
+    // Même principe mais côté préparation : début de préparation de la 2e -
+    // fin de passage de la 1re. C'est exactement le "gap" testé contre la
+    // marge minimale ci-dessus (voir boucle de détection des violations) :
+    // positif = préparation de la 2e démarrée après la fin de la 1re,
+    // négatif = préparation de la 2e démarrée alors que la 1re khôlle
+    // n'était pas encore finie (chevauchement réel préparation/khôlle).
+    debutPreparationDeuxiemeMoinsFinPremiere: number;
   }[] = [];
 
   for (const liste of parEleveEtJour.values()) {
@@ -150,6 +157,8 @@ async function main() {
         deuxieme: triee[1],
         ecart: minutes(triee[1].heureDebut) - minutes(triee[0].heureDebut),
         finPremiereMoinsDebutDeuxieme: minutes(triee[0].heureFin) - minutes(triee[1].heureDebut),
+        debutPreparationDeuxiemeMoinsFinPremiere:
+          minutes(triee[1].heureDebutPreparation) - minutes(triee[0].heureFin),
       });
     }
   }
@@ -181,7 +190,9 @@ async function main() {
   console.log(
     "(jours à exactement 2 khôlles ; écart = heureDebut 2e - heureDebut 1re ; " +
       "fin1-début2 = heureFin de la 1re - heureDebut de la 2e : positif = chevauchement réel des khôlles elles-mêmes, " +
-      "négatif = minutes d'écart sans chevauchement)"
+      "négatif = minutes d'écart sans chevauchement ; " +
+      "débutPrép2-fin1 = heureDebutPreparation de la 2e - heureFin de la 1re : positif = marge réelle avant que " +
+      "la préparation de la 2e démarre, négatif = chevauchement avec la préparation)"
   );
   if (ecartsDeuxKholles.length === 0) {
     console.log("Aucun élève n'a passé exactement deux khôlles le même jour sur ce périmètre.");
@@ -189,12 +200,19 @@ async function main() {
     const triee = [...ecartsDeuxKholles].sort(
       (a, b) => a.premiere.date.localeCompare(b.premiere.date) || a.premiere.eleveNom.localeCompare(b.premiere.eleveNom)
     );
-    for (const { premiere, deuxieme, ecart, finPremiereMoinsDebutDeuxieme } of triee) {
+    for (const {
+      premiere,
+      deuxieme,
+      ecart,
+      finPremiereMoinsDebutDeuxieme,
+      debutPreparationDeuxiemeMoinsFinPremiere,
+    } of triee) {
       console.log(
         `  ${premiere.elevePrenom} ${premiere.eleveNom} (${premiere.classeNom}, semaine ${premiere.semaine}) — ${premiere.date} : ` +
           `${premiere.disciplineNom} ${premiere.heureDebut}-${premiere.heureFin} puis ` +
-          `${deuxieme.disciplineNom} ${deuxieme.heureDebut}-${deuxieme.heureFin} ` +
-          `=> écart ${ecart} min ; fin1-début2 = ${finPremiereMoinsDebutDeuxieme} min`
+          `${deuxieme.disciplineNom} (préparation dès ${deuxieme.heureDebutPreparation}) ${deuxieme.heureDebut}-${deuxieme.heureFin} ` +
+          `=> écart ${ecart} min ; fin1-début2 = ${finPremiereMoinsDebutDeuxieme} min ; ` +
+          `débutPrép2-fin1 = ${debutPreparationDeuxiemeMoinsFinPremiere} min`
       );
     }
 
