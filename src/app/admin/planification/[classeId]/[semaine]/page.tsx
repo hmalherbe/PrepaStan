@@ -75,11 +75,14 @@ export default async function PlanningReviewPage({
       }))
     )
     // Toutes les sessions (une par discipline) sont fusionnées ici : sans ce
-    // tri, l'ordre reste groupé par discipline plutôt que par jour. Tri par
-    // jour, puis kholleur, puis heure de khôlle, tous croissants.
+    // tri, les disciplines s'entremêlent au sein d'une même journée (ex.
+    // Droit, Économie, Droit, Économie) au gré du nom des kholleurs. Tri
+    // par jour, puis discipline (pour regrouper Droit/Droit/Économie/
+    // Économie), puis kholleur, puis heure de khôlle, tous croissants.
     .sort(
       (a, b) =>
         a.jour.localeCompare(b.jour) ||
+        a.discipline.localeCompare(b.discipline) ||
         a.kholleurNom.localeCompare(b.kholleurNom) ||
         a.heureDebut.localeCompare(b.heureDebut)
     );
