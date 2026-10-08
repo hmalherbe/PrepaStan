@@ -27,29 +27,15 @@ export default async function HistoriquePlanningsPage() {
         },
       },
       validationGrilles: { select: { kholleurId: true, statut: true } },
+      // Référent EN VIGUEUR pour cette semaine précise (choisi parmi le
+      // vivier ProfesseurReferent lors de la génération du planning, voir
+      // SessionKholle.referentId) — pas tout le vivier, qui peut compter
+      // plusieurs personnes éligibles au fil des semaines sans qu'elles
+      // aient toutes été retenues pour celle-ci.
+      referent: { select: { id: true, nom: true, prenom: true } },
     },
     orderBy: [{ dateDebut: "desc" }],
   });
-
-  // Une seule requête pour tous les référents des (classe, discipline)
-  // concernées, plutôt qu'une requête par session.
-  const pairesClasseDiscipline = [...new Set(sessions.map((s) => `${s.classeId}|${s.disciplineId}`))].map((p) => {
-    const [classeId, disciplineId] = p.split("|");
-    return { classeId, disciplineId };
-  });
-  const referentsRows = pairesClasseDiscipline.length
-    ? await prisma.professeurReferent.findMany({
-        where: { OR: pairesClasseDiscipline },
-        include: { utilisateur: { select: { id: true, nom: true, prenom: true } } },
-      })
-    : [];
-  const referentsParPaire = new Map<string, { id: string; nom: string; prenom: string }[]>();
-  for (const r of referentsRows) {
-    const cle = `${r.classeId}_${r.disciplineId}`;
-    const liste = referentsParPaire.get(cle) ?? [];
-    liste.push({ id: r.utilisateur.id, nom: r.utilisateur.nom, prenom: r.utilisateur.prenom });
-    referentsParPaire.set(cle, liste);
-  }
 
   type Personne = { id: string; nom: string; prenom: string; discipline: string; valide: boolean };
   type Groupe = {
@@ -108,13 +94,15 @@ export default async function HistoriquePlanningsPage() {
       }
     }
 
-    const referentsDiscipline = referentsParPaire.get(`${s.classeId}_${s.disciplineId}`) ?? [];
-    for (const r of referentsDiscipline) {
-      const cleReferent = `${r.id}_${s.disciplineId}`;
+    // Pas de référent choisi (session créée avant l'introduction du champ,
+    // ou jamais régénérée depuis) : rien à afficher pour cette discipline,
+    // plutôt que de lister tout le vivier à tort.
+    if (s.referent) {
+      const cleReferent = `${s.referent.id}_${s.disciplineId}`;
       g.referents.set(cleReferent, {
-        id: r.id,
-        nom: r.nom,
-        prenom: r.prenom,
+        id: s.referent.id,
+        nom: s.referent.nom,
+        prenom: s.referent.prenom,
         discipline: s.discipline.nom,
         valide: s.statut === "CLOTUREE",
       });
