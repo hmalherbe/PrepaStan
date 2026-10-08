@@ -171,33 +171,22 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
                         onToggle={() => toggle(cleKNV)}
                       />
                     </div>
-                    {l.nbDisciplines > 1 ? (
-                      <div>
-                        Référents :{" "}
-                        <BoutonEtat
-                          label="validé(s)"
-                          personnes={referentsValides}
-                          ouvert={ouverts.has(cleRV)}
-                          onToggle={() => toggle(cleRV)}
-                        />{" "}
-                        /{" "}
-                        <BoutonEtat
-                          label="non validé(s)"
-                          personnes={referentsNonValides}
-                          ouvert={ouverts.has(cleRNV)}
-                          onToggle={() => toggle(cleRNV)}
-                        />
-                      </div>
-                    ) : (
-                      <div>
-                        Référent :{" "}
-                        {l.referents.length === 0
-                          ? "—"
-                          : l.referents.every((r) => r.valide)
-                            ? "validé"
-                            : "non validé"}
-                      </div>
-                    )}
+                    <div>
+                      {l.nbDisciplines > 1 ? "Référents" : "Référent"} :{" "}
+                      <BoutonEtat
+                        label="validé(s)"
+                        personnes={referentsValides}
+                        ouvert={ouverts.has(cleRV)}
+                        onToggle={() => toggle(cleRV)}
+                      />{" "}
+                      /{" "}
+                      <BoutonEtat
+                        label="non validé(s)"
+                        personnes={referentsNonValides}
+                        ouvert={ouverts.has(cleRNV)}
+                        onToggle={() => toggle(cleRNV)}
+                      />
+                    </div>
                   </td>
                 </tr>
                 {ouverts.has(cleKV) && kholleursValides.length > 0 && (
