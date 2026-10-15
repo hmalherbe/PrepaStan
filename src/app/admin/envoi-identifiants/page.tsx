@@ -6,7 +6,17 @@ export default async function EnvoiIdentifiantsPage() {
   await requirePageSession(["ADMIN"]);
 
   const utilisateurs = await prisma.utilisateur.findMany({
-    where: { roles: { hasSome: ["KHOLLEUR", "PROFESSEUR_REFERENT", "ELEVE"] } },
+    where: {
+      OR: [
+        { roles: { hasSome: ["KHOLLEUR", "PROFESSEUR_REFERENT"] } },
+        // Un compte ELEVE orphelin (non rattaché à une fiche élève via
+        // Eleve.utilisateurId) n'est joignable par personne : exclu, sinon
+        // il apparaîtrait comme un doublon fantôme à côté du vrai compte de
+        // l'étudiant (voir aussi la page Étudiants, qui elle part toujours
+        // de la fiche élève et ne peut donc pas montrer ce genre d'orphelin).
+        { roles: { has: "ELEVE" }, eleve: { isNot: null } },
+      ],
+    },
     select: { id: true, nom: true, prenom: true, email: true, roles: true, derniereConnexion: true },
     orderBy: [{ nom: "asc" }, { prenom: "asc" }],
   });
