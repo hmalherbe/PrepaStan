@@ -25,6 +25,12 @@ model Utilisateur {
   // Une même personne peut cumuler plusieurs rôles (ex. khôlleur ET
   // professeur référent) avec un seul compte de connexion.
   roles    Role[]
+  // Horodatage de la dernière connexion réussie (voir authorize() dans
+  // auth.ts). Nullable : absent pour les comptes créés avant l'introduction
+  // de ce champ, et pour tout compte qui ne s'est jamais encore connecté —
+  // sert notamment à cibler "envoyer un lien d'activation" (voir
+  // /admin/envoi-identifiants) sur les seuls comptes jamais activés.
+  derniereConnexion DateTime?
 
   competences              Competence[]
   disponibilites           Disponibilite[]

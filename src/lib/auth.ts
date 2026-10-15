@@ -27,6 +27,12 @@ export const authOptions: NextAuthOptions = {
         const motDePasseValide = await bcrypt.compare(credentials.password, utilisateur.password);
         if (!motDePasseValide) return null;
 
+        // Ne bloque jamais la connexion pour un souci d'écriture de ce
+        // champ purement informatif (voir son commentaire dans schema.prisma).
+        await prisma.utilisateur
+          .update({ where: { id: utilisateur.id }, data: { derniereConnexion: new Date() } })
+          .catch((err) => console.error("Échec de la mise à jour de derniereConnexion :", err));
+
         return {
           id: utilisateur.id,
           email: utilisateur.email,

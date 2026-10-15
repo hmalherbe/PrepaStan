@@ -4,10 +4,13 @@ import { DUREE_VALIDITE_TOKEN_ACTIVATION_MS, genererToken, hasherToken } from "@
 
 // Appelé juste après la création d'un compte de connexion (ajout individuel
 // ou import CSV — jamais sur un compte déjà existant, ex. email qui
-// correspondait déjà à un kholleur). Crée le lien d'activation puis envoie
+// correspondait déjà à un kholleur), ainsi que depuis
+// /api/admin/envoi-identifiants pour renvoyer ce même lien à un compte déjà
+// existant (ex. campagne de communication des accès à tous les
+// khôlleurs/référents/étudiants). Crée le lien d'activation puis envoie
 // l'email ; n'échoue jamais bruyamment (voir envoyerEmailActivationCompte)
-// pour ne jamais faire échouer la création du compte elle-même à cause d'un
-// souci d'email ou de base.
+// pour ne jamais faire échouer l'appelant à cause d'un souci d'email ou de
+// base.
 export async function envoyerActivationNouveauCompte({
   utilisateurId,
   email,
