@@ -10,6 +10,16 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 // Resend lui-même — voir https://resend.com/docs/dashboard/domains/introduction.
 const EXPEDITEUR = process.env.RESEND_FROM_EMAIL ?? "PrepaStan <onboarding@resend.dev>";
 
+// Même variable que /api/auth/mot-de-passe-oublie et activationCompte.ts
+// pour construire un lien absolu — mais sans repli sur l'URL de la requête
+// ici (les fonctions ci-dessous n'ont pas accès à `req`, voir leurs appelants
+// dans l'historique, ex. src/app/api/referent/sessions/[sessionId]/valider).
+// Si NEXTAUTH_URL n'est pas configurée, "PrepaStan" reste du texte simple
+// plutôt que de pointer vers un lien cassé.
+const LIEN_PREPASTAN = process.env.NEXTAUTH_URL
+  ? `<a href="${process.env.NEXTAUTH_URL}">PrepaStan</a>`
+  : "PrepaStan";
+
 export type CreneauEmail = {
   date: Date;
   heureDebut: string;
@@ -101,7 +111,7 @@ export async function envoyerEmailPublicationPlanning({
           </thead>
           <tbody>${lignes}</tbody>
         </table>
-        <p>Connectez-vous à PrepaStan pour saisir les notes et appréciations.</p>
+        <p>Connectez-vous à ${LIEN_PREPASTAN} pour saisir les notes et appréciations.</p>
       `,
     });
   } catch (err) {
@@ -223,7 +233,7 @@ export async function envoyerEmailGrillesValidees({
       html: `
         ${corps}
         <p>Classe ${classeNom} — ${disciplineNom} — semaine ${semaine}.</p>
-        <p>Connectez-vous à PrepaStan pour valider la session.</p>
+        <p>Connectez-vous à ${LIEN_PREPASTAN} pour valider la session.</p>
       `,
     });
   } catch (err) {
@@ -271,7 +281,7 @@ export async function envoyerEmailNoteDisponible({
       html: `
         ${corps}
         <p>Classe ${classeNom} — ${disciplineNom} — semaine ${semaine}.</p>
-        <p>Connectez-vous à PrepaStan pour la consulter.</p>
+        <p>Connectez-vous à ${LIEN_PREPASTAN} pour la consulter.</p>
       `,
     });
   } catch (err) {
@@ -310,7 +320,7 @@ export async function envoyerEmailRappelNotation({
         <p>Bonjour ${nomKholleur},</p>
         <p>Les notes et appréciations de vos khôlles de ${disciplineNom} pour la classe ${classeNom}
         (semaine ${semaine}) n'ont pas encore été saisies.</p>
-        <p>Connectez-vous à PrepaStan pour compléter votre grille de notation dès que possible.</p>
+        <p>Connectez-vous à ${LIEN_PREPASTAN} pour compléter votre grille de notation dès que possible.</p>
       `,
     });
   } catch (err) {
