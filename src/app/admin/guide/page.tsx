@@ -233,6 +233,13 @@ export default async function GuidePage() {
           , <strong>Khôlleurs</strong> ou <strong>Référents</strong> — ils affichent l&apos;email de chaque compte,
           jamais son mot de passe.
         </p>
+        <p>
+          Pour renvoyer ce même email d&apos;activation à un compte déjà existant (ex. une personne qui
+          n&apos;a jamais fini sa première connexion, ou pour communiquer les accès à plusieurs personnes
+          d&apos;un coup), utilisez l&apos;écran <strong>Envoi des identifiants</strong> : il liste tous les
+          comptes khôlleur, référent et étudiant, pré-coche ceux qui ne se sont jamais connectés, et envoie
+          (ou prévisualise, sans rien envoyer) le lien d&apos;activation pour la sélection.
+        </p>
       </div>
     </main>
   );
