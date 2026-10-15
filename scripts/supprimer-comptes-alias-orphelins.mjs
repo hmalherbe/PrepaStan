@@ -7,12 +7,13 @@
 // diagnostic correspondant dans la conversation).
 //
 // Garde-fous avant suppression, par compte : email en alias
-// hugues.malherbe+...@gmail.com, rôle ELEVE uniquement (pas kholleur ni
-// référent), aucune fiche Eleve rattachée, et aucune donnée réelle
-// attachée (compétences, disponibilités, référent de session, créneaux,
-// jobs de planification). Un compte qui ne remplit pas TOUTES ces
-// conditions est signalé et laissé intact plutôt que supprimé au risque
-// de perdre de vraies données.
+// hugues.malherbe+...@gmail.com, un SEUL rôle (ELEVE seul, ou
+// PROFESSEUR_REFERENT seul — jamais les deux, ni KHOLLEUR, qui indiquerait
+// un compte réellement utilisé), aucune fiche Eleve rattachée, et aucune
+// donnée réelle attachée (compétences, disponibilités, vivier référent,
+// référent effectif d'une session, créneaux, jobs de planification). Un
+// compte qui ne remplit pas TOUTES ces conditions est signalé et laissé
+// intact plutôt que supprimé au risque de perdre de vraies données.
 //
 // Mode par défaut : SIMULATION uniquement (aucune écriture), affiche le
 // plan. Ajouter APPLY=1 pour supprimer réellement.
@@ -38,7 +39,8 @@ async function main() {
   const ignores = [];
 
   for (const u of candidats) {
-    if (u.roles.length !== 1 || u.roles[0] !== "ELEVE") {
+    const roleSeul = u.roles.length === 1 ? u.roles[0] : null;
+    if (roleSeul !== "ELEVE" && roleSeul !== "PROFESSEUR_REFERENT") {
       ignores.push({ u, raison: `rôle(s) inattendu(s) : ${u.roles.join(", ")}` });
       continue;
     }
