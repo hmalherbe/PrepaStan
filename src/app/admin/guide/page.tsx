@@ -146,6 +146,20 @@ export default async function GuidePage() {
           le taux d&apos;alternance LV1/LV2.
         </p>
 
+        <h3>Envoi des identifiants</h3>
+        <p>
+          L&apos;écran <strong>Envoi des identifiants</strong> liste tous les comptes khôlleur, référent et
+          étudiant, et permet d&apos;envoyer (ou renvoyer) à une sélection l&apos;email d&apos;activation : un
+          lien à usage unique, valable 7 jours, où la personne choisit elle-même son mot de passe — jamais un
+          mot de passe en clair envoyé par email. Les cases sont pré-cochées sur les comptes qui ne se sont
+          jamais connectés, mais ce suivi n&apos;a de sens qu&apos;à partir de sa mise en place : un compte
+          actif depuis longtemps peut apparaître à tort &laquo; jamais connecté &raquo; tant qu&apos;il ne
+          s&apos;est pas reconnecté depuis, donc vérifiez la sélection avant d&apos;envoyer. Un lien
+          <strong> Aperçu</strong> sur chaque ligne affiche le rendu exact de l&apos;email sans jamais
+          l&apos;envoyer — pratique pour vérifier le contenu sur une adresse qui ne peut rien recevoir (ex.
+          adresse synthétique de démo).
+        </p>
+
         <h3>Paramètres</h3>
         <p>
           Sur l&apos;écran <strong>Paramètres</strong>, réglez le délai avant l&apos;envoi d&apos;un rappel
