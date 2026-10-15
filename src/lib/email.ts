@@ -156,6 +156,33 @@ export async function envoyerEmailReinitialisationMotDePasse({
   }
 }
 
+// Construction pure (sujet + HTML), séparée de l'envoi : réutilisée telle
+// quelle par /api/admin/envoi-identifiants/apercu pour prévisualiser le
+// rendu exact d'un email d'activation sans jamais l'envoyer — utile
+// notamment en démo, où les adresses synthétiques (ex. @demo.prepastan.local)
+// ne peuvent de toute façon recevoir aucun email réel (voir RESEND_API_KEY,
+// volontairement absente de .env.demo).
+export function construireEmailActivationCompte({
+  destinataire,
+  nomUtilisateur,
+  lien,
+}: {
+  destinataire: string;
+  nomUtilisateur: string;
+  lien: string;
+}): { subject: string; html: string } {
+  return {
+    subject: "PrepaStan — Activez votre compte",
+    html: `
+        <p>Bonjour ${nomUtilisateur},</p>
+        <p>Un compte PrepaStan vient d'être créé pour vous, avec cette adresse (${destinataire}).
+        Cliquez sur le lien ci-dessous pour choisir votre mot de passe (valable 7 jours) :</p>
+        <p><a href="${lien}">${lien}</a></p>
+        <p>Si vous ne vous attendiez pas à cet email, vous pouvez l'ignorer.</p>
+      `,
+  };
+}
+
 // Premier email reçu par un compte fraîchement créé (ajout individuel ou
 // import CSV) : pas de mot de passe en clair, un lien à usage unique (7
 // jours, voir DUREE_VALIDITE_TOKEN_ACTIVATION_MS) vers la même page que
@@ -176,19 +203,10 @@ export async function envoyerEmailActivationCompte({
     return;
   }
 
+  const { subject, html } = construireEmailActivationCompte({ destinataire, nomUtilisateur, lien });
+
   try {
-    await resend.emails.send({
-      from: EXPEDITEUR,
-      to: destinataire,
-      subject: "PrepaStan — Activez votre compte",
-      html: `
-        <p>Bonjour ${nomUtilisateur},</p>
-        <p>Un compte PrepaStan vient d'être créé pour vous, avec cette adresse (${destinataire}).
-        Cliquez sur le lien ci-dessous pour choisir votre mot de passe (valable 7 jours) :</p>
-        <p><a href="${lien}">${lien}</a></p>
-        <p>Si vous ne vous attendiez pas à cet email, vous pouvez l'ignorer.</p>
-      `,
-    });
+    await resend.emails.send({ from: EXPEDITEUR, to: destinataire, subject, html });
   } catch (err) {
     console.error(`Échec de l'envoi de l'email d'activation à ${destinataire} :`, err);
   }

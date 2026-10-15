@@ -94,6 +94,7 @@ export function EnvoiIdentifiantsForm({ utilisateurs }: { utilisateurs: Utilisat
             <th>Email</th>
             <th>Rôle(s)</th>
             <th>Dernière connexion</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -112,11 +113,20 @@ export function EnvoiIdentifiantsForm({ utilisateurs }: { utilisateurs: Utilisat
                   ? new Date(u.derniereConnexion).toLocaleString("fr-FR")
                   : "Jamais connecté"}
               </td>
+              <td>
+                <a
+                  href={`/api/admin/envoi-identifiants/apercu?utilisateurId=${u.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Aperçu
+                </a>
+              </td>
             </tr>
           ))}
           {utilisateurs.length === 0 && (
             <tr>
-              <td colSpan={5}>Aucun compte khôlleur, référent ou étudiant.</td>
+              <td colSpan={6}>Aucun compte khôlleur, référent ou étudiant.</td>
             </tr>
           )}
         </tbody>
