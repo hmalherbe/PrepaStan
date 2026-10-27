@@ -4,27 +4,27 @@
 --
 -- Pas de mot de passe en clair dans ce fichier : :'looker_password' est
 -- substitué par psql AVANT envoi au serveur (simple remplacement textuel,
--- apostrophes incluses, donc littéral déjà correctement échappé — y
--- compris à l'intérieur du bloc $$ ... $$ ci-dessous, qui ne contient donc
--- plus que du SQL statique une fois reçu par Postgres).
+-- apostrophes incluses, donc littéral déjà correctement échappé) — mais
+-- SEULEMENT en dehors d'un bloc dollar-quoté ($$ ... $$) : à l'intérieur,
+-- psql ne substitue rien (constaté au déploiement : erreur de syntaxe sur
+-- le ":"), d'où les commandes conditionnelles \if/\else ci-dessous plutôt
+-- qu'un bloc DO/plpgsql.
 --
 -- Usage (depuis /root/PrepaStan sur le VPS) :
---   docker compose -f docker-compose.prod.yml exec -T db \
+--   docker compose -f docker-compose.demo.yml exec -T db-demo \
 --     psql -U prepastan -d prepastan \
---     -v looker_password="UN_MOT_DE_PASSE_FORT_ICI" \
+--     -v looker_password='UN_MOT_DE_PASSE_FORT_ICI' \
 --     -f - < scripts/creer-role-looker-studio.sql
 --
 -- Rejouable sans risque (idempotent) : change juste le mot de passe si le
 -- rôle existe déjà.
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'looker_ro') THEN
-    CREATE ROLE looker_ro WITH LOGIN PASSWORD :'looker_password' CONNECTION LIMIT 5;
-  ELSE
-    ALTER ROLE looker_ro WITH PASSWORD :'looker_password';
-  END IF;
-END
-$$;
+SELECT (EXISTS (SELECT FROM pg_roles WHERE rolname = 'looker_ro'))::text AS role_existe
+\gset
+\if :role_existe
+  ALTER ROLE looker_ro WITH PASSWORD :'looker_password';
+\else
+  CREATE ROLE looker_ro WITH LOGIN PASSWORD :'looker_password' CONNECTION LIMIT 5;
+\endif
 
 GRANT CONNECT ON DATABASE prepastan TO looker_ro;
 GRANT USAGE ON SCHEMA public TO looker_ro;
