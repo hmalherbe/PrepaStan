@@ -32,6 +32,7 @@ const LIENS_PAR_ROLE: Record<string, Lien[]> = {
       enfants: [
         { href: "/admin/statistiques", label: "Vue d'ensemble" },
         { href: "/admin/statistiques/notes-eleves", label: "Notes par étudiant" },
+        { href: "/admin/statistiques/notes-kholleurs", label: "Notes par khôlleur" },
       ],
     },
     { href: "/admin/guide", label: "Guide d'utilisation" },

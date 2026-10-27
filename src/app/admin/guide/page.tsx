@@ -143,7 +143,8 @@ export default async function GuidePage() {
         <p>
           L&apos;écran <strong>Statistiques</strong> (filtrable par classe) montre la charge de chaque khôlleur, le
           score horaire moyen par étudiant, la diversité des khôlleurs vus par étudiant et par discipline, ainsi que
-          le taux d&apos;alternance LV1/LV2.
+          le taux d&apos;alternance LV1/LV2. Le sous-écran <strong>Notes par khôlleur</strong> liste, toutes classes
+          confondues, la note minimale, maximale, moyenne et le nombre de notes attribuées par chaque khôlleur.
         </p>
 
         <h3>Envoi des identifiants</h3>
