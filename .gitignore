@@ -25,6 +25,11 @@ prisma/dev.db
 scripts/import-legacy-data.json
 scripts/planning-historique-*.json
 
+# certificat TLS Postgres généré sur le serveur pour la connexion Looker
+# Studio (voir README, "Connexion Looker Studio") : jamais dans le dépôt,
+# même si le certificat est auto-signé (la clé privée, elle, est sensible)
+postgres-ssl-demo/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

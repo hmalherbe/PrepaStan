@@ -45,7 +45,30 @@ services:
       - .env.demo
     volumes:
       - prepastan-db-demo-data:/var/lib/postgresql/data
-    # Pas de port publié vers l'extérieur, comme "db" en prod.
+      # pg_hba.conf custom (remplace celui généré par défaut) et certificat
+      # TLS pour la connexion Looker Studio en lecture seule — voir
+      # "Connexion Looker Studio" dans le README avant d'activer ceci : le
+      # port ci-dessous n'est sûr à publier qu'avec le pare-feu décrit là-bas.
+      # Ciblé sur la démo volontairement, jamais la prod (voir
+      # docker-compose.prod.yml, qui reste sans port publié).
+      - ./postgres/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf:ro
+      - ./postgres-ssl-demo/server.crt:/etc/postgresql-ssl/server.crt:ro
+      - ./postgres-ssl-demo/server.key:/etc/postgresql-ssl/server.key:ro
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/etc/postgresql-ssl/server.crt
+      - -c
+      - ssl_key_file=/etc/postgresql-ssl/server.key
+    # Port publié, mais protégé à deux niveaux : le pare-feu du serveur ne
+    # doit laisser passer que la plage IP de Looker Studio (voir README),
+    # et pg_hba.conf (ci-dessus) n'autorise de toute façon que le rôle
+    # looker_ro en SSL depuis cette même plage — aucun autre accès externe,
+    # même si le pare-feu était mal configuré.
+    ports:
+      - "5432:5432"
 
   app-demo:
     build: .

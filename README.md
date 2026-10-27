@@ -277,6 +277,95 @@ pip install -r requirements.txt
 python scripts/simuler_annee.py
 ```
 
+## Connexion Looker Studio (lecture seule)
+
+Looker Studio (gratuit, connecteur PostgreSQL natif) peut se connecter
+directement à la base de **démo** (`db-demo`, données synthétiques — jamais
+la prod) pour construire des tableaux de bord libres, en plus des écrans
+Statistiques intégrés à PrepaStan. Contrairement à l'appli elle-même,
+Looker Studio tourne chez Google et a donc besoin d'une connexion réseau
+directe — la base **n'est normalement pas exposée du tout** (voir
+`docker-compose.demo.yml`, comme `docker-compose.prod.yml` qui lui reste
+inchangé), donc ceci ouvre volontairement un accès externe, strictement
+limité :
+
+- un rôle Postgres dédié **`looker_ro`**, lecture seule, sans accès à la
+  table `Utilisateur` (qui contient le hash du mot de passe) — une vue
+  sans cette colonne est exposée à la place ;
+- connexion **TLS obligatoire** (`hostssl`, jamais en clair) ;
+- pare-feu + `pg_hba.conf` restreints à la seule plage IP que Google publie
+  pour ce connecteur (`142.251.74.0/23`, et `2001:4860:4807::/48` en IPv6) —
+  à vérifier avant de déployer, et si Google la fait évoluer un jour, sur
+  <https://support.google.com/looker-studio/answer/7288010>.
+
+### 1. Générer le certificat TLS (une fois, sur le VPS)
+
+Généré directement par un conteneur temporaire de la même image que
+`db-demo`, pour que le fichier appartienne au bon utilisateur dès sa
+création (pas de `chown`/`chmod` à deviner) :
+
+```bash
+cd /root/PrepaStan
+mkdir -p postgres-ssl-demo
+docker run --rm -v "$(pwd)/postgres-ssl-demo:/out" postgres:16-alpine sh -c "
+  apk add --no-cache openssl >/dev/null &&
+  openssl req -new -x509 -days 3650 -nodes \
+    -out /out/server.crt -keyout /out/server.key \
+    -subj '/CN=demo.prepastan.fr' &&
+  chown postgres:postgres /out/server.key /out/server.crt &&
+  chmod 600 /out/server.key
+"
+```
+
+### 2. Ouvrir le port dans le pare-feu, restreint à Looker Studio
+
+Avec `ufw` (adapter si le pare-feu du VPS est géré autrement, ex. groupe
+de sécurité Scaleway côté console plutôt qu'en ligne de commande) :
+
+```bash
+sudo ufw allow from 142.251.74.0/23 to any port 5432 proto tcp
+sudo ufw allow from 2001:4860:4807::/48 to any port 5432 proto tcp   # si IPv6 activé sur le VPS
+```
+
+**Ne jamais faire `ufw allow 5432`** sans restriction de source : ça
+ouvrirait la base à tout Internet.
+
+### 3. Déployer (publie le port, active TLS, applique le nouveau pg_hba.conf)
+
+```bash
+cd /root/PrepaStan && git pull && docker compose -f docker-compose.demo.yml up -d --build
+```
+
+### 4. Créer le rôle `looker_ro`
+
+Choisir un mot de passe fort, différent de tous les autres déjà utilisés
+par l'appli (jamais dans un fichier commité, voir le commentaire en tête
+du script) :
+
+```bash
+docker compose -f docker-compose.demo.yml exec -T db-demo \
+  psql -U prepastan -d prepastan \
+  -v looker_password="UN_MOT_DE_PASSE_FORT_ICI" \
+  -f - < scripts/creer-role-looker-studio.sql
+```
+
+### 5. Configurer le connecteur dans Looker Studio
+
+Créer une nouvelle source de données → connecteur **PostgreSQL** :
+
+| Champ | Valeur |
+|---|---|
+| Host | `demo.prepastan.fr` (ou l'IP du VPS) |
+| Port | `5432` |
+| Base de données | `prepastan` |
+| Nom d'utilisateur | `looker_ro` |
+| Mot de passe | celui choisi à l'étape 4 |
+| Enable SSL | ✅ coché |
+
+Limite du connecteur : 150 000 lignes par requête (largement suffisant
+ici), et seules les tables du schéma `public` sont sélectionnables
+directement (le cas de toutes les tables PrepaStan).
+
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript

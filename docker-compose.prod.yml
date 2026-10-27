@@ -29,7 +29,9 @@ services:
     volumes:
       - prepastan-db-data:/var/lib/postgresql/data
     # Pas de port publié vers l'extérieur : seule l'appli (sur le même
-    # réseau Docker interne) doit pouvoir s'y connecter.
+    # réseau Docker interne) doit pouvoir s'y connecter. La connexion
+    # Looker Studio en lecture seule cible la démo (db-demo), pas la prod —
+    # voir "Connexion Looker Studio" dans le README et docker-compose.demo.yml.
 
   planning-solver:
     build: ./services/planning-solver
