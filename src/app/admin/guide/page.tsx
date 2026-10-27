@@ -18,7 +18,7 @@ export default async function GuidePage() {
       <div className="carte">
         <h2>Vue d&apos;ensemble</h2>
         <p>
-          PrepaStan organise les khôlles (colles) d&apos;une classe préparatoire, semaine par semaine. Le cycle
+          PrepaStan organise les khôlles d&apos;une classe préparatoire, semaine par semaine. Le cycle
           habituel :
         </p>
         <ol>
