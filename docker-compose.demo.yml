@@ -43,7 +43,11 @@ services:
       # port ci-dessous n'est sûr à publier qu'avec le pare-feu décrit là-bas.
       # Ciblé sur la démo volontairement, jamais la prod (voir
       # docker-compose.prod.yml, qui reste sans port publié).
-      - ./postgres/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf:ro
+      # Pas en lecture seule (:ro) : l'entrypoint officiel de l'image tente
+      # un chown sur les fichiers de $PGDATA au démarrage, y compris
+      # pg_hba.conf — avec :ro ce chown échoue et le conteneur boucle en
+      # restart (constaté lors du déploiement initial de cette fonctionnalité).
+      - ./postgres/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
       - ./postgres-ssl-demo/server.crt:/etc/postgresql-ssl/server.crt:ro
       - ./postgres-ssl-demo/server.key:/etc/postgresql-ssl/server.key:ro
     command:
