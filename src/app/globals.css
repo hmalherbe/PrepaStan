@@ -396,6 +396,52 @@ form label {
   z-index: 20;
 }
 
+/* Arborescence à deux niveaux (ex. Notes par khôlleur : discipline > khôlleur),
+   avec un "+"/"-" explicite demandé plutôt que le triangle par défaut des
+   <details> (voir .nav-sous-menu ci-dessus, qui utilise un triangle). */
+.arbre-noeud {
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  padding: 10px 14px;
+}
+
+.arbre-noeud > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.arbre-noeud > summary::-webkit-details-marker {
+  display: none;
+}
+
+.arbre-noeud > summary::before {
+  content: "+";
+  font-weight: 700;
+  width: 1em;
+  flex: none;
+}
+
+.arbre-noeud[open] > summary::before {
+  content: "−";
+}
+
+.arbre-noeud-nom {
+  font-weight: 600;
+}
+
+.arbre-noeud-stats {
+  color: var(--couleur-texte-discret);
+  font-size: 0.88rem;
+}
+
+.arbre-noeud table {
+  margin-top: 10px;
+}
+
 .champ-erreur {
   color: var(--couleur-erreur);
   font-size: 0.9rem;
