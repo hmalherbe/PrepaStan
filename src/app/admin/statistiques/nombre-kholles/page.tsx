@@ -58,20 +58,22 @@ export default async function NombreKhollesPage({
         basePath="/admin/statistiques/nombre-kholles"
       />
 
-      <div className="carte">
-        <h2>Nombre de sessions par discipline</h2>
-        <p style={{ color: "var(--couleur-texte-discret)", fontSize: "0.9rem", marginTop: -8 }}>
-          Une session = une (classe, discipline, semaine) planifiée, brouillon ou publiée.
-        </p>
-        <GraphiqueAnneau titre="Nombre de sessions par discipline" donnees={sessionsParDiscipline} />
-      </div>
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
+        <div className="carte" style={{ flex: "1 1 360px" }}>
+          <h2>Nombre de sessions par discipline</h2>
+          <p style={{ color: "var(--couleur-texte-discret)", fontSize: "0.9rem", marginTop: -8 }}>
+            Une session = une (classe, discipline, semaine) planifiée, brouillon ou publiée.
+          </p>
+          <GraphiqueAnneau titre="Nombre de sessions par discipline" donnees={sessionsParDiscipline} />
+        </div>
 
-      <div className="carte">
-        <h2>Nombre de khôlles dispensées par discipline</h2>
-        <p style={{ color: "var(--couleur-texte-discret)", fontSize: "0.9rem", marginTop: -8 }}>
-          Une khôlle dispensée = un passage d&apos;un étudiant devant un khôlleur.
-        </p>
-        <GraphiqueAnneau titre="Nombre de khôlles dispensées par discipline" donnees={khollesParDiscipline} />
+        <div className="carte" style={{ flex: "1 1 360px" }}>
+          <h2>Nombre de khôlles dispensées par discipline</h2>
+          <p style={{ color: "var(--couleur-texte-discret)", fontSize: "0.9rem", marginTop: -8 }}>
+            Une khôlle dispensée = un passage d&apos;un étudiant devant un khôlleur.
+          </p>
+          <GraphiqueAnneau titre="Nombre de khôlles dispensées par discipline" donnees={khollesParDiscipline} />
+        </div>
       </div>
     </main>
   );
