@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+type EleveCreneau = { passageId: string; nom: string };
+
 type Creneau = {
   id: string;
   discipline: string;
@@ -16,7 +18,7 @@ type Creneau = {
   kholleurNom: string;
   salleId: string;
   salleNom: string;
-  eleves: string[];
+  eleves: EleveCreneau[];
   // Session déjà clôturée (toutes les notes validées par le référent) :
   // rééditer le kholleur/la salle n'aurait alors plus de sens (l'historique
   // de qui a fait passer qui doit rester figé). Un planning publié mais pas
@@ -65,6 +67,59 @@ export function PlanningReview({
   const [enEdition, setEnEdition] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [actionEnCours, setActionEnCours] = useState<string | null>(null);
+  // Sélection en cours pour l'interversion de deux élèves (0 à 2 au plus) :
+  // cliquer un 3e nom repart d'une sélection vide avec ce nom-là plutôt que
+  // de compléter une liste de 3, pour rester simple à comprendre.
+  const [selection, setSelection] = useState<EleveCreneau[]>([]);
+
+  function basculerSelection(eleve: EleveCreneau) {
+    setSelection((prev) => {
+      if (prev.some((e) => e.passageId === eleve.passageId)) {
+        return prev.filter((e) => e.passageId !== eleve.passageId);
+      }
+      return prev.length >= 2 ? [eleve] : [...prev, eleve];
+    });
+  }
+
+  async function intervertir() {
+    if (selection.length !== 2) return;
+    const [a, b] = selection;
+    if (!confirm(`Intervertir ${a.nom} et ${b.nom} sur leurs créneaux respectifs ?`)) return;
+    setActionEnCours("intervertir");
+    setErreur(null);
+    try {
+      const res = await fetch("/api/admin/planification/passages/echanger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passageId1: a.passageId, passageId2: b.passageId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErreur(data.error ?? "Erreur lors de l'interversion");
+        return;
+      }
+      // Mise à jour locale plutôt qu'un router.refresh() : "creneaux" est de
+      // l'état local (voir sauvegarderEdition plus haut, même raison) donc
+      // un simple refresh ne le réafficherait pas tout seul. Chaque élève
+      // migre du créneau qu'il quitte vers celui de l'autre.
+      setCreneaux((prev) => {
+        const creneau1 = prev.find((c) => c.eleves.some((e) => e.passageId === a.passageId));
+        const creneau2 = prev.find((c) => c.eleves.some((e) => e.passageId === b.passageId));
+        return prev.map((c) => {
+          if (creneau1 && c.id === creneau1.id) {
+            return { ...c, eleves: [...c.eleves.filter((e) => e.passageId !== a.passageId), b] };
+          }
+          if (creneau2 && c.id === creneau2.id) {
+            return { ...c, eleves: [...c.eleves.filter((e) => e.passageId !== b.passageId), a] };
+          }
+          return c;
+        });
+      });
+      setSelection([]);
+    } finally {
+      setActionEnCours(null);
+    }
+  }
 
   const parJour = creneaux.reduce<Record<string, Creneau[]>>((acc, c) => {
     (acc[c.jour] ??= []).push(c);
@@ -159,6 +214,26 @@ export function PlanningReview({
         {estBrouillon ? "Brouillon — non publié" : "Publié"}
       </p>
 
+      {selection.length > 0 && (
+        <p className="no-print" style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          {selection.length === 1 ? (
+            <span>{selection[0].nom} sélectionné(e) — cliquez un second élève de la même discipline pour les intervertir.</span>
+          ) : (
+            <>
+              <span>
+                Intervertir <strong>{selection[0].nom}</strong> et <strong>{selection[1].nom}</strong> ?
+              </span>
+              <button onClick={intervertir} disabled={actionEnCours !== null}>
+                {actionEnCours === "intervertir" ? "Interversion…" : "Confirmer l'interversion"}
+              </button>
+            </>
+          )}
+          <button className="discret" onClick={() => setSelection([])}>
+            Annuler la sélection
+          </button>
+        </p>
+      )}
+
       {Object.entries(parJour).map(([jour, liste]) => (
         <div key={jour} className="jour-planning">
           <p className="jour-titre">
@@ -198,7 +273,26 @@ export function PlanningReview({
                 ) : (
                   <tr key={c.id} className={classeLigne}>
                     <td>{c.discipline}</td>
-                    <td>{c.eleves.join(", ")}</td>
+                    <td>
+                      {c.eleves.map((e, i) => (
+                        <span key={e.passageId}>
+                          {i > 0 && ", "}
+                          {c.sessionCloturee ? (
+                            e.nom
+                          ) : (
+                            <button
+                              type="button"
+                              className={`eleve-nom no-print${selection.some((s) => s.passageId === e.passageId) ? " eleve-nom-selectionne" : ""}`}
+                              onClick={() => basculerSelection(e)}
+                              title="Cliquer pour sélectionner en vue d'une interversion"
+                            >
+                              {e.nom}
+                            </button>
+                          )}
+                          {c.sessionCloturee ? null : <span className="print-only">{e.nom}</span>}
+                        </span>
+                      ))}
+                    </td>
                     <td className="cellule-horaire">{c.heureDebutPreparation ?? "—"}</td>
                     <td className="cellule-horaire">
                       {c.heureDebut}-{c.heureFin}
@@ -294,7 +388,7 @@ function LigneEdition({
   return (
     <tr className={className}>
       <td>{creneau.discipline}</td>
-      <td>{creneau.eleves.join(", ")}</td>
+      <td>{creneau.eleves.map((e) => e.nom).join(", ")}</td>
       <td>
         <input
           value={heureDebutPreparation}

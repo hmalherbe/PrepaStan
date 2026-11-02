@@ -479,6 +479,30 @@ form label {
   border-top: 3px solid var(--couleur-texte-discret);
 }
 
+/* Nom d'élève cliquable dans le tableau de détail d'une semaine
+   (PlanningReview) : sélection en vue d'intervertir deux élèves. Un bouton
+   stylé pour se fondre dans le texte plutôt que ressembler à un bouton. */
+.eleve-nom {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.eleve-nom:hover {
+  text-decoration: underline;
+}
+
+.eleve-nom-selectionne {
+  background: var(--couleur-accent-fond);
+  color: var(--couleur-primaire-fonce);
+  font-weight: 600;
+  padding: 1px 4px;
+}
+
 /* ---------- Graphiques en barres (statistiques) ---------- */
 /* Une seule teinte, plus ou moins foncée : encode une magnitude, jamais une
    catégorie (voir la doc interne sur les graphiques : le séquentiel reste

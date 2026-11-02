@@ -138,6 +138,14 @@ export default async function GuidePage() {
           (les khôlleurs doivent revalider). L&apos;écran <strong>Historique</strong> liste tous les plannings
           générés, avec qui a validé ou non.
         </p>
+        <p>
+          Sur ce même écran de relecture, vous pouvez aussi <strong>intervertir deux élèves</strong> : cliquez
+          sur un nom d&apos;élève puis sur un second (forcément de la même discipline cette semaine-là), puis
+          confirmez — chacun récupère le créneau (horaire, khôlleur, salle) de l&apos;autre. Impossible entre
+          deux disciplines différentes (chacun perdrait sa khôlle de la discipline quittée), une fois la
+          session clôturée, une fois une note déjà saisie pour l&apos;un des deux, ou si l&apos;échange créerait
+          un chevauchement avec une autre khôlle de la semaine.
+        </p>
 
         <h3>Suivre l&apos;avancement</h3>
         <p>

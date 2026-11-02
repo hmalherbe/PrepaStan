@@ -70,7 +70,7 @@ export default async function PlanningReviewPage({
         kholleurNom: `${c.kholleur.prenom} ${c.kholleur.nom}`,
         salleId: c.salleId,
         salleNom: c.salle.nom,
-        eleves: c.passages.map((p) => `${p.eleve.prenom} ${p.eleve.nom}`),
+        eleves: c.passages.map((p) => ({ passageId: p.id, nom: `${p.eleve.prenom} ${p.eleve.nom}` })),
         sessionCloturee: s.statut === "CLOTUREE",
       }))
     )
