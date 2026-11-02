@@ -171,6 +171,16 @@ export default async function GuidePage() {
           adresse synthétique de démo).
         </p>
 
+        <h3>Prendre la main sur un profil</h3>
+        <p>
+          L&apos;écran <strong>Prendre la main</strong> permet de vous connecter temporairement en tant
+          qu&apos;un étudiant, un khôlleur ou un professeur référent (ex. pour vérifier ce qu&apos;il voit, ou
+          l&apos;aider à distance) : saisissez son email et <strong>votre</strong> mot de passe administrateur
+          — jamais celui de la personne, que vous ne connaissez de toute façon pas. Impossible sur un compte
+          administrateur. Un bandeau reste affiché en haut de chaque page tant que vous êtes dans ce mode, avec
+          un bouton pour revenir directement à votre compte admin sans ressaisir de mot de passe.
+        </p>
+
         <h3>Paramètres</h3>
         <p>
           Sur l&apos;écran <strong>Paramètres</strong>, réglez le délai avant l&apos;envoi d&apos;un rappel

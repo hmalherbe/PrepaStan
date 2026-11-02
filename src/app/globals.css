@@ -287,6 +287,22 @@ form label {
   color: var(--couleur-succes);
 }
 
+/* Bandeau "prise de main" (voir NavBar.tsx) : couleur d'attente (même
+   famille que .badge-attente ci-dessus) pour rester visible en permanence
+   sur chaque page tant que l'admin n'est pas revenu à son propre compte. */
+.bandeau-prise-de-main {
+  background: #fdf3d9;
+  color: var(--couleur-attente);
+  text-align: center;
+  padding: calc(var(--echelle-espacement) * 6px);
+  font-size: 0.9rem;
+}
+
+.bandeau-prise-de-main button {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .badge-erreur {
   background: #fbe4e1;
   color: var(--couleur-erreur);

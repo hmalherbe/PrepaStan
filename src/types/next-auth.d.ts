@@ -17,6 +17,11 @@ declare module "next-auth" {
       roles: Role[];
       nom: string;
       prenom: string;
+      // Présent uniquement pendant une prise de main admin (voir
+      // src/lib/impersonation.ts) : id du VRAI compte admin derrière cette
+      // session, pour afficher le bandeau "revenir à mon compte" et
+      // permettre d'y revenir sans ressaisir de mot de passe.
+      impersonatorId?: string;
     };
   }
 }
@@ -27,5 +32,6 @@ declare module "next-auth/jwt" {
     roles: Role[];
     nom: string;
     prenom: string;
+    impersonatorId?: string;
   }
 }

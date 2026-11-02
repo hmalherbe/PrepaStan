@@ -26,6 +26,7 @@ const LIENS_PAR_ROLE: Record<string, Lien[]> = {
     { href: "/admin/referents", label: "Référents" },
     { href: "/admin/salles", label: "Salles" },
     { href: "/admin/envoi-identifiants", label: "Envoi des identifiants" },
+    { href: "/admin/prise-de-main", label: "Prendre la main" },
     { href: "/admin/parametres", label: "Paramètres" },
     {
       label: "Statistiques",
@@ -87,8 +88,25 @@ export function NavBar({
     router.refresh();
   }
 
+  async function revenirAuCompteAdmin() {
+    await fetch("/api/admin/impersonation/arreter", { method: "POST" });
+    // Navigation complète, comme au démarrage de la prise de main (voir
+    // PriseDeMainForm.tsx) : relit vraiment le nouveau cookie plutôt que de
+    // garder en cache la session de la personne impersonnée.
+    window.location.href = "/admin/prise-de-main";
+  }
+
   return (
-    <header className="navbar">
+    <>
+      {session.user.impersonatorId && (
+        <div className="bandeau-prise-de-main no-print">
+          Vous avez pris la main sur <strong>{session.user.prenom} {session.user.nom}</strong>.{" "}
+          <button className="discret" onClick={revenirAuCompteAdmin}>
+            Revenir à mon compte administrateur
+          </button>
+        </div>
+      )}
+      <header className="navbar">
       <Link href="/" style={{ fontWeight: 700, textDecoration: "none", color: "inherit" }}>
         PrepaStan
       </Link>
@@ -141,6 +159,7 @@ export function NavBar({
           Se déconnecter
         </button>
       </nav>
-    </header>
+      </header>
+    </>
   );
 }

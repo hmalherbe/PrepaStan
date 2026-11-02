@@ -58,6 +58,12 @@ export const authOptions: NextAuthOptions = {
       session.user.roles = token.roles;
       session.user.nom = token.nom;
       session.user.prenom = token.prenom;
+      // Présent seulement pendant une prise de main admin (voir
+      // src/lib/impersonation.ts, qui fabrique ce token directement sans
+      // passer par authorize() ci-dessus) : jamais touché par le callback
+      // jwt() ci-dessus (qui ne modifie token que dans le `if (user)`),
+      // donc transmis tel quel d'une requête à l'autre.
+      session.user.impersonatorId = token.impersonatorId;
       return session;
     },
   },
