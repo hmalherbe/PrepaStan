@@ -53,6 +53,7 @@ export default async function DetailSessionReferentPage({
       statut: statutParKholleur.get(kholleurId) ?? "EN_ATTENTE",
       lignes: creneauxKholleur.flatMap((c) =>
         c.passages.map((p) => ({
+          passageId: p.id,
           eleve: `${p.eleve.prenom} ${p.eleve.nom}`,
           jour: c.date.toISOString().slice(0, 10),
           heureDebut: c.heureDebut,

@@ -207,9 +207,12 @@ export default async function GuidePage() {
         <h2>Pour les professeurs référents</h2>
         <p>
           Après connexion, l&apos;écran <strong>Sessions à valider</strong> liste les sessions de leur(s)
-          discipline(s), avec l&apos;état de validation de chaque khôlleur. Une fois tous les khôlleurs
-          d&apos;une session validés, ils peuvent la <strong>valider</strong> à leur tour : les notes et
-          appréciations deviennent alors visibles aux étudiants concernés, qui en sont notifiés par email.
+          discipline(s), avec l&apos;état de validation de chaque khôlleur. Un bouton <strong>Modifier</strong>
+          sur la fiche de chaque khôlleur permet au référent de corriger lui-même une note ou une appréciation
+          (ex. une coquille repérée en relisant), sans attendre que ce khôlleur précis ait validé sa grille.
+          Une fois tous les khôlleurs d&apos;une session validés, ils peuvent la <strong>valider</strong> à
+          leur tour : les notes et appréciations deviennent alors visibles aux étudiants concernés, qui en
+          sont notifiés par email.
         </p>
       </div>
 
