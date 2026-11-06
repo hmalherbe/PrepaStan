@@ -207,7 +207,22 @@ export function PlanningReview({
   // par jour ci-dessus, qui ne sert qu'à l'écran de relecture. `creneaux`
   // est déjà trié jour puis discipline puis kholleur puis heure (voir la
   // page serveur), donc chaque groupe obtenu ici reste dans cet ordre.
-  const creneauxLangues = creneaux.filter((c) => c.estLangueVivante);
+  //
+  // Les langues vivantes sont en plus réordonnées : toutes les lignes d'une
+  // même langue à la suite (même si elles sont sur des jours différents),
+  // plutôt que mélangées par jour comme le reste — avec un séparateur entre
+  // deux langues (voir TableImpression, prop avecSeparateurDiscipline).
+  // Ordre des langues : alphabétique, par simplicité (aucune préférence
+  // exprimée entre elles).
+  const creneauxLanguesParDiscipline = creneaux
+    .filter((c) => c.estLangueVivante)
+    .reduce<Record<string, Creneau[]>>((acc, c) => {
+      (acc[c.discipline] ??= []).push(c);
+      return acc;
+    }, {});
+  const creneauxLangues = Object.keys(creneauxLanguesParDiscipline)
+    .sort((a, b) => a.localeCompare(b))
+    .flatMap((discipline) => creneauxLanguesParDiscipline[discipline]);
   const creneauxParDisciplineNonLangue = creneaux
     .filter((c) => !c.estLangueVivante)
     .reduce<Record<string, Creneau[]>>((acc, c) => {
@@ -556,7 +571,7 @@ export function PlanningReview({
             <p className="jour-titre">
               {classeNom} · Semaine {semaine} — Langues vivantes
             </p>
-            <TableImpression creneaux={creneauxLangues} />
+            <TableImpression creneaux={creneauxLangues} avecSeparateurDiscipline />
           </div>
         )}
         {Object.entries(creneauxParDisciplineNonLangue).map(([discipline, liste]) => (
@@ -648,7 +663,18 @@ export function PlanningReview({
 // (inutile sur la vue écran, où le jour est déjà le titre de chaque bloc) :
 // ici une page peut mélanger plusieurs jours (langues vivantes) ou plusieurs
 // kholleurs d'un même jour (discipline non-langue).
-function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
+function TableImpression({
+  creneaux,
+  avecSeparateurDiscipline,
+}: {
+  creneaux: Creneau[];
+  // Insère une ligne séparatrice entre deux disciplines consécutives (jamais
+  // avant la toute première) : sert la page "Langues vivantes", où les
+  // lignes sont déjà regroupées par langue plutôt que par jour (voir
+  // creneauxLangues) — sans ça, le passage d'une langue à l'autre ne se
+  // verrait pas, la discipline n'étant qu'une colonne parmi d'autres.
+  avecSeparateurDiscipline?: boolean;
+}) {
   return (
     <table>
       <thead>
@@ -663,19 +689,26 @@ function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
         </tr>
       </thead>
       <tbody>
-        {creneaux.map((c) => (
-          <tr key={c.id}>
-            <td>{new Date(c.jour).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" })}</td>
-            <td>{c.discipline}</td>
-            <td>{c.eleves.map((e) => e.nom).join(", ")}</td>
-            <td className="cellule-horaire">{c.heureDebutPreparation ?? "—"}</td>
-            <td className="cellule-horaire">
-              {c.heureDebut}-{c.heureFin}
-            </td>
-            <td>{c.kholleurNom}</td>
-            <td>{c.salleNom}</td>
-          </tr>
-        ))}
+        {creneaux.map((c, index) => {
+          // Même bordure épaisse que .ligne-nouveau-kholleur dans la vue
+          // écran (séparer les créneaux d'un kholleur à l'autre), réutilisée
+          // ici pour séparer deux langues consécutives.
+          const nouvelleDiscipline =
+            avecSeparateurDiscipline && index > 0 && creneaux[index - 1].discipline !== c.discipline;
+          return (
+            <tr key={c.id} className={nouvelleDiscipline ? "ligne-nouveau-kholleur" : undefined}>
+              <td>{new Date(c.jour).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" })}</td>
+              <td>{c.discipline}</td>
+              <td>{c.eleves.map((e) => e.nom).join(", ")}</td>
+              <td className="cellule-horaire">{c.heureDebutPreparation ?? "—"}</td>
+              <td className="cellule-horaire">
+                {c.heureDebut}-{c.heureFin}
+              </td>
+              <td>{c.kholleurNom}</td>
+              <td>{c.salleNom}</td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
