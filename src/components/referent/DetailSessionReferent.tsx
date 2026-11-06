@@ -103,7 +103,7 @@ export function DetailSessionReferent({
       {groupes.map((g) => {
         const enEdition = kholleurEnEdition === g.kholleurId;
         return (
-          <details key={g.kholleurId} className="carte" open={groupes.length <= 3}>
+          <details key={g.kholleurId} className="carte fiche-kholleur-referent" open={groupes.length <= 3}>
             <summary style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
               <strong>{g.nom}</strong>
               <StatusBadge statut={g.statut} />

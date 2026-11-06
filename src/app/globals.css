@@ -458,6 +458,32 @@ form label {
   margin-top: 10px;
 }
 
+/* Fiche d'un kholleur sur l'écran "Session à valider" du référent
+   (DetailSessionReferent) : repliée par défaut dès 4 kholleurs ou plus
+   (voir le composant). Même technique que .arbre-noeud ci-dessus — sans
+   elle, le marqueur natif du <summary> disparaît purement et simplement dès
+   qu'on lui applique un display flex (nécessaire pour aligner nom/badge/
+   bouton sur une ligne), ne laissant plus aucun indice visuel qu'il reste
+   possible de déplier la fiche. */
+.fiche-kholleur-referent > summary {
+  list-style: none;
+}
+
+.fiche-kholleur-referent > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fiche-kholleur-referent > summary::before {
+  content: "+";
+  font-weight: 700;
+  width: 1em;
+  flex: none;
+}
+
+.fiche-kholleur-referent[open] > summary::before {
+  content: "−";
+}
+
 .champ-erreur {
   color: var(--couleur-erreur);
   font-size: 0.9rem;
