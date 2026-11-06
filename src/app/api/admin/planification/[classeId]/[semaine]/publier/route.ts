@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { envoyerEmailPublicationPlanning } from "@/lib/email";
+import { envoyerEmailsConvocationsEleves, envoyerEmailsPlanningKholleurs } from "@/lib/notificationsPlanning";
 
 // POST /api/admin/planification/:classeId/:semaine/publier
 // Passe toutes les SessionKholle du brouillon en PLANIFIEE : les créneaux
 // deviennent visibles pour les kholleurs concernés, qui reçoivent en plus un
-// email récapitulatif de leurs créneaux pour la semaine.
+// email récapitulatif de leurs créneaux pour la semaine, et pour les élèves
+// concernés, qui reçoivent leur convocation (jour, kholleur, horaires de
+// préparation/passage, salle).
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ classeId: string; semaine: string }> }
@@ -31,52 +33,8 @@ export async function POST(
     data: { statut: "PLANIFIEE" },
   });
 
-  const creneaux = await prisma.creneau.findMany({
-    where: { sessionKholleId: { in: sessionIds } },
-    include: {
-      kholleur: true,
-      salle: true,
-      sessionKholle: { include: { discipline: true, classe: true } },
-      passages: { include: { eleve: true } },
-    },
-    orderBy: [{ date: "asc" }, { heureDebut: "asc" }],
-  });
-
-  const creneauxParKholleur = new Map<string, typeof creneaux>();
-  for (const c of creneaux) {
-    const liste = creneauxParKholleur.get(c.kholleurId) ?? [];
-    liste.push(c);
-    creneauxParKholleur.set(c.kholleurId, liste);
-  }
-
-  const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
-
-  if (parametres?.envoiEmailKholleur === false) {
-    return NextResponse.json({ sessionsPubliees: sessionIds.length });
-  }
-
-  await Promise.allSettled(
-    [...creneauxParKholleur.values()].map((creneauxKholleur) => {
-      const kholleur = creneauxKholleur[0].kholleur;
-      const classeNom = creneauxKholleur[0].sessionKholle.classe.nom;
-      return envoyerEmailPublicationPlanning({
-        destinataire: kholleur.email,
-        nomKholleur: kholleur.nom,
-        prenomKholleur: kholleur.prenom,
-        classeNom,
-        semaine: Number(semaine),
-        corpsPersonnalise: parametres?.modeleEmailKholleur,
-        creneaux: creneauxKholleur.map((c) => ({
-          date: c.date,
-          heureDebut: c.heureDebut,
-          heureFin: c.heureFin,
-          disciplineNom: c.sessionKholle.discipline.nom,
-          salleNom: c.salle.nom,
-          eleves: c.passages.map((p) => `${p.eleve.prenom} ${p.eleve.nom}`),
-        })),
-      });
-    })
-  );
+  await envoyerEmailsPlanningKholleurs(sessionIds, Number(semaine));
+  await envoyerEmailsConvocationsEleves(sessionIds, Number(semaine));
 
   return NextResponse.json({ sessionsPubliees: sessionIds.length });
 }

@@ -26,7 +26,11 @@ export default async function GuidePage() {
             L&apos;admin fixe les quotas de la semaine (qui khôlle quoi, avec quel khôlleur, à quelle heure) et lance
             le calcul automatique du planning.
           </li>
-          <li>L&apos;admin relit le résultat, ajuste si besoin, puis le publie — les khôlleurs sont notifiés par email.</li>
+          <li>
+            L&apos;admin relit le résultat, ajuste si besoin, puis le publie — les khôlleurs sont notifiés par
+            email (récapitulatif de leurs créneaux), et les étudiants reçoivent leur convocation (jour, kholleur,
+            heures de préparation et de passage, salle).
+          </li>
           <li>Chaque khôlleur saisit les notes et appréciations de ses créneaux, puis valide sa grille.</li>
           <li>
             Une fois tous les khôlleurs d&apos;une session (classe + discipline + semaine) validés, le professeur
@@ -134,9 +138,16 @@ export default async function GuidePage() {
         <p>
           Une fois le calcul terminé, vous atterrissez sur l&apos;écran de relecture du planning : vous pouvez
           ajuster un créneau (horaire, salle, khôlleur), puis <strong>publier</strong> — ce qui envoie l&apos;email
-          récapitulatif à chaque khôlleur concerné. Republier une semaine déjà publiée la repasse en brouillon
-          (les khôlleurs doivent revalider). L&apos;écran <strong>Historique</strong> liste tous les plannings
-          générés, avec qui a validé ou non.
+          récapitulatif à chaque khôlleur concerné, ainsi qu&apos;à chaque étudiant sa{" "}
+          <strong>convocation</strong> (jour, kholleur, heures de préparation et de passage, salle). Republier une
+          semaine déjà publiée la repasse en brouillon (les khôlleurs doivent revalider). L&apos;écran{" "}
+          <strong>Historique</strong> liste tous les plannings générés, avec qui a validé ou non.
+        </p>
+        <p>
+          Les boutons <strong>Renvoyer planning aux kholleurs</strong> et <strong>Renvoyer convocation aux
+          étudiants</strong>, à côté de &laquo; Régénérer &raquo; et &laquo; Imprimer &raquo;, permettent de
+          renvoyer ces mêmes emails à tout moment (ex. un khôlleur ou un étudiant qui dit ne rien avoir reçu),
+          pour toutes les disciplines déjà publiées de la semaine — sans rien republier ni modifier.
         </p>
         <p>
           Sur ce même écran de relecture, vous pouvez aussi <strong>intervertir deux élèves</strong> : cliquez

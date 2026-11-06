@@ -307,6 +307,81 @@ export async function envoyerEmailNoteDisponible({
   }
 }
 
+export type CreneauConvocationEmail = {
+  date: Date;
+  // Absente pour les créneaux créés avant l'introduction de ce champ (voir
+  // Creneau.heureDebutPreparation côté schema.prisma) : on retombe alors sur
+  // heureDebut, comme partout ailleurs dans l'appli.
+  heureDebutPreparation: string | null;
+  heureDebut: string;
+  heureFin: string;
+  disciplineNom: string;
+  salleNom: string;
+  kholleurNom: string;
+};
+
+// Convoque un élève à sa/ses khôlle(s) de la semaine qui vient d'être
+// publiée (voir /api/admin/planification/[classeId]/[semaine]/publier) :
+// jour, heure de début de préparation, heure de passage, discipline,
+// kholleur, salle — tout ce qu'il lui faut pour s'y présenter sans avoir à
+// se connecter. N'envoyé qu'aux élèves ayant un compte de connexion (comme
+// envoyerEmailNoteDisponible). Pas de corps personnalisable (contrairement
+// aux emails ci-dessus) : le contenu est entièrement factuel, rien à
+// reformuler par l'admin. N'échoue jamais bruyamment, comme les autres
+// emails ci-dessus.
+export async function envoyerEmailConvocationKholle({
+  destinataire,
+  nomEleve,
+  prenomEleve,
+  classeNom,
+  semaine,
+  creneaux,
+}: {
+  destinataire: string;
+  nomEleve: string;
+  prenomEleve: string;
+  classeNom: string;
+  semaine: number;
+  creneaux: CreneauConvocationEmail[];
+}): Promise<void> {
+  if (!resend) {
+    console.warn(`RESEND_API_KEY non configuré : email de convocation non envoyé à ${destinataire}`);
+    return;
+  }
+
+  const lignes = creneaux
+    .map(
+      (c) =>
+        `<tr><td>${formaterDate(c.date)}</td><td>${c.heureDebutPreparation ?? c.heureDebut}</td>` +
+        `<td>${c.heureDebut}-${c.heureFin}</td><td>${c.disciplineNom}</td><td>${c.kholleurNom}</td>` +
+        `<td>${c.salleNom}</td></tr>`
+    )
+    .join("");
+
+  try {
+    await resend.emails.send({
+      from: EXPEDITEUR,
+      to: destinataire,
+      subject: `PrepaStan — Convocation : khôlle(s) ${classeNom} semaine ${semaine}`,
+      html: `
+        <p>Bonjour ${prenomEleve} ${nomEleve},</p>
+        <p>Voici votre convocation à la khôlle de la semaine ${semaine} (classe ${classeNom}) :</p>
+        <table cellpadding="6" style="border-collapse: collapse;">
+          <thead>
+            <tr style="text-align:left;">
+              <th>Jour</th><th>Début préparation</th><th>Passage</th><th>Discipline</th><th>Khôlleur</th><th>Salle</th>
+            </tr>
+          </thead>
+          <tbody>${lignes}</tbody>
+        </table>
+        <p>Pensez à vous présenter dès le début de votre préparation.</p>
+      `,
+    });
+  } catch (err) {
+    console.error(`Échec de l'envoi de l'email de convocation à ${destinataire} :`, err);
+  }
+}
+
 // Rappel envoyé à un kholleur qui n'a pas encore validé sa grille de
 // notation pour une session déjà khôllée, passé le délai configuré dans
 // Paramètres (voir src/lib/rappelsNotation.ts). N'échoue jamais bruyamment,

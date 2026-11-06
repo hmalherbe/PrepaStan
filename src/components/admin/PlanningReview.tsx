@@ -66,6 +66,7 @@ export function PlanningReview({
   const [creneaux, setCreneaux] = useState(creneauxInitiaux);
   const [enEdition, setEnEdition] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [actionEnCours, setActionEnCours] = useState<string | null>(null);
   // Sélection en cours pour l'interversion de deux élèves (0 à 2 au plus) :
   // cliquer un 3e nom repart d'une sélection vide avec ce nom-là plutôt que
@@ -195,6 +196,46 @@ export function PlanningReview({
         return;
       }
       router.push(`/admin/planification?classeId=${classeId}&date=${dateDebutSemaine}`);
+    } finally {
+      setActionEnCours(null);
+    }
+  }
+
+  async function renvoyerPlanningKholleurs() {
+    if (!confirm("Renvoyer l'email récapitulatif à tous les kholleurs déjà publiés cette semaine ?")) return;
+    setActionEnCours("renvoyer-kholleurs");
+    setErreur(null);
+    setInfo(null);
+    try {
+      const res = await fetch(`/api/admin/planification/${classeId}/${semaine}/renvoyer-planning-kholleurs`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErreur(data.error ?? "Erreur lors du renvoi");
+        return;
+      }
+      setInfo(`Email renvoyé à ${data.kholleursNotifies} kholleur(s).`);
+    } finally {
+      setActionEnCours(null);
+    }
+  }
+
+  async function renvoyerConvocationsEleves() {
+    if (!confirm("Renvoyer la convocation à tous les élèves déjà publiés cette semaine ?")) return;
+    setActionEnCours("renvoyer-eleves");
+    setErreur(null);
+    setInfo(null);
+    try {
+      const res = await fetch(`/api/admin/planification/${classeId}/${semaine}/renvoyer-convocations-eleves`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErreur(data.error ?? "Erreur lors du renvoi");
+        return;
+      }
+      setInfo(`Convocation renvoyée à ${data.elevesNotifies} élève(s).`);
     } finally {
       setActionEnCours(null);
     }
@@ -345,10 +386,17 @@ export function PlanningReview({
             {actionEnCours === "publier" ? "Publication…" : "Publier le planning"}
           </button>
         )}
+        <button type="button" className="secondaire" onClick={renvoyerPlanningKholleurs} disabled={actionEnCours !== null}>
+          {actionEnCours === "renvoyer-kholleurs" ? "Envoi…" : "Renvoyer planning aux kholleurs"}
+        </button>
+        <button type="button" className="secondaire" onClick={renvoyerConvocationsEleves} disabled={actionEnCours !== null}>
+          {actionEnCours === "renvoyer-eleves" ? "Envoi…" : "Renvoyer convocation aux étudiants"}
+        </button>
         <button type="button" className="secondaire" onClick={() => window.print()}>
           Imprimer
         </button>
       </p>
+      {info && <p className="no-print badge badge-succes">{info}</p>}
       {!estBrouillon && (
         <p className="champ-erreur no-print">
           Ce planning est déjà publié. Le régénérer remplacera les créneaux actuels et repassera la
