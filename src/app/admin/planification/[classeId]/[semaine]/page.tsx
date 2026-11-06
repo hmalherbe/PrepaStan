@@ -55,7 +55,12 @@ export default async function PlanningReviewPage({
     dispensesParDiscipline.set(d.discipline.nom, liste);
   }
 
-  const estBrouillon = sessions.every((s) => s.statut === "PLANIFICATION");
+  // Brouillon si AU MOINS UNE discipline de la semaine n'est pas encore
+  // publiée — pas seulement si elles le sont toutes : sinon une discipline
+  // publiée pendant qu'une autre vient d'être (re)générée masque à tort les
+  // boutons "Publier"/"Annuler" pour cette dernière (même logique que
+  // `publie` dans l'écran Historique, qui lui ne s'était pas trompé).
+  const estBrouillon = sessions.some((s) => s.statut === "PLANIFICATION");
 
   const creneaux = sessions
     .flatMap((s) =>
