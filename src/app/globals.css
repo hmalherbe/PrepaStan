@@ -726,6 +726,15 @@ th.triable:hover {
   display: none;
 }
 
+/* Vue regroupée par discipline (langues vivantes réunies sur une page,
+   une page par discipline non-langue), construite uniquement pour
+   l'impression : inutile à l'écran, où la vue par jour (éditable) suffit —
+   voir PlanningReview.tsx. Réaffichée en display:block dans le bloc
+   @media print ci-dessous. */
+.vue-impression {
+  display: none;
+}
+
 @media print {
   .navbar,
   .no-print {
@@ -801,17 +810,25 @@ th.triable:hover {
     box-shadow: none;
   }
 
-  /* Un jour de planning par page à l'impression (voir PlanningReview.tsx) :
-     saut de page avant chaque jour sauf le tout premier, pour ne jamais
-     couper un jour entre deux pages. Le <h1> de la page est masqué (voir
-     page.tsx) pour que le premier jour dispose d'une page pleine comme les
-     suivants, au lieu de partager son budget vertical avec ce titre. */
-  .jour-planning {
+  /* La vue écran (regroupée par jour, éditable) ne sert qu'à l'écran de
+     relecture : l'impression utilise .vue-impression ci-dessous, regroupée
+     par discipline (voir PlanningReview.tsx). */
+  .vue-impression {
+    display: block;
+  }
+
+  /* Une page par groupe à l'impression (langues vivantes réunies, puis une
+     par discipline non-langue, voir PlanningReview.tsx) : saut de page avant
+     chaque groupe sauf le tout premier, pour ne jamais couper un groupe entre
+     deux pages. Le <h1> de la page est masqué (voir page.tsx) pour que le
+     premier groupe dispose d'une page pleine comme les suivants, au lieu de
+     partager son budget vertical avec ce titre. */
+  .page-impression {
     break-before: page;
     page-break-before: always;
   }
 
-  .jour-planning:first-of-type {
+  .page-impression:first-of-type {
     break-before: auto;
     page-break-before: avoid;
   }

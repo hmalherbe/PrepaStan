@@ -153,6 +153,11 @@ export default async function GuidePage() {
           tout coché pour renvoyer à tout le monde comme avant.
         </p>
         <p>
+          Le bouton <strong>Imprimer</strong> organise les pages par discipline (pas par jour comme à
+          l&apos;écran) : une première page réunit toutes les langues vivantes, puis une page séparée pour
+          chaque discipline qui n&apos;en est pas une (économie, droit, entretien...).
+        </p>
+        <p>
           Sur ce même écran de relecture, vous pouvez aussi <strong>intervertir deux élèves</strong> : cliquez
           sur un nom d&apos;élève puis sur un second (forcément de la même discipline cette semaine-là), puis
           confirmez — chacun récupère le créneau (horaire, khôlleur, salle) de l&apos;autre. Impossible entre

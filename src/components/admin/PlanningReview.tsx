@@ -10,6 +10,10 @@ type EleveCreneau = { passageId: string; eleveId: string; nom: string };
 type Creneau = {
   id: string;
   discipline: string;
+  // Détermine le regroupement par page à l'impression (voir
+  // .vue-impression ci-dessous) : toutes les langues vivantes réunies sur
+  // une page, une page séparée par discipline non-langue.
+  estLangueVivante: boolean;
   jour: string;
   // Absente pour les créneaux créés avant l'introduction de ce champ.
   heureDebutPreparation: string | null;
@@ -196,6 +200,20 @@ export function PlanningReview({
     (acc[c.jour] ??= []).push(c);
     return acc;
   }, {});
+
+  // Regroupement spécifique à l'impression (voir .vue-impression dans
+  // globals.css) : une page réunissant toutes les langues vivantes, puis
+  // une page par discipline non-langue — sans rapport avec le regroupement
+  // par jour ci-dessus, qui ne sert qu'à l'écran de relecture. `creneaux`
+  // est déjà trié jour puis discipline puis kholleur puis heure (voir la
+  // page serveur), donc chaque groupe obtenu ici reste dans cet ordre.
+  const creneauxLangues = creneaux.filter((c) => c.estLangueVivante);
+  const creneauxParDisciplineNonLangue = creneaux
+    .filter((c) => !c.estLangueVivante)
+    .reduce<Record<string, Creneau[]>>((acc, c) => {
+      (acc[c.discipline] ??= []).push(c);
+      return acc;
+    }, {});
 
   async function sauvegarderEdition(id: string, champs: Partial<Creneau>) {
     setErreur(null);
@@ -429,6 +447,11 @@ export function PlanningReview({
         </p>
       )}
 
+      {/* Vue écran : regroupée par jour, éditable (modifier un créneau,
+          sélectionner deux élèves à intervertir). Masquée à l'impression —
+          voir .vue-impression juste en dessous, qui la remplace sur
+          papier avec un regroupement par discipline. */}
+      <div className="no-print">
       {Object.entries(parJour).map(([jour, liste]) => (
         <div key={jour} className="jour-planning">
           <p className="jour-titre">
@@ -521,6 +544,42 @@ export function PlanningReview({
           </ul>
         </div>
       )}
+      </div>
+
+      {/* Vue impression : une page réunissant toutes les langues vivantes,
+          puis une page par discipline non-langue (voir .vue-impression dans
+          globals.css, masquée à l'écran). Statique (pas de bouton
+          Modifier/interversion), contrairement à la vue écran ci-dessus. */}
+      <div className="vue-impression">
+        {creneauxLangues.length > 0 && (
+          <div className="page-impression">
+            <p className="jour-titre">
+              {classeNom} · Semaine {semaine} — Langues vivantes
+            </p>
+            <TableImpression creneaux={creneauxLangues} />
+          </div>
+        )}
+        {Object.entries(creneauxParDisciplineNonLangue).map(([discipline, liste]) => (
+          <div key={discipline} className="page-impression">
+            <p className="jour-titre">
+              {classeNom} · Semaine {semaine} — {discipline}
+            </p>
+            <TableImpression creneaux={liste} />
+          </div>
+        ))}
+        {dispensesParDiscipline.length > 0 && (
+          <div className="page-impression">
+            <p className="jour-titre">Étudiants dispensés</p>
+            <ul>
+              {dispensesParDiscipline.map(({ discipline, eleves }) => (
+                <li key={discipline}>
+                  {discipline} — {eleves.join(", ")} dispensé(e)s
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
 
       {erreur && <p className="champ-erreur no-print">{erreur}</p>}
 
@@ -580,6 +639,45 @@ export function PlanningReview({
         </p>
       )}
     </div>
+  );
+}
+
+// Table statique utilisée par la vue impression (.vue-impression) : pas de
+// bouton Modifier ni de sélection pour intervertir, contrairement à la vue
+// écran — une page imprimée n'a rien d'interactif. Colonne "Jour" en plus
+// (inutile sur la vue écran, où le jour est déjà le titre de chaque bloc) :
+// ici une page peut mélanger plusieurs jours (langues vivantes) ou plusieurs
+// kholleurs d'un même jour (discipline non-langue).
+function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>Jour</th>
+          <th>Discipline</th>
+          <th>Étudiants</th>
+          <th>Préparation</th>
+          <th>Khôlle</th>
+          <th>Kholleur</th>
+          <th>Salle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {creneaux.map((c) => (
+          <tr key={c.id}>
+            <td>{new Date(c.jour).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" })}</td>
+            <td>{c.discipline}</td>
+            <td>{c.eleves.map((e) => e.nom).join(", ")}</td>
+            <td className="cellule-horaire">{c.heureDebutPreparation ?? "—"}</td>
+            <td className="cellule-horaire">
+              {c.heureDebut}-{c.heureFin}
+            </td>
+            <td>{c.kholleurNom}</td>
+            <td>{c.salleNom}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

@@ -67,6 +67,7 @@ export default async function PlanningReviewPage({
       s.creneaux.map((c) => ({
         id: c.id,
         discipline: s.discipline.nom,
+        estLangueVivante: s.discipline.estLangueVivante,
         jour: c.date.toISOString().slice(0, 10),
         heureDebutPreparation: c.heureDebutPreparation,
         heureDebut: c.heureDebut,
