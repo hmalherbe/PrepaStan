@@ -46,10 +46,51 @@ function ListePersonnes({ personnes }: { personnes: Personne[] }) {
   return <>{personnes.map((p) => `${p.prenom} ${p.nom} (${p.discipline})`).join(", ")}</>;
 }
 
+// Les 3 renvois manuels (planning khôlleurs, convocation étudiants,
+// validation référents) partagent la même forme : POST sans corps vers
+// /api/admin/planification/:classeId/:semaine/renvoyer-..., réponse
+// {<champCompte>: nombre}. Centralisé ici plutôt que dans PlanningReview.tsx
+// (qui a sa propre copie, un seul appel à la fois donc pas besoin de la
+// généricité ci-dessous) car l'historique doit gérer un renvoi par ligne,
+// indépendamment des autres lignes affichées en même temps.
+const ACTIONS_RENVOI = {
+  kholleurs: { chemin: "renvoyer-planning-kholleurs", champ: "kholleursNotifies", libelle: "kholleur(s)" },
+  eleves: { chemin: "renvoyer-convocations-eleves", champ: "elevesNotifies", libelle: "élève(s)" },
+  referents: { chemin: "renvoyer-validation-referents", champ: "referentsNotifies", libelle: "référent(s)" },
+} as const;
+type ActionRenvoi = keyof typeof ACTIONS_RENVOI;
+const LIBELLE_ACTION_RENVOI: Record<ActionRenvoi, string> = {
+  kholleurs: "Renvoyer planning aux kholleurs",
+  eleves: "Renvoyer convocation aux étudiants",
+  referents: "Renvoyer validation au professeur référent",
+};
+
 export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
   const [classeFiltre, setClasseFiltre] = useState("");
   const [ouverts, setOuverts] = useState<Set<string>>(new Set());
   const [suppressionEnCours, setSuppressionEnCours] = useState(false);
+  // Clé = `${classeId}_${semaine}_${action}` : un renvoi en cours ou un
+  // message ne concernent qu'une seule ligne/action à la fois, jamais les
+  // autres lignes affichées en même temps.
+  const [renvoiEnCours, setRenvoiEnCours] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Record<string, string>>({});
+
+  async function renvoyer(classeId: string, semaine: number, action: ActionRenvoi) {
+    const { chemin, champ, libelle } = ACTIONS_RENVOI[action];
+    const cle = `${classeId}_${semaine}_${action}`;
+    setRenvoiEnCours(cle);
+    setMessages((prev) => ({ ...prev, [cle]: "" }));
+    try {
+      const res = await fetch(`/api/admin/planification/${classeId}/${semaine}/${chemin}`, { method: "POST" });
+      const data = await res.json();
+      setMessages((prev) => ({
+        ...prev,
+        [cle]: res.ok ? `Renvoyé à ${data[champ]} ${libelle}.` : data.error ?? "Erreur lors du renvoi",
+      }));
+    } finally {
+      setRenvoiEnCours(null);
+    }
+  }
 
   function toggle(cle: string) {
     setOuverts((prev) => {
@@ -123,6 +164,7 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
             <th>Étudiants interrogés</th>
             <th>Publication</th>
             <th>État</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -188,17 +230,41 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
                       />
                     </div>
                   </td>
+                  <td>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {(Object.keys(ACTIONS_RENVOI) as ActionRenvoi[]).map((action) => {
+                        const cleAction = `${l.classeId}_${l.semaine}_${action}`;
+                        const message = messages[cleAction];
+                        return (
+                          <div key={action}>
+                            <button
+                              type="button"
+                              className="discret"
+                              disabled={!l.publie || renvoiEnCours !== null}
+                              title={!l.publie ? "Planning encore en brouillon : publiez-le d'abord" : undefined}
+                              onClick={() => renvoyer(l.classeId, l.semaine, action)}
+                            >
+                              {renvoiEnCours === cleAction ? "Envoi…" : LIBELLE_ACTION_RENVOI[action]}
+                            </button>
+                            {message && (
+                              <div style={{ fontSize: "0.85rem", color: "#777" }}>{message}</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </td>
                 </tr>
                 {ouverts.has(cleKV) && kholleursValides.length > 0 && (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <strong>Kholleurs ayant validé :</strong> <ListePersonnes personnes={kholleursValides} />
                     </td>
                   </tr>
                 )}
                 {ouverts.has(cleKNV) && kholleursNonValides.length > 0 && (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <strong>Kholleurs n&apos;ayant pas validé :</strong>{" "}
                       <ListePersonnes personnes={kholleursNonValides} />
                     </td>
@@ -206,14 +272,14 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
                 )}
                 {ouverts.has(cleRV) && referentsValides.length > 0 && (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <strong>Référents ayant validé :</strong> <ListePersonnes personnes={referentsValides} />
                     </td>
                   </tr>
                 )}
                 {ouverts.has(cleRNV) && referentsNonValides.length > 0 && (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <strong>Référents n&apos;ayant pas validé :</strong>{" "}
                       <ListePersonnes personnes={referentsNonValides} />
                     </td>
@@ -224,7 +290,7 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
           })}
           {lignesAffichees.length === 0 && (
             <tr>
-              <td colSpan={8}>
+              <td colSpan={9}>
                 {lignes.length === 0 ? "Aucun planning généré pour le moment." : "Aucun planning pour cette classe."}
               </td>
             </tr>

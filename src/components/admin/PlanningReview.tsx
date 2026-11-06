@@ -241,6 +241,26 @@ export function PlanningReview({
     }
   }
 
+  async function renvoyerValidationReferents() {
+    if (!confirm("Renvoyer l'invitation à valider aux professeurs référents concernés ?")) return;
+    setActionEnCours("renvoyer-referents");
+    setErreur(null);
+    setInfo(null);
+    try {
+      const res = await fetch(`/api/admin/planification/${classeId}/${semaine}/renvoyer-validation-referents`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErreur(data.error ?? "Erreur lors du renvoi");
+        return;
+      }
+      setInfo(`Email renvoyé à ${data.referentsNotifies} référent(s).`);
+    } finally {
+      setActionEnCours(null);
+    }
+  }
+
   if (aucuneSession) {
     return (
       <p>
@@ -386,11 +406,32 @@ export function PlanningReview({
             {actionEnCours === "publier" ? "Publication…" : "Publier le planning"}
           </button>
         )}
-        <button type="button" className="secondaire" onClick={renvoyerPlanningKholleurs} disabled={actionEnCours !== null}>
+        <button
+          type="button"
+          className="secondaire"
+          onClick={renvoyerPlanningKholleurs}
+          disabled={actionEnCours !== null || estBrouillon}
+          title={estBrouillon ? "Planning encore en brouillon : publiez-le d'abord" : undefined}
+        >
           {actionEnCours === "renvoyer-kholleurs" ? "Envoi…" : "Renvoyer planning aux kholleurs"}
         </button>
-        <button type="button" className="secondaire" onClick={renvoyerConvocationsEleves} disabled={actionEnCours !== null}>
+        <button
+          type="button"
+          className="secondaire"
+          onClick={renvoyerConvocationsEleves}
+          disabled={actionEnCours !== null || estBrouillon}
+          title={estBrouillon ? "Planning encore en brouillon : publiez-le d'abord" : undefined}
+        >
           {actionEnCours === "renvoyer-eleves" ? "Envoi…" : "Renvoyer convocation aux étudiants"}
+        </button>
+        <button
+          type="button"
+          className="secondaire"
+          onClick={renvoyerValidationReferents}
+          disabled={actionEnCours !== null || estBrouillon}
+          title={estBrouillon ? "Planning encore en brouillon : publiez-le d'abord" : undefined}
+        >
+          {actionEnCours === "renvoyer-referents" ? "Envoi…" : "Renvoyer validation au professeur référent"}
         </button>
         <button type="button" className="secondaire" onClick={() => window.print()}>
           Imprimer

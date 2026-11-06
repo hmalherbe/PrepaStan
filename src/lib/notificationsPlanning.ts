@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { envoyerEmailConvocationKholle, envoyerEmailPublicationPlanning } from "@/lib/email";
+import { envoyerEmailConvocationKholle, envoyerEmailGrillesValidees, envoyerEmailPublicationPlanning } from "@/lib/email";
+import { compterGrillesNonValidees } from "@/lib/sessionValidation";
 
 // Partagé entre la publication initiale (/api/admin/planification/
 // [classeId]/[semaine]/publier) et les deux boutons de renvoi manuel de
@@ -109,4 +110,56 @@ export async function envoyerEmailsConvocationsEleves(sessionIds: string[], sema
   );
 
   return creneauxParEleve.size;
+}
+
+// Renvoie aux professeurs référents concernés l'email "grilles validées,
+// vous pouvez valider la session" — même email et mêmes destinataires
+// (TOUS les référents du vivier ProfesseurReferent de la (classe,
+// discipline), pas seulement le referentId choisi pour cette semaine) que
+// /api/kholleur/sessions/[sessionId]/valider, qui l'envoie normalement au
+// moment où le dernier kholleur valide sa grille. Ne renvoie que pour les
+// sessions parmi `sessionIds` qui sont encore réellement "en attente de
+// validation référent" (pas déjà clôturées, et grilles kholleur déjà
+// toutes validées) — sans ça, le référent recevrait une invitation à
+// valider alors qu'il ne le peut pas encore (ou plus). Respecte
+// ParametresApplication.envoiEmailReferent (false = n'envoie rien, retourne
+// 0). Retourne le nombre de (session, référent) notifiés.
+export async function envoyerEmailsValidationReferents(sessionIds: string[]): Promise<number> {
+  const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
+  if (parametres?.envoiEmailReferent === false) return 0;
+
+  const sessions = await prisma.sessionKholle.findMany({
+    where: { id: { in: sessionIds }, statut: { not: "CLOTUREE" } },
+    include: { classe: true, discipline: true },
+  });
+
+  let nbNotifies = 0;
+  await Promise.allSettled(
+    sessions.map(async (session) => {
+      const grillesNonValidees = await compterGrillesNonValidees(session.id);
+      if (grillesNonValidees > 0) return;
+
+      const referents = await prisma.professeurReferent.findMany({
+        where: { classeId: session.classeId, disciplineId: session.disciplineId },
+        include: { utilisateur: true },
+      });
+
+      await Promise.allSettled(
+        referents.map((referent) => {
+          nbNotifies++;
+          return envoyerEmailGrillesValidees({
+            destinataire: referent.utilisateur.email,
+            nomReferent: referent.utilisateur.nom,
+            prenomReferent: referent.utilisateur.prenom,
+            classeNom: session.classe.nom,
+            disciplineNom: session.discipline.nom,
+            semaine: session.semaine,
+            corpsPersonnalise: parametres?.modeleEmailReferent,
+          });
+        })
+      );
+    })
+  );
+
+  return nbNotifies;
 }
