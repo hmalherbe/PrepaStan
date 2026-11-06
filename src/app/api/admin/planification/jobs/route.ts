@@ -511,6 +511,33 @@ export async function POST(req: Request) {
     });
   }
 
+  // Créneaux déjà en base pour cette (classe, semaine) mais une AUTRE
+  // discipline que celle(s) qu'on régénère ici : sans ça, le solveur ne
+  // connaît que les quotas transmis dans CE job et pourrait très bien
+  // affecter un élève à un horaire qui chevauche une khôlle d'une
+  // discipline déjà publiée cette même semaine — chaque génération étant
+  // jusqu'ici indépendante des autres disciplines de la semaine. Transmis
+  // au solveur comme occupation FIXE par élève (voir occupations_existantes
+  // dans resoudre(), solver.py).
+  const creneauxAutresDisciplines = await prisma.creneau.findMany({
+    where: { sessionKholle: { classeId, semaine, disciplineId: { notIn: disciplineIds } } },
+    select: {
+      date: true,
+      heureDebutPreparation: true,
+      heureDebut: true,
+      heureFin: true,
+      passages: { select: { eleveId: true } },
+    },
+  });
+  const occupationsExistantes = creneauxAutresDisciplines.flatMap((c) =>
+    c.passages.map((p) => ({
+      eleveId: p.eleveId,
+      jour: c.date.toISOString().slice(0, 10),
+      heureDebutOccupation: c.heureDebutPreparation ?? c.heureDebut,
+      heureFin: c.heureFin,
+    }))
+  );
+
   const historique = await calculerHistorique(
     eleves.map((e) => e.id),
     kholleurIds,
@@ -550,6 +577,7 @@ export async function POST(req: Request) {
         poidsVarianceEcartKholles: parametresGeneraux?.poidsVarianceEcartKholles ?? 1,
         margeMinutesEntreKholles: parametresGeneraux?.margeMinutesEntreKholles ?? 0,
         affectationsForcees,
+        occupationsExistantes,
         // En Docker de production, le solveur doit rappeler l'appli via le
         // réseau interne (ex. http://app:3000), pas via le nom de domaine
         // public : selon l'hébergeur, un conteneur ne peut pas forcément se

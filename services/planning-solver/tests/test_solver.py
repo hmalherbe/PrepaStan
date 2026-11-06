@@ -728,3 +728,74 @@ def test_affectation_forcee_horaire_impossible_est_infaisable():
 
     assert result.statut == "INFAISABLE"
     assert "Affectation forcée impossible" in result.message
+
+
+# ---------- Occupations existantes (autre discipline déjà planifiée) ------
+
+
+def test_occupation_existante_evite_le_chevauchement():
+    """Reproduit le scénario réel ayant motivé ce paramètre : Espagnol est
+    déjà planifié pour E1 (créneau existant 14h10-14h40, hors de cette
+    résolution, qui ne porte que sur Maths) et chevauche le seul créneau
+    Maths de 14h (préparation incluse). E1 ne peut alors être placé que
+    sur le créneau Maths de 16h : avec deux créneaux pour deux élèves,
+    E2 récupère nécessairement celui de 14h, seule affectation possible."""
+    eleves = [eleve("E1"), eleve("E2")]
+    quotas = [
+        quota("K1", "Maths", "S1", heure_debut="14:00", duree_preparation=10, duree_kholle=20, nombre_eleves=1),
+        quota("K2", "Maths", "S2", heure_debut="16:00", duree_preparation=10, duree_kholle=20, nombre_eleves=1),
+    ]
+    occupations_existantes = [
+        {"eleveId": "E1", "jour": "2027-01-04", "heureDebutOccupation": "14:10", "heureFin": "14:40"}
+    ]
+
+    result = resoudre(eleves=eleves, quotas=quotas, occupations_existantes=occupations_existantes)
+
+    assert_toutes_contraintes_dures(eleves, quotas, result)
+    creneau_e1 = next(c for c in result.creneaux if "E1" in c["eleveIds"])
+    assert creneau_e1["heureDebut"] == "16:10"
+
+
+def test_occupation_existante_structurellement_impossible_est_infaisable():
+    """Un seul créneau Maths possible pour E1 (quota à un seul élève), et il
+    chevauche entièrement l'occupation déjà fixée par Espagnol : aucune
+    affectation ne peut satisfaire les deux, INFAISABLE structurel (même
+    principe que test_infaisable_conflit_horaire_structurel_meme_kholleur)."""
+    eleves = [eleve("E1")]
+    quotas = [quota("K1", "Maths", "S1", heure_debut="14:00", duree_preparation=10, duree_kholle=20, nombre_eleves=1)]
+    occupations_existantes = [
+        {"eleveId": "E1", "jour": "2027-01-04", "heureDebutOccupation": "14:00", "heureFin": "14:30"}
+    ]
+
+    result = resoudre(eleves=eleves, quotas=quotas, occupations_existantes=occupations_existantes)
+
+    assert result.statut == "INFAISABLE"
+
+
+def test_occupation_existante_ignore_un_eleve_hors_de_la_classe():
+    """Une occupation référençant un élève absent de `eleves` (ne devrait
+    pas arriver en pratique, les deux venant de la même classe) ne doit pas
+    faire planter le solveur ni contraindre qui que ce soit."""
+    eleves = [eleve("E1")]
+    quotas = [quota("K1", "Maths", "S1", nombre_eleves=1)]
+    occupations_existantes = [
+        {"eleveId": "E_INCONNU", "jour": "2027-01-04", "heureDebutOccupation": "14:00", "heureFin": "14:30"}
+    ]
+
+    result = resoudre(eleves=eleves, quotas=quotas, occupations_existantes=occupations_existantes)
+
+    assert_toutes_contraintes_dures(eleves, quotas, result)
+
+
+def test_occupation_existante_autre_jour_sans_effet():
+    """Une occupation un autre jour ne doit contraindre en rien le créneau
+    du jour résolu, même à l'horaire identique."""
+    eleves = [eleve("E1")]
+    quotas = [quota("K1", "Maths", "S1", date="2027-01-05", heure_debut="14:00", duree_preparation=10, duree_kholle=20, nombre_eleves=1)]
+    occupations_existantes = [
+        {"eleveId": "E1", "jour": "2027-01-04", "heureDebutOccupation": "14:00", "heureFin": "14:30"}
+    ]
+
+    result = resoudre(eleves=eleves, quotas=quotas, occupations_existantes=occupations_existantes)
+
+    assert_toutes_contraintes_dures(eleves, quotas, result)

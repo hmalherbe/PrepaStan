@@ -181,6 +181,7 @@ def resoudre(
     poids_variance_ecart_kholles: int = POIDS_VARIANCE_ECART_KHOLLES,
     marge_minutes_entre_kholles: int = MARGE_MINUTES_ENTRE_KHOLLES,
     affectations_forcees: list[dict] | None = None,
+    occupations_existantes: list[dict] | None = None,
 ) -> SolveResult:
     """`disciplines_langue` : sous-ensemble de disciplines de la semaine
     marquées "langue vivante" (Discipline.estLangueVivante côté app). Pour
@@ -202,6 +203,23 @@ def resoudre(
     `disciplines_langue`. L'effectif attendu de chaque discipline (quotas
     fixés par l'admin) doit déjà exclure ces élèves-là en amont, sans quoi
     le quota resterait structurellement sous-rempli.
+
+    `occupations_existantes` : créneaux DEJA en base pour cette même
+    (classe, semaine) mais une AUTRE discipline que celles de `quotas` —
+    typiquement parce que la génération ne porte que sur un sous-ensemble
+    des disciplines de la semaine (ajout ou régénération d'une discipline
+    après que d'autres ont déjà été publiées). Sans ça, le solveur ne
+    "voit" que les créneaux qu'il est en train de poser et peut tout à fait
+    affecter un élève à un horaire qui chevauche une khôlle d'une autre
+    discipline déjà fixée — chaque appel à resoudre() ignorant tout du
+    reste de la semaine par ailleurs. Chaque élément :
+    {"eleveId", "jour" ("YYYY-MM-DD"), "heureDebutOccupation" ("HH:MM",
+    début de la préparation s'il y en a une, sinon de la khôlle elle-même),
+    "heureFin" ("HH:MM")}. Traité comme un intervalle FIXE (pas optionnel)
+    ajouté aux intervalles de l'élève concerné, donc soumis au même
+    AddNoOverlap que ses créneaux de cette semaine : le solveur ne peut
+    alors plus jamais lui poser une khôlle qui chevauche cette occupation,
+    exactement comme s'il s'agissait d'un créneau généré ici même.
     """
     historique_eleve_kholleur = historique_eleve_kholleur or {}
     historique_charge_kholleur = historique_charge_kholleur or {}
@@ -273,6 +291,32 @@ def resoudre(
                 f"iv_eleve_{e['id']}_{s_idx}",
             )
             intervals_eleve[e["id"]].append(iv_eleve)
+
+    # Créneaux déjà fixés pour cette (classe, semaine) par une autre
+    # discipline que celles résolues ici (voir docstring de
+    # occupations_existantes ci-dessus) : des intervalles FIXES (pas
+    # optionnels, toujours "présents") ajoutés aux intervalles de l'élève
+    # concerné, AVANT AddNoOverlap, pour qu'ils y soient soumis exactement
+    # comme les créneaux générés dans cette résolution.
+    for occ in occupations_existantes or []:
+        ivs_eleve = intervals_eleve.get(occ["eleveId"])
+        if ivs_eleve is None:
+            # Élève absent de `eleves` (ne devrait pas arriver : les deux
+            # listes viennent de la même classe), on l'ignore plutôt que de
+            # planter — cette occupation ne contraint simplement personne
+            # dans cette résolution.
+            continue
+        offset = _jour_offset_minutes(occ["jour"])
+        debut = _minutes(occ["heureDebutOccupation"])
+        fin = _minutes(occ["heureFin"]) + marge_minutes_entre_kholles
+        ivs_eleve.append(
+            model.NewIntervalVar(
+                offset + debut,
+                fin - debut,
+                offset + fin,
+                f"iv_existant_{occ['eleveId']}_{occ['jour']}_{occ['heureDebutOccupation']}",
+            )
+        )
 
     for ivs in intervals_eleve.values():
         model.AddNoOverlap(ivs)

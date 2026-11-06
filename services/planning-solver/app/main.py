@@ -73,6 +73,14 @@ class SolveRequest(BaseModel):
     # voir la contrainte dure correspondante dans resoudre() (solver.py).
     # Vide par défaut = comportement inchangé.
     affectationsForcees: list[dict[str, str]] = []
+    # Créneaux déjà en base pour cette (classe, semaine) mais une AUTRE
+    # discipline que celles de `quotas` (génération ou régénération d'un
+    # sous-ensemble seulement des disciplines de la semaine) :
+    # [{eleveId, jour, heureDebutOccupation, heureFin}] — voir la docstring
+    # d'occupations_existantes dans resoudre() (solver.py). Vide par défaut
+    # = comportement inchangé (une seule discipline à la fois, ou toutes
+    # générées en même temps, comme avant l'ajout de ce paramètre).
+    occupationsExistantes: list[dict[str, Any]] = []
     callbackUrl: str
     callbackSecret: str
 
@@ -118,6 +126,7 @@ async def _solve_and_callback(payload: SolveRequest) -> None:
             poids_variance_ecart_kholles=payload.poidsVarianceEcartKholles,
             marge_minutes_entre_kholles=payload.margeMinutesEntreKholles,
             affectations_forcees=payload.affectationsForcees,
+            occupations_existantes=payload.occupationsExistantes,
         )
         logger.info("Job %s résolu : statut=%s", payload.jobId, result.statut)
 
