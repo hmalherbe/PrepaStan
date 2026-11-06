@@ -396,6 +396,15 @@ model ParametresApplication {
   envoiEmailReferent Boolean @default(true)
   envoiEmailEleve    Boolean @default(true)
 
+  // Mode test : redirige TOUS les emails (kholleurs, étudiants, référents,
+  // activation de compte, mot de passe oublié...) vers emailModeTest au lieu
+  // du destinataire réel — pour tester sans risquer d'en envoyer à de
+  // vraies adresses. Le sujet de l'email est préfixé avec le destinataire
+  // réel pour rester traçable (voir src/lib/email.ts). Sans effet si
+  // emailModeTest est vide, même si modeTestEmail est cochée.
+  modeTestEmail Boolean @default(false)
+  emailModeTest String?
+
   // Pondérations de l'objectif "soft" du solveur OR-Tools (voir
   // services/planning-solver/app/solver.py) : ajustables pour du
   // fine-tuning sans redéploiement du microservice. Valeurs par défaut

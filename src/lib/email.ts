@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { MODELES_EMAIL_PAR_DEFAUT, remplacerPlaceholders } from "@/lib/modelesEmail";
+import { prisma } from "@/lib/prisma";
 
 // Sans clé configurée, on ne bloque jamais l'application pour un email : on
 // logue et on continue (utile en développement local sans compte Resend).
@@ -19,6 +20,33 @@ const EXPEDITEUR = process.env.RESEND_FROM_EMAIL ?? "PrepaStan <onboarding@resen
 const LIEN_PREPASTAN = process.env.NEXTAUTH_URL
   ? `<a href="${process.env.NEXTAUTH_URL}">PrepaStan</a>`
   : "PrepaStan";
+
+// Point de passage UNIQUE de tous les envois (quel que soit le rôle
+// destinataire — kholleur, étudiant, référent, admin) : permet le mode test
+// (Paramètres) qui redirige tout vers une même adresse, sans avoir à
+// toucher chacune des fonctions d'envoi ci-dessous. Le destinataire réel
+// est préfixé dans le sujet pour rester traçable même en mode test. Appelé
+// seulement une fois `resend` vérifié non nul par l'appelant (voir le garde
+// `if (!resend) {...}` au début de chaque fonction ci-dessous).
+async function envoyerViaResend({
+  destinataire,
+  subject,
+  html,
+}: {
+  destinataire: string;
+  subject: string;
+  html: string;
+}): Promise<void> {
+  const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
+  const modeTest = parametres?.modeTestEmail && parametres.emailModeTest;
+
+  await resend!.emails.send({
+    from: EXPEDITEUR,
+    to: modeTest ? parametres!.emailModeTest! : destinataire,
+    subject: modeTest ? `[TEST — destinataire réel : ${destinataire}] ${subject}` : subject,
+    html,
+  });
+}
 
 export type CreneauEmail = {
   date: Date;
@@ -96,9 +124,8 @@ export async function envoyerEmailPublicationPlanning({
   });
 
   try {
-    await resend.emails.send({
-      from: EXPEDITEUR,
-      to: destinataire,
+    await envoyerViaResend({
+      destinataire,
       subject: `PrepaStan — Planning ${classeNom} semaine ${semaine} publié`,
       html: `
         ${corps}
@@ -138,9 +165,8 @@ export async function envoyerEmailReinitialisationMotDePasse({
   }
 
   try {
-    await resend.emails.send({
-      from: EXPEDITEUR,
-      to: destinataire,
+    await envoyerViaResend({
+      destinataire,
       subject: "PrepaStan — Réinitialisation de votre mot de passe",
       html: `
         <p>Bonjour ${nomUtilisateur},</p>
@@ -206,7 +232,7 @@ export async function envoyerEmailActivationCompte({
   const { subject, html } = construireEmailActivationCompte({ destinataire, nomUtilisateur, lien });
 
   try {
-    await resend.emails.send({ from: EXPEDITEUR, to: destinataire, subject, html });
+    await envoyerViaResend({ destinataire, subject, html });
   } catch (err) {
     console.error(`Échec de l'envoi de l'email d'activation à ${destinataire} :`, err);
   }
@@ -244,9 +270,8 @@ export async function envoyerEmailGrillesValidees({
   });
 
   try {
-    await resend.emails.send({
-      from: EXPEDITEUR,
-      to: destinataire,
+    await envoyerViaResend({
+      destinataire,
       subject: `PrepaStan — Grilles validées : ${disciplineNom}, ${classeNom} semaine ${semaine}`,
       html: `
         ${corps}
@@ -292,9 +317,8 @@ export async function envoyerEmailNoteDisponible({
   });
 
   try {
-    await resend.emails.send({
-      from: EXPEDITEUR,
-      to: destinataire,
+    await envoyerViaResend({
+      destinataire,
       subject: `PrepaStan — Note disponible : ${disciplineNom}, ${classeNom} semaine ${semaine}`,
       html: `
         ${corps}
@@ -359,9 +383,8 @@ export async function envoyerEmailConvocationKholle({
     .join("");
 
   try {
-    await resend.emails.send({
-      from: EXPEDITEUR,
-      to: destinataire,
+    await envoyerViaResend({
+      destinataire,
       subject: `PrepaStan — Convocation : khôlle(s) ${classeNom} semaine ${semaine}`,
       html: `
         <p>Bonjour ${prenomEleve} ${nomEleve},</p>
@@ -405,9 +428,8 @@ export async function envoyerEmailRappelNotation({
   }
 
   try {
-    await resend.emails.send({
-      from: EXPEDITEUR,
-      to: destinataire,
+    await envoyerViaResend({
+      destinataire,
       subject: `PrepaStan — Rappel : notes à saisir (${disciplineNom}, ${classeNom} semaine ${semaine})`,
       html: `
         <p>Bonjour ${nomKholleur},</p>

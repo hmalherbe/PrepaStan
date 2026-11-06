@@ -199,7 +199,10 @@ export default async function GuidePage() {
         <p>
           Sur l&apos;écran <strong>Paramètres</strong>, réglez le délai avant l&apos;envoi d&apos;un rappel
           automatique à un khôlleur qui n&apos;a pas encore saisi ses notes, et personnalisez (ou désactivez) le
-          corps des emails envoyés à chaque rôle (khôlleurs, référents, étudiants).
+          corps des emails envoyés à chaque rôle (khôlleurs, référents, étudiants). Le <strong>mode test</strong>{" "}
+          redirige TOUS les emails (y compris activation de compte et mot de passe oublié) vers une seule
+          adresse de votre choix, sans toucher aux destinataires réels — pratique pour tester sans rien envoyer
+          à de vraies personnes ; le destinataire réel reste visible en préfixe du sujet reçu.
         </p>
       </div>
 

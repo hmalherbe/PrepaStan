@@ -11,6 +11,8 @@ export function ParametresGenerauxForm({
   envoiKholleurInitial,
   envoiReferentInitial,
   envoiEleveInitial,
+  modeTestEmailInitial,
+  emailModeTestInitial,
   poidsEquilibrageKholleurInitial,
   poidsDiversiteKholleurInitial,
   poidsEquilibrageHoraireInitial,
@@ -25,6 +27,8 @@ export function ParametresGenerauxForm({
   envoiKholleurInitial: boolean;
   envoiReferentInitial: boolean;
   envoiEleveInitial: boolean;
+  modeTestEmailInitial: boolean;
+  emailModeTestInitial: string;
   poidsEquilibrageKholleurInitial: number;
   poidsDiversiteKholleurInitial: number;
   poidsEquilibrageHoraireInitial: number;
@@ -39,6 +43,8 @@ export function ParametresGenerauxForm({
   const [envoiKholleur, setEnvoiKholleur] = useState(envoiKholleurInitial);
   const [envoiReferent, setEnvoiReferent] = useState(envoiReferentInitial);
   const [envoiEleve, setEnvoiEleve] = useState(envoiEleveInitial);
+  const [modeTestEmail, setModeTestEmail] = useState(modeTestEmailInitial);
+  const [emailModeTest, setEmailModeTest] = useState(emailModeTestInitial);
   const [poidsEquilibrageKholleur, setPoidsEquilibrageKholleur] = useState(poidsEquilibrageKholleurInitial);
   const [poidsDiversiteKholleur, setPoidsDiversiteKholleur] = useState(poidsDiversiteKholleurInitial);
   const [poidsEquilibrageHoraire, setPoidsEquilibrageHoraire] = useState(poidsEquilibrageHoraireInitial);
@@ -63,6 +69,8 @@ export function ParametresGenerauxForm({
           envoiEmailKholleur: envoiKholleur,
           envoiEmailReferent: envoiReferent,
           envoiEmailEleve: envoiEleve,
+          modeTestEmail,
+          emailModeTest: emailModeTest.trim() || null,
           poidsEquilibrageKholleur,
           poidsDiversiteKholleur,
           poidsEquilibrageHoraire,
@@ -100,6 +108,32 @@ export function ParametresGenerauxForm({
         Nombre de jours après la khôlle avant d&apos;envoyer un email de rappel au kholleur s&apos;il n&apos;a pas
         encore saisi note et appréciation. 0 = envoi dès que possible après la khôlle (le jour même).
       </p>
+
+      <h3>Mode test</h3>
+      <p style={{ color: "#777", fontSize: "0.9rem" }}>
+        Redirige TOUS les emails envoyés par PrepaStan (kholleurs, étudiants, référents, activation de compte,
+        mot de passe oublié...) vers une seule adresse, pour tester sans risquer d&apos;en envoyer à de vraies
+        personnes. Le destinataire réel reste visible en préfixe du sujet de chaque email reçu. Sans effet si
+        l&apos;adresse ci-dessous est vide, même case cochée.
+      </p>
+      <label style={{ display: "block", marginBottom: 10 }}>
+        <input
+          type="checkbox"
+          checked={modeTestEmail}
+          onChange={(e) => setModeTestEmail(e.target.checked)}
+          style={{ marginRight: 8 }}
+        />
+        Activer le mode test
+      </label>
+      <label style={{ display: "block", marginBottom: 10, maxWidth: 360 }}>
+        Adresse de destination en mode test
+        <input
+          type="email"
+          value={emailModeTest}
+          onChange={(e) => setEmailModeTest(e.target.value)}
+          placeholder="exemple@email.com"
+        />
+      </label>
 
       <h3>Corps des emails</h3>
       <p style={{ color: "#777", fontSize: "0.9rem" }}>

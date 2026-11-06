@@ -25,6 +25,8 @@ export default async function ParametresPage({
   const envoiKholleurInitial = parametresGeneraux?.envoiEmailKholleur ?? true;
   const envoiReferentInitial = parametresGeneraux?.envoiEmailReferent ?? true;
   const envoiEleveInitial = parametresGeneraux?.envoiEmailEleve ?? true;
+  const modeTestEmailInitial = parametresGeneraux?.modeTestEmail ?? false;
+  const emailModeTestInitial = parametresGeneraux?.emailModeTest ?? "";
   const poidsEquilibrageKholleurInitial = parametresGeneraux?.poidsEquilibrageKholleur ?? 10;
   const poidsDiversiteKholleurInitial = parametresGeneraux?.poidsDiversiteKholleur ?? 5;
   const poidsEquilibrageHoraireInitial = parametresGeneraux?.poidsEquilibrageHoraire ?? 1;
@@ -44,6 +46,8 @@ export default async function ParametresPage({
           envoiKholleurInitial={envoiKholleurInitial}
           envoiReferentInitial={envoiReferentInitial}
           envoiEleveInitial={envoiEleveInitial}
+          modeTestEmailInitial={modeTestEmailInitial}
+          emailModeTestInitial={emailModeTestInitial}
           poidsEquilibrageKholleurInitial={poidsEquilibrageKholleurInitial}
           poidsDiversiteKholleurInitial={poidsDiversiteKholleurInitial}
           poidsEquilibrageHoraireInitial={poidsEquilibrageHoraireInitial}
@@ -88,6 +92,8 @@ export default async function ParametresPage({
         envoiKholleurInitial={envoiKholleurInitial}
         envoiReferentInitial={envoiReferentInitial}
         envoiEleveInitial={envoiEleveInitial}
+        modeTestEmailInitial={modeTestEmailInitial}
+        emailModeTestInitial={emailModeTestInitial}
         poidsEquilibrageKholleurInitial={poidsEquilibrageKholleurInitial}
         poidsDiversiteKholleurInitial={poidsDiversiteKholleurInitial}
         poidsEquilibrageHoraireInitial={poidsEquilibrageHoraireInitial}

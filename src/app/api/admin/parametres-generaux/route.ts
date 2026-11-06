@@ -11,6 +11,8 @@ const bodySchema = z.object({
   envoiEmailKholleur: z.boolean(),
   envoiEmailReferent: z.boolean(),
   envoiEmailEleve: z.boolean(),
+  modeTestEmail: z.boolean(),
+  emailModeTest: z.string().email().nullable(),
   poidsEquilibrageKholleur: z.number().int().min(0).max(100000),
   poidsDiversiteKholleur: z.number().int().min(0).max(100000),
   poidsEquilibrageHoraire: z.number().int().min(0).max(100000),
