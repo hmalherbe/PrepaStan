@@ -20,16 +20,38 @@ async function chargerCreneaux(sessionIds: string[]) {
   });
 }
 
+// Kholleurs concernés par `sessionIds`, pour la fenêtre de sélection des
+// destinataires avant un renvoi manuel (voir RenvoiAvecSelectionModal) — un
+// par kholleur distinct, pas un par créneau.
+export async function listerDestinatairesKholleurs(sessionIds: string[]): Promise<{ id: string; nom: string }[]> {
+  const creneaux = await chargerCreneaux(sessionIds);
+  const kholleurs = new Map<string, string>();
+  for (const c of creneaux) {
+    kholleurs.set(c.kholleurId, `${c.kholleur.prenom} ${c.kholleur.nom}`);
+  }
+  return [...kholleurs.entries()].map(([id, nom]) => ({ id, nom })).sort((a, b) => a.nom.localeCompare(b.nom));
+}
+
 // Envoie à chaque kholleur concerné le récapitulatif de ses créneaux parmi
 // `sessionIds`. Respecte ParametresApplication.envoiEmailKholleur (false =
-// n'envoie rien, retourne 0). Retourne le nombre de kholleurs notifiés.
-export async function envoyerEmailsPlanningKholleurs(sessionIds: string[], semaine: number): Promise<number> {
+// n'envoie rien, retourne 0). `kholleurIds`, si fourni, restreint l'envoi à
+// ces seuls kholleurs (renvoi manuel ciblé — voir
+// renvoyer-planning-kholleurs/route.ts) ; omis = tous les kholleurs
+// concernés, comportement historique inchangé (publication initiale).
+// Retourne le nombre de kholleurs notifiés.
+export async function envoyerEmailsPlanningKholleurs(
+  sessionIds: string[],
+  semaine: number,
+  kholleurIds?: string[]
+): Promise<number> {
   const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
   if (parametres?.envoiEmailKholleur === false) return 0;
 
+  const filtre = kholleurIds ? new Set(kholleurIds) : null;
   const creneaux = await chargerCreneaux(sessionIds);
   const creneauxParKholleur = new Map<string, typeof creneaux>();
   for (const c of creneaux) {
+    if (filtre && !filtre.has(c.kholleurId)) continue;
     const liste = creneauxParKholleur.get(c.kholleurId) ?? [];
     liste.push(c);
     creneauxParKholleur.set(c.kholleurId, liste);
@@ -61,14 +83,36 @@ export async function envoyerEmailsPlanningKholleurs(sessionIds: string[], semai
   return creneauxParKholleur.size;
 }
 
+// Élèves concernés par `sessionIds` (compte de connexion requis), pour la
+// fenêtre de sélection des destinataires avant un renvoi manuel — un par
+// élève distinct, pas un par créneau.
+export async function listerDestinatairesEleves(sessionIds: string[]): Promise<{ id: string; nom: string }[]> {
+  const creneaux = await chargerCreneaux(sessionIds);
+  const eleves = new Map<string, string>();
+  for (const c of creneaux) {
+    for (const p of c.passages) {
+      if (!p.eleve.utilisateur) continue;
+      eleves.set(p.eleveId, `${p.eleve.prenom} ${p.eleve.nom}`);
+    }
+  }
+  return [...eleves.entries()].map(([id, nom]) => ({ id, nom })).sort((a, b) => a.nom.localeCompare(b.nom));
+}
+
 // Envoie à chaque élève concerné (compte de connexion requis) sa convocation
 // pour l'ensemble de ses créneaux parmi `sessionIds`. Respecte
 // ParametresApplication.envoiEmailEleve (false = n'envoie rien, retourne 0).
-// Retourne le nombre d'élèves notifiés.
-export async function envoyerEmailsConvocationsEleves(sessionIds: string[], semaine: number): Promise<number> {
+// `eleveIds`, si fourni, restreint l'envoi à ces seuls élèves (renvoi manuel
+// ciblé) ; omis = tous les élèves concernés, comportement historique
+// inchangé (publication initiale). Retourne le nombre d'élèves notifiés.
+export async function envoyerEmailsConvocationsEleves(
+  sessionIds: string[],
+  semaine: number,
+  eleveIds?: string[]
+): Promise<number> {
   const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
   if (parametres?.envoiEmailEleve === false) return 0;
 
+  const filtre = eleveIds ? new Set(eleveIds) : null;
   const creneaux = await chargerCreneaux(sessionIds);
   const creneauxParEleve = new Map<
     string,
@@ -77,6 +121,7 @@ export async function envoyerEmailsConvocationsEleves(sessionIds: string[], sema
   for (const c of creneaux) {
     for (const p of c.passages) {
       if (!p.eleve.utilisateur) continue;
+      if (filtre && !filtre.has(p.eleveId)) continue;
       const entree = creneauxParEleve.get(p.eleveId) ?? {
         nom: p.eleve.nom,
         prenom: p.eleve.prenom,

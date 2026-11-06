@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useState } from "react";
+import { RenvoiAvecSelectionModal } from "@/components/admin/RenvoiAvecSelectionModal";
 
 type Personne = { id: string; nom: string; prenom: string; discipline: string };
 
@@ -65,6 +66,19 @@ const LIBELLE_ACTION_RENVOI: Record<ActionRenvoi, string> = {
   referents: "Renvoyer validation au professeur référent",
 };
 
+// kholleurs/eleves seuls passent par la fenêtre de sélection des
+// destinataires (voir RenvoiAvecSelectionModal) ; referents reste un envoi
+// direct à tous (comme avant), ce bouton-là n'ayant pas été demandé avec
+// cette possibilité.
+type ActionAvecModal = "kholleurs" | "eleves";
+const CONFIG_MODAL: Record<ActionAvecModal, { cheminListe: string; champIds: string }> = {
+  kholleurs: { cheminListe: "destinataires-kholleurs", champIds: "kholleurIds" },
+  eleves: { cheminListe: "destinataires-eleves", champIds: "eleveIds" },
+};
+function estActionAvecModal(action: ActionRenvoi): action is ActionAvecModal {
+  return action === "kholleurs" || action === "eleves";
+}
+
 export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
   const [classeFiltre, setClasseFiltre] = useState("");
   const [ouverts, setOuverts] = useState<Set<string>>(new Set());
@@ -74,6 +88,9 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
   // autres lignes affichées en même temps.
   const [renvoiEnCours, setRenvoiEnCours] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
+  const [modalOuvert, setModalOuvert] = useState<{ classeId: string; semaine: number; action: ActionAvecModal } | null>(
+    null
+  );
 
   async function renvoyer(classeId: string, semaine: number, action: ActionRenvoi) {
     const { chemin, champ, libelle } = ACTIONS_RENVOI[action];
@@ -242,7 +259,11 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
                               className="discret"
                               disabled={!l.publie || renvoiEnCours !== null}
                               title={!l.publie ? "Planning encore en brouillon : publiez-le d'abord" : undefined}
-                              onClick={() => renvoyer(l.classeId, l.semaine, action)}
+                              onClick={() =>
+                                estActionAvecModal(action)
+                                  ? setModalOuvert({ classeId: l.classeId, semaine: l.semaine, action })
+                                  : renvoyer(l.classeId, l.semaine, action)
+                              }
                             >
                               {renvoiEnCours === cleAction ? "Envoi…" : LIBELLE_ACTION_RENVOI[action]}
                             </button>
@@ -297,6 +318,24 @@ export function HistoriquePlanningsTable({ lignes }: { lignes: Ligne[] }) {
           )}
         </tbody>
       </table>
+
+      {modalOuvert && (
+        <RenvoiAvecSelectionModal
+          titre={LIBELLE_ACTION_RENVOI[modalOuvert.action]}
+          classeId={modalOuvert.classeId}
+          semaine={modalOuvert.semaine}
+          cheminListe={CONFIG_MODAL[modalOuvert.action].cheminListe}
+          cheminEnvoi={ACTIONS_RENVOI[modalOuvert.action].chemin}
+          champIds={CONFIG_MODAL[modalOuvert.action].champIds}
+          champCompte={ACTIONS_RENVOI[modalOuvert.action].champ}
+          libelleUnite={ACTIONS_RENVOI[modalOuvert.action].libelle}
+          onFermer={() => setModalOuvert(null)}
+          onEnvoye={(message) => {
+            const cleAction = `${modalOuvert.classeId}_${modalOuvert.semaine}_${modalOuvert.action}`;
+            setMessages((prev) => ({ ...prev, [cleAction]: message }));
+          }}
+        />
+      )}
     </div>
   );
 }

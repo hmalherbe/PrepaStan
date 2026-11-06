@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { RenvoiAvecSelectionModal } from "@/components/admin/RenvoiAvecSelectionModal";
 
 type EleveCreneau = { passageId: string; eleveId: string; nom: string };
 
@@ -78,6 +79,8 @@ export function PlanningReview({
   // de compléter une liste de 3, pour rester simple à comprendre.
   const [selection, setSelection] = useState<EleveCreneau[]>([]);
   const [chevauchementsOuvert, setChevauchementsOuvert] = useState(false);
+  const [modalKholleursOuvert, setModalKholleursOuvert] = useState(false);
+  const [modalElevesOuvert, setModalElevesOuvert] = useState(false);
 
   // Pour chaque élève ayant 2 khôlles (ou plus) le même jour : la paire de
   // créneaux consécutifs (triés par heure de khôlle), avec l'écart entre la
@@ -268,46 +271,6 @@ export function PlanningReview({
     }
   }
 
-  async function renvoyerPlanningKholleurs() {
-    if (!confirm("Renvoyer l'email récapitulatif à tous les kholleurs déjà publiés cette semaine ?")) return;
-    setActionEnCours("renvoyer-kholleurs");
-    setErreur(null);
-    setInfo(null);
-    try {
-      const res = await fetch(`/api/admin/planification/${classeId}/${semaine}/renvoyer-planning-kholleurs`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErreur(data.error ?? "Erreur lors du renvoi");
-        return;
-      }
-      setInfo(`Email renvoyé à ${data.kholleursNotifies} kholleur(s).`);
-    } finally {
-      setActionEnCours(null);
-    }
-  }
-
-  async function renvoyerConvocationsEleves() {
-    if (!confirm("Renvoyer la convocation à tous les élèves déjà publiés cette semaine ?")) return;
-    setActionEnCours("renvoyer-eleves");
-    setErreur(null);
-    setInfo(null);
-    try {
-      const res = await fetch(`/api/admin/planification/${classeId}/${semaine}/renvoyer-convocations-eleves`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErreur(data.error ?? "Erreur lors du renvoi");
-        return;
-      }
-      setInfo(`Convocation renvoyée à ${data.elevesNotifies} élève(s).`);
-    } finally {
-      setActionEnCours(null);
-    }
-  }
-
   async function renvoyerValidationReferents() {
     if (!confirm("Renvoyer l'invitation à valider aux professeurs référents concernés ?")) return;
     setActionEnCours("renvoyer-referents");
@@ -414,6 +377,36 @@ export function PlanningReview({
             </p>
           </div>
         </div>
+      )}
+
+      {modalKholleursOuvert && (
+        <RenvoiAvecSelectionModal
+          titre="Renvoyer planning aux kholleurs"
+          classeId={classeId}
+          semaine={semaine}
+          cheminListe="destinataires-kholleurs"
+          cheminEnvoi="renvoyer-planning-kholleurs"
+          champIds="kholleurIds"
+          champCompte="kholleursNotifies"
+          libelleUnite="kholleur(s)"
+          onFermer={() => setModalKholleursOuvert(false)}
+          onEnvoye={setInfo}
+        />
+      )}
+
+      {modalElevesOuvert && (
+        <RenvoiAvecSelectionModal
+          titre="Renvoyer convocation aux étudiants"
+          classeId={classeId}
+          semaine={semaine}
+          cheminListe="destinataires-eleves"
+          cheminEnvoi="renvoyer-convocations-eleves"
+          champIds="eleveIds"
+          champCompte="elevesNotifies"
+          libelleUnite="élève(s)"
+          onFermer={() => setModalElevesOuvert(false)}
+          onEnvoye={setInfo}
+        />
       )}
 
       {selection.length > 0 && (
@@ -550,20 +543,20 @@ export function PlanningReview({
         <button
           type="button"
           className="secondaire"
-          onClick={renvoyerPlanningKholleurs}
-          disabled={actionEnCours !== null || estBrouillon}
+          onClick={() => setModalKholleursOuvert(true)}
+          disabled={estBrouillon}
           title={estBrouillon ? "Planning encore en brouillon : publiez-le d'abord" : undefined}
         >
-          {actionEnCours === "renvoyer-kholleurs" ? "Envoi…" : "Renvoyer planning aux kholleurs"}
+          Renvoyer planning aux kholleurs
         </button>
         <button
           type="button"
           className="secondaire"
-          onClick={renvoyerConvocationsEleves}
-          disabled={actionEnCours !== null || estBrouillon}
+          onClick={() => setModalElevesOuvert(true)}
+          disabled={estBrouillon}
           title={estBrouillon ? "Planning encore en brouillon : publiez-le d'abord" : undefined}
         >
-          {actionEnCours === "renvoyer-eleves" ? "Envoi…" : "Renvoyer convocation aux étudiants"}
+          Renvoyer convocation aux étudiants
         </button>
         <button
           type="button"

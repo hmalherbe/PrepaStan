@@ -145,9 +145,12 @@ export default async function GuidePage() {
         </p>
         <p>
           Les boutons <strong>Renvoyer planning aux kholleurs</strong> et <strong>Renvoyer convocation aux
-          étudiants</strong>, à côté de &laquo; Régénérer &raquo; et &laquo; Imprimer &raquo;, permettent de
-          renvoyer ces mêmes emails à tout moment (ex. un khôlleur ou un étudiant qui dit ne rien avoir reçu),
-          pour toutes les disciplines déjà publiées de la semaine — sans rien republier ni modifier.
+          étudiants</strong>, à côté de &laquo; Régénérer &raquo; et &laquo; Imprimer &raquo; (et aussi présents
+          sur l&apos;écran <strong>Historique</strong>), permettent de renvoyer ces mêmes emails à tout moment
+          — sans rien republier ni modifier. Ils ouvrent une fenêtre listant les kholleurs (ou étudiants)
+          concernés par toutes les disciplines déjà publiées de la semaine, tous cochés par défaut : décochez
+          qui vous voulez avant d&apos;envoyer (ex. un seul khôlleur qui dit n&apos;avoir rien reçu), ou laissez
+          tout coché pour renvoyer à tout le monde comme avant.
         </p>
         <p>
           Sur ce même écran de relecture, vous pouvez aussi <strong>intervertir deux élèves</strong> : cliquez
