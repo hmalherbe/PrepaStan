@@ -1,17 +1,21 @@
 // Diagnostic ponctuel (lecture seule) : contrairement à
 // scripts/detecter-chevauchements-marge.mjs, qui ne regarde QUE les
 // sessions déjà publiées (statut != PLANIFICATION), celui-ci regarde TOUTES
-// les sessions d'une (classe, semaine) donnée, brouillon inclus — utile pour
-// un chevauchement repéré sur l'écran de relecture avant publication (où le
-// brouillon d'une discipline peut chevaucher une autre discipline déjà
-// publiée la même semaine). Indique aussi, pour chaque passage, si une note
-// a déjà été saisie (déterminant pour choisir la méthode de correction : une
-// régénération supprime les notes en cascade).
+// les sessions, brouillon inclus — utile pour un chevauchement repéré sur
+// l'écran de relecture avant publication (où le brouillon d'une discipline
+// peut chevaucher une autre discipline déjà publiée la même semaine).
+// Indique aussi, pour chaque passage, si une note a déjà été saisie
+// (déterminant pour choisir la méthode de correction : une régénération
+// supprime les notes en cascade).
+//
+// CLASSE/SEMAINE optionnels : omis, l'analyse porte sur TOUTES les classes
+// et semaines en base (balayage complet, ex. après le correctif du
+// chevauchement entre disciplines — voir jobs/route.ts/solver.py).
 //
 // Usage (depuis /root/PrepaStan sur le VPS) :
 //   docker compose -f docker-compose.prod.yml exec -T \
-//     -e CLASSE=L1 -e SEMAINE=46 \
 //     app node < scripts/diagnostiquer-chevauchement-semaine.mjs
+//   # ou ciblé : -e CLASSE=L1 -e SEMAINE=46
 //
 // (remplacer -f docker-compose.prod.yml / app par -f docker-compose.demo.yml
 // / app-demo pour la démo)
@@ -27,18 +31,14 @@ function minutes(hhmm) {
 async function main() {
   const classeNomFiltre = process.env.CLASSE;
   const semaineFiltre = process.env.SEMAINE ? Number(process.env.SEMAINE) : undefined;
-  if (!classeNomFiltre || semaineFiltre === undefined) {
-    console.log("Usage : CLASSE=<nom> SEMAINE=<numéro> requis.");
-    return;
-  }
 
   const passages = await prisma.passage.findMany({
     where: {
-      eleve: { classe: { nom: classeNomFiltre } },
+      eleve: { classe: classeNomFiltre ? { nom: classeNomFiltre } : undefined },
       creneau: { sessionKholle: { semaine: semaineFiltre } },
     },
     include: {
-      eleve: { select: { nom: true, prenom: true } },
+      eleve: { select: { nom: true, prenom: true, classe: { select: { nom: true } } } },
       note: { select: { valeur: true, appreciation: true } },
       creneau: {
         select: {
@@ -47,13 +47,20 @@ async function main() {
           heureDebut: true,
           heureFin: true,
           kholleurId: true,
-          sessionKholle: { select: { statut: true, discipline: { select: { nom: true } } } },
+          sessionKholle: {
+            select: { semaine: true, statut: true, discipline: { select: { nom: true } } },
+          },
         },
       },
     },
   });
 
-  console.log(`${passages.length} passage(s) trouvé(s) pour ${classeNomFiltre}, semaine ${semaineFiltre}.\n`);
+  console.log(
+    `${passages.length} passage(s) trouvé(s)` +
+      (classeNomFiltre ? ` pour ${classeNomFiltre}` : " (toutes classes)") +
+      (semaineFiltre !== undefined ? `, semaine ${semaineFiltre}` : " (toutes semaines)") +
+      ".\n"
+  );
 
   const parEleveEtJour = new Map();
   for (const p of passages) {
@@ -67,7 +74,10 @@ async function main() {
   let nbAvecNote = 0;
 
   for (const liste of [...parEleveEtJour.values()].sort(
-    (a, b) => a[0].eleve.nom.localeCompare(b[0].eleve.nom) || a[0].creneau.date - b[0].creneau.date
+    (a, b) =>
+      a[0].eleve.classe.nom.localeCompare(b[0].eleve.classe.nom) ||
+      a[0].creneau.date - b[0].creneau.date ||
+      a[0].eleve.nom.localeCompare(b[0].eleve.nom)
   )) {
     if (liste.length < 2) continue;
     const triee = [...liste].sort((a, b) => minutes(a.creneau.heureDebut) - minutes(b.creneau.heureDebut));
@@ -85,7 +95,8 @@ async function main() {
           nbAvecNote++;
         }
         console.log(
-          `  ${courant.eleve.prenom} ${courant.eleve.nom} — ${courant.creneau.date.toISOString().slice(0, 10)} : ` +
+          `  ${courant.eleve.classe.nom} S${courant.creneau.sessionKholle.semaine} — ` +
+            `${courant.eleve.prenom} ${courant.eleve.nom} — ${courant.creneau.date.toISOString().slice(0, 10)} : ` +
             `${precedent.creneau.sessionKholle.discipline.nom} [${precedent.creneau.sessionKholle.statut}] ` +
             `${precedent.creneau.heureDebut}-${precedent.creneau.heureFin} (${noteStatut(precedent)}) puis ` +
             `${courant.creneau.sessionKholle.discipline.nom} [${courant.creneau.sessionKholle.statut}] ` +
