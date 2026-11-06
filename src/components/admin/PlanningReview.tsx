@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-type EleveCreneau = { passageId: string; nom: string };
+type EleveCreneau = { passageId: string; eleveId: string; nom: string };
 
 type Creneau = {
   id: string;
@@ -28,6 +28,11 @@ type Creneau = {
 };
 
 type Option = { id: string; nom: string };
+
+function minutesDepuisMinuit(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
 
 export function PlanningReview({
   classeId,
@@ -72,6 +77,68 @@ export function PlanningReview({
   // cliquer un 3e nom repart d'une sélection vide avec ce nom-là plutôt que
   // de compléter une liste de 3, pour rester simple à comprendre.
   const [selection, setSelection] = useState<EleveCreneau[]>([]);
+  const [chevauchementsOuvert, setChevauchementsOuvert] = useState(false);
+
+  // Pour chaque élève ayant 2 khôlles (ou plus) le même jour : la paire de
+  // créneaux consécutifs (triés par heure de khôlle), avec l'écart entre la
+  // fin de la 1re et le début de préparation de la 2e. Un écart négatif
+  // signale un chevauchement réel — ce que le solveur CP-SAT ne devrait
+  // jamais produire (contrainte dure, voir solver.py), donc un signal utile
+  // pour repérer une incohérence introduite après coup (édition manuelle,
+  // génération partielle...). Recalculé uniquement quand `creneaux` change,
+  // pas à chaque rendu (la double boucle est O(n²) par élève/jour).
+  const pairesMemeJour = useMemo(() => {
+    type PassageJour = {
+      eleveNom: string;
+      discipline: string;
+      heureDebutPreparation: string;
+      heureDebut: string;
+      heureFin: string;
+    };
+    const parEleveJour = new Map<string, PassageJour[]>();
+    for (const c of creneaux) {
+      for (const e of c.eleves) {
+        const cle = `${e.eleveId}|${c.jour}`;
+        const liste = parEleveJour.get(cle) ?? [];
+        liste.push({
+          eleveNom: e.nom,
+          discipline: c.discipline,
+          heureDebutPreparation: c.heureDebutPreparation ?? c.heureDebut,
+          heureDebut: c.heureDebut,
+          heureFin: c.heureFin,
+        });
+        parEleveJour.set(cle, liste);
+      }
+    }
+
+    const paires: {
+      cle: string;
+      jour: string;
+      eleveNom: string;
+      premiere: PassageJour;
+      deuxieme: PassageJour;
+      ecartMinutes: number;
+    }[] = [];
+    for (const [cle, liste] of parEleveJour) {
+      if (liste.length < 2) continue;
+      const jour = cle.split("|")[1];
+      const triee = [...liste].sort((a, b) => minutesDepuisMinuit(a.heureDebut) - minutesDepuisMinuit(b.heureDebut));
+      for (let i = 1; i < triee.length; i++) {
+        const premiere = triee[i - 1];
+        const deuxieme = triee[i];
+        paires.push({
+          cle: `${cle}_${i}`,
+          jour,
+          eleveNom: premiere.eleveNom,
+          premiere,
+          deuxieme,
+          ecartMinutes:
+            minutesDepuisMinuit(deuxieme.heureDebutPreparation) - minutesDepuisMinuit(premiere.heureFin),
+        });
+      }
+    }
+    return paires.sort((a, b) => a.jour.localeCompare(b.jour) || a.eleveNom.localeCompare(b.eleveNom));
+  }, [creneaux]);
 
   function basculerSelection(eleve: EleveCreneau) {
     setSelection((prev) => {
@@ -274,6 +341,80 @@ export function PlanningReview({
       <p className={`badge no-print ${estBrouillon ? "badge-attente" : "badge-succes"}`}>
         {estBrouillon ? "Brouillon — non publié" : "Publié"}
       </p>
+
+      {pairesMemeJour.length > 0 && (
+        <p className="no-print">
+          <button type="button" className="discret" onClick={() => setChevauchementsOuvert(true)}>
+            {pairesMemeJour.some((p) => p.ecartMinutes < 0) ? "⚠ " : ""}
+            {pairesMemeJour.length} élève(s) avec 2 khôlles le même jour
+          </button>
+        </p>
+      )}
+
+      {chevauchementsOuvert && (
+        <div
+          className="no-print"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setChevauchementsOuvert(false)}
+        >
+          <div
+            className="carte"
+            style={{ maxWidth: "90vw", maxHeight: "85vh", overflow: "auto", background: "#fff" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2>Élèves avec 2 khôlles le même jour</h2>
+            <p style={{ color: "#777", fontSize: "0.9rem" }}>
+              Écart = début de préparation de la 2e khôlle moins fin de la 1re. Un écart négatif signale un
+              chevauchement réel entre les deux khôlles — en principe impossible avec le solveur (contrainte
+              dure), donc un signal d&apos;une incohérence introduite après coup (édition manuelle d&apos;un
+              créneau, génération partielle d&apos;une semaine déjà en partie planifiée...).
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Étudiant</th>
+                  <th>Jour</th>
+                  <th>1re khôlle</th>
+                  <th>2e khôlle</th>
+                  <th>Écart</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pairesMemeJour.map((p) => (
+                  <tr key={p.cle}>
+                    <td>{p.eleveNom}</td>
+                    <td>{new Date(p.jour).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" })}</td>
+                    <td>
+                      {p.premiere.discipline} — préparation {p.premiere.heureDebutPreparation}, khôlle{" "}
+                      {p.premiere.heureDebut}-{p.premiere.heureFin}
+                    </td>
+                    <td>
+                      {p.deuxieme.discipline} — préparation {p.deuxieme.heureDebutPreparation}, khôlle{" "}
+                      {p.deuxieme.heureDebut}-{p.deuxieme.heureFin}
+                    </td>
+                    <td className={p.ecartMinutes < 0 ? "champ-erreur" : undefined}>
+                      {p.ecartMinutes} min{p.ecartMinutes < 0 ? " — chevauchement" : ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p style={{ marginTop: 16 }}>
+              <button type="button" onClick={() => setChevauchementsOuvert(false)}>
+                Fermer
+              </button>
+            </p>
+          </div>
+        </div>
+      )}
 
       {selection.length > 0 && (
         <p className="no-print" style={{ display: "flex", gap: 12, alignItems: "center" }}>

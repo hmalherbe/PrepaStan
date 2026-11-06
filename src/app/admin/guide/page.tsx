@@ -157,6 +157,15 @@ export default async function GuidePage() {
           session clôturée, une fois une note déjà saisie pour l&apos;un des deux, ou si l&apos;échange créerait
           un chevauchement avec une autre khôlle de la semaine.
         </p>
+        <p>
+          Quand des étudiants passent deux khôlles le même jour, un bouton <strong>« N élève(s) avec 2 khôlles
+          le même jour »</strong> apparaît en haut de l&apos;écran de relecture : il ouvre une fenêtre listant,
+          pour chacun, l&apos;horaire des deux khôlles (préparation et passage) et l&apos;écart entre elles. Un
+          écart négatif (signalé en rouge, « chevauchement ») indique un vrai chevauchement — normalement
+          impossible avec le solveur (contrainte dure), donc révélateur d&apos;une incohérence introduite après
+          coup (édition manuelle d&apos;un créneau, génération partielle d&apos;une semaine déjà en partie
+          planifiée...).
+        </p>
 
         <h3>Suivre l&apos;avancement</h3>
         <p>
