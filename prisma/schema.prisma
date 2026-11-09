@@ -438,3 +438,18 @@ model RappelNotationEnvoye {
 
   @@unique([sessionKholleId, kholleurId])
 }
+
+// Équivalent de RappelNotationEnvoye ci-dessus, mais pour le rappel envoyé à
+// un professeur référent qui n'a pas encore validé une session dont toutes
+// les grilles kholleur sont pourtant déjà validées (voir
+// envoyerRappelsValidationReferentEnAttente dans rappelsNotation.ts). Même
+// principe : une ligne par (session, référent) dès qu'un rappel part,
+// jamais supprimée, jamais renvoyée une deuxième fois.
+model RappelValidationReferentEnvoye {
+  id              String   @id @default(cuid())
+  sessionKholleId String
+  referentId      String
+  dateEnvoi       DateTime @default(now())
+
+  @@unique([sessionKholleId, referentId])
+}

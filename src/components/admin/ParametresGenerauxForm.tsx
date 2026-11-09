@@ -94,7 +94,7 @@ export function ParametresGenerauxForm({
     <div className="carte" style={{ marginBottom: 20 }}>
       <h2>Paramètres généraux</h2>
       <label>
-        Délai d&apos;envoi des mails de rappel aux kholleurs (jours)
+        Délai d&apos;envoi des mails de rappel (jours)
         <input
           type="number"
           min={0}
@@ -105,8 +105,10 @@ export function ParametresGenerauxForm({
         />
       </label>
       <p style={{ color: "#777", fontSize: "0.9rem" }}>
-        Nombre de jours après la khôlle avant d&apos;envoyer un email de rappel au kholleur s&apos;il n&apos;a pas
-        encore saisi note et appréciation. 0 = envoi dès que possible après la khôlle (le jour même).
+        Nombre de jours après la khôlle avant d&apos;envoyer un email de rappel : au kholleur s&apos;il n&apos;a pas
+        encore saisi note et appréciation, ou au référent si toutes les grilles de sa session sont déjà validées
+        mais qu&apos;il n&apos;a toujours pas validé la session lui-même. 0 = envoi dès que possible (le jour
+        même). Vérifié toutes les 6h, et au plus une relance par kholleur ou référent et par session.
       </p>
 
       <h3>Mode test</h3>
