@@ -144,19 +144,30 @@ export default async function GuidePage() {
           <strong>Historique</strong> liste tous les plannings générés, avec qui a validé ou non.
         </p>
         <p>
-          Les boutons <strong>Renvoyer planning aux kholleurs</strong> et <strong>Renvoyer convocation aux
-          étudiants</strong>, à côté de &laquo; Régénérer &raquo; et &laquo; Imprimer &raquo; (et aussi présents
-          sur l&apos;écran <strong>Historique</strong>), permettent de renvoyer ces mêmes emails à tout moment
-          — sans rien republier ni modifier. Ils ouvrent une fenêtre listant les kholleurs (ou étudiants)
-          concernés par toutes les disciplines déjà publiées de la semaine, tous cochés par défaut : décochez
-          qui vous voulez avant d&apos;envoyer (ex. un seul khôlleur qui dit n&apos;avoir rien reçu), ou laissez
-          tout coché pour renvoyer à tout le monde comme avant.
+          Trois boutons, à côté de &laquo; Régénérer &raquo; et &laquo; Imprimer &raquo; (et aussi présents sur
+          l&apos;écran <strong>Historique</strong>), permettent de renvoyer un email à tout moment — sans rien
+          republier ni modifier. Grisés tant que la semaine est encore un brouillon (rien à renvoyer) :
         </p>
+        <ul>
+          <li>
+            <strong>Renvoyer planning aux kholleurs</strong> et <strong>Renvoyer convocation aux étudiants</strong>{" "}
+            ouvrent une fenêtre listant les kholleurs (ou étudiants) concernés par toutes les disciplines déjà
+            publiées de la semaine, tous cochés par défaut : décochez qui vous voulez avant d&apos;envoyer (ex.
+            un seul khôlleur qui dit n&apos;avoir rien reçu), ou laissez tout coché pour renvoyer à tout le monde
+            comme avant.
+          </li>
+          <li>
+            <strong>Renvoyer validation au professeur référent</strong> renvoie directement à tous les référents
+            concernés (sans fenêtre de sélection) l&apos;email les invitant à valider une session — seulement
+            pour celles dont les grilles kholleur sont déjà toutes validées et qui ne sont pas encore clôturées.
+          </li>
+        </ul>
         <p>
           Le bouton <strong>Imprimer</strong> produit une page par jour, comme à l&apos;écran, mais avec les
           langues vivantes de chaque jour regroupées en tête de page (plutôt que mélangées aux autres
-          disciplines dans l&apos;ordre alphabétique habituel) — une ligne plus épaisse marque la frontière
-          entre deux disciplines.
+          disciplines dans l&apos;ordre alphabétique habituel). Un trait fin noir marque un changement de
+          kholleur au sein d&apos;une même discipline ; un trait bleu plus épais marque un changement de
+          discipline (y compris la frontière entre les langues vivantes et le reste du jour).
         </p>
         <p>
           Sur ce même écran de relecture, vous pouvez aussi <strong>intervertir deux élèves</strong> : cliquez
