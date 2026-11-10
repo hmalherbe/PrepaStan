@@ -757,11 +757,12 @@ th.triable:hover {
   display: none;
 }
 
-/* Vue imprimable (une page par jour, langues vivantes de chaque jour
-   regroupées en tête), construite uniquement pour l'impression : inutile à
-   l'écran, où la vue par jour éditable (ordre alphabétique habituel des
-   disciplines) suffit — voir PlanningReview.tsx. Réaffichée en
-   display:block dans le bloc @media print ci-dessous. */
+/* Vue imprimable (toutes les langues vivantes réunies sur une page, une
+   page par (jour, discipline) pour chaque discipline non-langue),
+   construite uniquement pour l'impression : inutile à l'écran, où la vue
+   par jour éditable (ordre alphabétique habituel des disciplines) suffit —
+   voir PlanningReview.tsx. Réaffichée en display:block dans le bloc
+   @media print ci-dessous. */
 .vue-impression {
   display: none;
 }
@@ -841,11 +842,12 @@ th.triable:hover {
     display: block;
   }
 
-  /* Une page par jour à l'impression (voir PlanningReview.tsx) : saut de
-     page avant chaque jour sauf le tout premier, pour ne jamais couper un
-     jour entre deux pages. Le <h1> de la page est masqué (voir page.tsx)
-     pour que le premier jour dispose d'une page pleine comme les suivants,
-     au lieu de partager son budget vertical avec ce titre. */
+  /* Une page par groupe à l'impression (langues vivantes réunies, puis une
+     par (jour, discipline) non-langue, voir PlanningReview.tsx) : saut de
+     page avant chaque groupe sauf le tout premier, pour ne jamais couper un
+     groupe entre deux pages. Le <h1> de la page est masqué (voir page.tsx)
+     pour que le premier groupe dispose d'une page pleine comme les
+     suivants, au lieu de partager son budget vertical avec ce titre. */
   .page-impression {
     break-before: page;
     page-break-before: always;
