@@ -527,9 +527,13 @@ form label {
    bleu pour un changement de discipline (y compris la frontière entre le
    bloc des langues vivantes regroupées en tête de chaque jour et le reste,
    voir parJourImpression). Couleurs fixes (pas de variable de thème) :
-   l'impression n'a pas vocation à suivre un thème clair/sombre. */
+   l'impression n'a pas vocation à suivre un thème clair/sombre. 2px (pas
+   1px) : à largeur égale avec le border-bottom 1px déjà posé sur chaque
+   cellule (règle "th, td" plus haut), border-collapse peut choisir de
+   garder ce dernier sur l'arête partagée plutôt que ce trait-ci, qui
+   deviendrait alors invisible — 2px lève l'ambiguïté. */
 .ligne-nouveau-kholleur-impression td {
-  border-top: 1px solid #000;
+  border-top: 2px solid #000;
 }
 
 .ligne-nouvelle-discipline-impression td {
