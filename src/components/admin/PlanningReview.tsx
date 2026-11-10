@@ -206,8 +206,8 @@ export function PlanningReview({
   // `parJour`), mais en réordonnant chaque jour pour que les langues
   // vivantes de ce jour-là soient regroupées en tête plutôt que mélangées
   // avec les autres disciplines dans l'ordre alphabétique habituel —
-  // séparées visuellement via TableImpression (prop avecSeparateurDiscipline,
-  // qui marque aussi la frontière langues/non-langues). `creneaux` est déjà
+  // séparées visuellement via TableImpression (qui marque aussi la
+  // frontière langues/non-langues). `creneaux` est déjà
   // trié discipline puis kholleur puis heure au sein d'un même jour (voir la
   // page serveur), donc filtrer un jour en préservant cet ordre suffit à
   // garder chaque sous-groupe (langues, puis non-langues) lui-même trié.
@@ -562,7 +562,7 @@ export function PlanningReview({
               {classeNom} · Semaine {semaine} —{" "}
               {new Date(jour).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}
             </p>
-            <TableImpression creneaux={liste} avecSeparateurDiscipline />
+            <TableImpression creneaux={liste} />
           </div>
         ))}
         {dispensesParDiscipline.length > 0 && (
@@ -646,19 +646,7 @@ export function PlanningReview({
 // (inutile sur la vue écran, où le jour est déjà le titre de chaque bloc) :
 // ici une page peut mélanger plusieurs jours (langues vivantes) ou plusieurs
 // kholleurs d'un même jour (discipline non-langue).
-function TableImpression({
-  creneaux,
-  avecSeparateurDiscipline,
-}: {
-  creneaux: Creneau[];
-  // Insère une ligne séparatrice entre deux disciplines consécutives (jamais
-  // avant la toute première) : sert à distinguer le bloc des langues
-  // vivantes (regroupées en tête de chaque jour, voir parJourImpression) du
-  // reste, et plus généralement toute discipline de la suivante — sans ça,
-  // ces transitions ne se verraient pas, la discipline n'étant qu'une
-  // colonne parmi d'autres.
-  avecSeparateurDiscipline?: boolean;
-}) {
+function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
   return (
     <table>
       <thead>
@@ -673,13 +661,22 @@ function TableImpression({
       </thead>
       <tbody>
         {creneaux.map((c, index) => {
-          // Même bordure épaisse que .ligne-nouveau-kholleur dans la vue
-          // écran (séparer les créneaux d'un kholleur à l'autre), réutilisée
-          // ici pour séparer deux disciplines consécutives.
-          const nouvelleDiscipline =
-            avecSeparateurDiscipline && index > 0 && creneaux[index - 1].discipline !== c.discipline;
+          // Changement de discipline (ex. frontière entre le bloc des
+          // langues vivantes regroupées en tête, voir parJourImpression, et
+          // le reste du jour) : trait bleu épais. Changement de kholleur
+          // SANS changement de discipline : simple trait noir fin. Jamais
+          // avant la toute première ligne, qui n'a rien à séparer d'une
+          // ligne précédente.
+          const precedent = index > 0 ? creneaux[index - 1] : null;
+          const nouvelleDiscipline = precedent !== null && precedent.discipline !== c.discipline;
+          const nouveauKholleur = precedent !== null && !nouvelleDiscipline && precedent.kholleurId !== c.kholleurId;
+          const classeLigne = nouvelleDiscipline
+            ? "ligne-nouvelle-discipline-impression"
+            : nouveauKholleur
+              ? "ligne-nouveau-kholleur-impression"
+              : undefined;
           return (
-            <tr key={c.id} className={nouvelleDiscipline ? "ligne-nouveau-kholleur" : undefined}>
+            <tr key={c.id} className={classeLigne}>
               <td>{c.discipline}</td>
               <td>{c.eleves.map((e) => e.nom).join(", ")}</td>
               <td className="cellule-horaire">{c.heureDebutPreparation ?? "—"}</td>
