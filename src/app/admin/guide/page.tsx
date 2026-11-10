@@ -153,9 +153,10 @@ export default async function GuidePage() {
           tout coché pour renvoyer à tout le monde comme avant.
         </p>
         <p>
-          Le bouton <strong>Imprimer</strong> organise les pages par discipline (pas par jour comme à
-          l&apos;écran) : une première page réunit toutes les langues vivantes, puis une page séparée pour
-          chaque discipline qui n&apos;en est pas une (économie, droit, entretien...).
+          Le bouton <strong>Imprimer</strong> produit une page par jour, comme à l&apos;écran, mais avec les
+          langues vivantes de chaque jour regroupées en tête de page (plutôt que mélangées aux autres
+          disciplines dans l&apos;ordre alphabétique habituel) — une ligne plus épaisse marque la frontière
+          entre deux disciplines.
         </p>
         <p>
           Sur ce même écran de relecture, vous pouvez aussi <strong>intervertir deux élèves</strong> : cliquez
