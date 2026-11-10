@@ -166,8 +166,9 @@ export default async function GuidePage() {
           Le bouton <strong>Imprimer</strong> produit une page par jour, comme à l&apos;écran, mais avec les
           langues vivantes de chaque jour regroupées en tête de page (plutôt que mélangées aux autres
           disciplines dans l&apos;ordre alphabétique habituel). Un trait fin noir marque un changement de
-          kholleur au sein d&apos;une même discipline ; un trait bleu plus épais marque un changement de
-          discipline (y compris la frontière entre les langues vivantes et le reste du jour).
+          kholleur au sein d&apos;une même discipline ; un changement de discipline (y compris la frontière
+          entre les langues vivantes et le reste du jour) est précédé de 3 lignes vides et marqué par un
+          trait bleu plus épais.
         </p>
         <p>
           Sur ce même écran de relecture, vous pouvez aussi <strong>intervertir deux élèves</strong> : cliquez

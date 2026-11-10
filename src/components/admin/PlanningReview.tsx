@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { RenvoiAvecSelectionModal } from "@/components/admin/RenvoiAvecSelectionModal";
 
 type EleveCreneau = { passageId: string; eleveId: string; nom: string };
@@ -663,10 +663,11 @@ function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
         {creneaux.map((c, index) => {
           // Changement de discipline (ex. frontière entre le bloc des
           // langues vivantes regroupées en tête, voir parJourImpression, et
-          // le reste du jour) : trait bleu épais. Changement de kholleur
-          // SANS changement de discipline : simple trait noir fin. Jamais
-          // avant la toute première ligne, qui n'a rien à séparer d'une
-          // ligne précédente.
+          // le reste du jour) : trait bleu épais, précédé de 3 lignes
+          // vierges pour bien détacher visuellement les deux blocs.
+          // Changement de kholleur SANS changement de discipline : simple
+          // trait noir fin, pas de ligne vierge. Jamais avant la toute
+          // première ligne, qui n'a rien à séparer d'une ligne précédente.
           const precedent = index > 0 ? creneaux[index - 1] : null;
           const nouvelleDiscipline = precedent !== null && precedent.discipline !== c.discipline;
           const nouveauKholleur = precedent !== null && !nouvelleDiscipline && precedent.kholleurId !== c.kholleurId;
@@ -676,16 +677,24 @@ function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
               ? "ligne-nouveau-kholleur-impression"
               : undefined;
           return (
-            <tr key={c.id} className={classeLigne}>
-              <td>{c.discipline}</td>
-              <td>{c.eleves.map((e) => e.nom).join(", ")}</td>
-              <td className="cellule-horaire">{c.heureDebutPreparation ?? "—"}</td>
-              <td className="cellule-horaire">
-                {c.heureDebut}-{c.heureFin}
-              </td>
-              <td>{c.kholleurNom}</td>
-              <td>{c.salleNom}</td>
-            </tr>
+            <Fragment key={c.id}>
+              {nouvelleDiscipline &&
+                [0, 1, 2].map((i) => (
+                  <tr key={`vide-${c.id}-${i}`} className="ligne-vide-impression">
+                    <td colSpan={6}></td>
+                  </tr>
+                ))}
+              <tr className={classeLigne}>
+                <td>{c.discipline}</td>
+                <td>{c.eleves.map((e) => e.nom).join(", ")}</td>
+                <td className="cellule-horaire">{c.heureDebutPreparation ?? "—"}</td>
+                <td className="cellule-horaire">
+                  {c.heureDebut}-{c.heureFin}
+                </td>
+                <td>{c.kholleurNom}</td>
+                <td>{c.salleNom}</td>
+              </tr>
+            </Fragment>
           );
         })}
       </tbody>

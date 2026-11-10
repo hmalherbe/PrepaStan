@@ -540,6 +540,18 @@ form label {
   border-top: 3px solid #1d4ed8;
 }
 
+/* 3 lignes vides insérées juste avant un changement de discipline (voir
+   TableImpression), pour détacher visuellement les deux blocs en plus du
+   trait bleu ci-dessus. Sans bordure (contrairement aux lignes de données),
+   sans quoi la bordure fine par défaut de chaque cellule ("th, td" plus
+   haut) les ferait ressembler à des lignes de contenu plutôt qu'à un
+   espace vide. */
+.ligne-vide-impression td {
+  border: none;
+  padding: 0;
+  height: 1em;
+}
+
 /* Nom d'élève cliquable dans le tableau de détail d'une semaine
    (PlanningReview) : sélection en vue d'intervertir deux élèves. Un bouton
    stylé pour se fondre dans le texte plutôt que ressembler à un bouton. */
