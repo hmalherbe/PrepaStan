@@ -58,7 +58,7 @@ export default async function PersonnesPage() {
 
   return (
     <main className="container">
-      <h1>Personnes (khôlleurs et référents)</h1>
+      <h1>Enseignants (khôlleurs et référents)</h1>
       <ImportCsv
         titre="Importer des khôlleurs depuis un fichier CSV"
         endpoint="/api/admin/kholleurs/import"

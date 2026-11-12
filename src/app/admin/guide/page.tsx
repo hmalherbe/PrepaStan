@@ -71,7 +71,7 @@ export default async function GuidePage() {
             attendu de ces disciplines, et listé à part sur le détail de chaque semaine concernée.
           </li>
           <li>
-            <strong>Personnes</strong> — une seule grille pour les khôlleurs et les professeurs référents,
+            <strong>Enseignants</strong> — une seule grille pour les khôlleurs et les professeurs référents,
             puisqu&apos;une même personne peut cumuler les deux rôles sous un seul compte. Pour chaque personne,
             deux cases à cocher (« Khôlleur » et « Professeur référent ») déterminent quels champs s&apos;affichent
             :
@@ -322,7 +322,7 @@ export default async function GuidePage() {
         </ul>
         <p>
           Pour retrouver l&apos;email associé à un compte existant, consultez les écrans <strong>Étudiants</strong>
-          {" "}ou <strong>Personnes</strong> — ils affichent l&apos;email de chaque compte, jamais son mot de
+          {" "}ou <strong>Enseignants</strong> — ils affichent l&apos;email de chaque compte, jamais son mot de
           passe.
         </p>
         <p>
@@ -350,7 +350,7 @@ export default async function GuidePage() {
           email appartient déjà, plutôt que de fusionner silencieusement les deux comptes par erreur.
         </p>
         <p>
-          Sur l&apos;écran <strong>Personnes</strong>, pour une personne qui doit cumuler les deux rôles dès sa
+          Sur l&apos;écran <strong>Enseignants</strong>, pour une personne qui doit cumuler les deux rôles dès sa
           création, cochez simplement <strong>« Khôlleur »</strong> et <strong>« Professeur référent »</strong>{" "}
           en même temps dans le formulaire d&apos;ajout — un seul compte est créé avec les deux. Pour ajouter
           après coup le rôle référent à un khôlleur déjà créé (ou l&apos;inverse), ouvrez sa ligne avec{" "}
