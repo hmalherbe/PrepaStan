@@ -6,13 +6,39 @@ import { compteExistantAvecEmailDifferent, messageCompteEmailDifferent } from "@
 import { prisma } from "@/lib/prisma";
 
 // DELETE /api/admin/referents/:referentId
-// Retire l'assignation référent (le compte utilisateur n'est pas supprimé).
+// Retire une seule assignation (classe, discipline). Si c'était la toute
+// dernière assignation référent de cette personne, retire aussi le rôle
+// PROFESSEUR_REFERENT — et supprime le compte s'il ne lui reste aucun autre
+// rôle (ex. pas khôlleur) — pour ne pas laisser un rôle « fantôme » sans
+// aucune assignation derrière lui.
 export async function DELETE(_req: Request, { params }: { params: Promise<{ referentId: string }> }) {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
   const { referentId } = await params;
 
-  await prisma.professeurReferent.delete({ where: { id: referentId } });
+  const assignation = await prisma.professeurReferent.findUniqueOrThrow({ where: { id: referentId } });
+
+  const autresAssignations = await prisma.professeurReferent.count({
+    where: { utilisateurId: assignation.utilisateurId, id: { not: referentId } },
+  });
+
+  if (autresAssignations > 0) {
+    await prisma.professeurReferent.delete({ where: { id: referentId } });
+  } else {
+    const utilisateur = await prisma.utilisateur.findUniqueOrThrow({ where: { id: assignation.utilisateurId } });
+    const autresRoles = utilisateur.roles.filter((r) => r !== "PROFESSEUR_REFERENT");
+    await prisma.$transaction(
+      autresRoles.length > 0
+        ? [
+            prisma.professeurReferent.delete({ where: { id: referentId } }),
+            prisma.utilisateur.update({ where: { id: utilisateur.id }, data: { roles: autresRoles } }),
+          ]
+        : [
+            prisma.professeurReferent.delete({ where: { id: referentId } }),
+            prisma.utilisateur.delete({ where: { id: utilisateur.id } }),
+          ]
+    );
+  }
   return NextResponse.json({ ok: true });
 }
 

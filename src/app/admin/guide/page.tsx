@@ -71,14 +71,26 @@ export default async function GuidePage() {
             attendu de ces disciplines, et listé à part sur le détail de chaque semaine concernée.
           </li>
           <li>
-            <strong>Khôlleurs</strong> — un compte par khôlleur, avec les disciplines qu&apos;il peut faire passer
-            (« compétences ») et ses disponibilités (récurrentes par jour de semaine, ou ponctuelles).
-          </li>
-          <li>
-            <strong>Référents</strong> — un ou plusieurs professeurs référents peuvent être associés à une même
-            (classe, discipline) au fil du temps : c&apos;est un vivier de personnes éligibles, pas une seule
-            personne figée. Lors de la génération du planning d&apos;une semaine, vous choisissez lequel de ce
-            vivier est le référent effectif pour cette semaine précise.
+            <strong>Personnes</strong> — une seule grille pour les khôlleurs et les professeurs référents,
+            puisqu&apos;une même personne peut cumuler les deux rôles sous un seul compte. Pour chaque personne,
+            deux cases à cocher (« Khôlleur » et « Professeur référent ») déterminent quels champs s&apos;affichent
+            :
+            <ul>
+              <li>
+                <strong>Khôlleur</strong> — les disciplines qu&apos;elle peut faire passer (« compétences ») ; ses
+                disponibilités (récurrentes par jour de semaine, ou ponctuelles) se règlent sur sa fiche détaillée,
+                accessible depuis la grille.
+              </li>
+              <li>
+                <strong>Professeur référent</strong> — une ou plusieurs (discipline, classe(s)) : plusieurs
+                référents peuvent être associés à une même (classe, discipline) au fil du temps, c&apos;est un
+                vivier de personnes éligibles, pas une seule personne figée. Lors de la génération du planning
+                d&apos;une semaine, vous choisissez lequel de ce vivier est le référent effectif pour cette semaine
+                précise.
+              </li>
+            </ul>
+            Retirer un seul des deux rôles d&apos;une personne qui cumule les deux ne supprime que ce rôle (et ses
+            données propres) ; le compte n&apos;est supprimé que s&apos;il ne lui reste alors plus aucun rôle.
           </li>
           <li>
             <strong>Salles</strong> — utilisées pour éviter les conflits d&apos;occupation au même horaire.
@@ -303,8 +315,8 @@ export default async function GuidePage() {
         </ul>
         <p>
           Pour retrouver l&apos;email associé à un compte existant, consultez les écrans <strong>Étudiants</strong>
-          , <strong>Khôlleurs</strong> ou <strong>Référents</strong> — ils affichent l&apos;email de chaque compte,
-          jamais son mot de passe.
+          {" "}ou <strong>Personnes</strong> — ils affichent l&apos;email de chaque compte, jamais son mot de
+          passe.
         </p>
         <p>
           Pour renvoyer ce même email d&apos;activation à un compte déjà existant (ex. une personne qui
@@ -331,11 +343,13 @@ export default async function GuidePage() {
           email appartient déjà, plutôt que de fusionner silencieusement les deux comptes par erreur.
         </p>
         <p>
-          Sur l&apos;écran <strong>Référents</strong>, le choix <strong>« Compte existant »</strong> lors de
-          l&apos;ajout d&apos;un référent liste aussi bien les khôlleurs déjà créés que les référents déjà
-          créés : sélectionner un khôlleur l&apos;ajoute comme référent sous ce même compte (cumul des deux
-          rôles), sans créer de second compte — c&apos;est la façon recommandée de déclarer un khôlleur
-          également référent, plutôt que de ressaisir ses informations via « Nouveau compte ».
+          Sur l&apos;écran <strong>Personnes</strong>, pour une personne qui doit cumuler les deux rôles dès sa
+          création, cochez simplement <strong>« Khôlleur »</strong> et <strong>« Professeur référent »</strong>{" "}
+          en même temps dans le formulaire d&apos;ajout — un seul compte est créé avec les deux. Pour ajouter
+          après coup le rôle référent à un khôlleur déjà créé (ou l&apos;inverse), ouvrez sa ligne avec{" "}
+          <strong>Modifier</strong> : un bouton <strong>« + Ajouter le rôle khôlleur »</strong> ou le sélecteur{" "}
+          <strong>« + discipline… »</strong> sous « Professeur référent » l&apos;ajoute sur ce même compte, sans
+          jamais en créer un second.
         </p>
       </div>
     </main>

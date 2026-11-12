@@ -10,7 +10,17 @@ type ResultatImport = {
   erreurs: { ligne: number; message: string }[];
 };
 
-export function ImportCsv({ endpoint, colonnes, exemple }: { endpoint: string; colonnes: string; exemple: string }) {
+export function ImportCsv({
+  endpoint,
+  colonnes,
+  exemple,
+  titre = "Importer depuis un fichier CSV",
+}: {
+  endpoint: string;
+  colonnes: string;
+  exemple: string;
+  titre?: string;
+}) {
   const router = useRouter();
   const [texte, setTexte] = useState("");
   const [resultat, setResultat] = useState<ResultatImport | null>(null);
@@ -50,7 +60,7 @@ export function ImportCsv({ endpoint, colonnes, exemple }: { endpoint: string; c
 
   return (
     <details className="carte" style={{ marginBottom: 20 }}>
-      <summary style={{ cursor: "pointer", fontWeight: 600 }}>Importer depuis un fichier CSV</summary>
+      <summary style={{ cursor: "pointer", fontWeight: 600 }}>{titre}</summary>
       <p style={{ color: "#777", fontSize: "0.9rem" }}>
         Colonnes attendues (première ligne, insensible à la casse) : <code>{colonnes}</code>. Fonctionne avec un
         export CSV Excel (virgule ou point-virgule) ou un copier-coller direct depuis un tableur.

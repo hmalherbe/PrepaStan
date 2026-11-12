@@ -79,7 +79,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ kholleur
 
 // DELETE /api/admin/kholleurs/:kholleurId
 // Les compétences et disponibilités (pure configuration, sans valeur
-// d'historique) sont nettoyées avant la suppression du compte. En
+// d'historique) sont nettoyées avant de retirer le rôle KHOLLEUR. Si cette
+// personne n'a pas d'autre rôle (ex. pas aussi professeur référent), son
+// compte est supprimé entièrement ; sinon, seul le rôle et ses données de
+// khôlleur disparaissent, le compte (et son rôle référent) reste intact. En
 // revanche, la présence de créneaux déjà donnés ou d'un job de
 // planification lancé par ce kholleur fait échouer toute l'opération
 // (contrainte de clé étrangère, transaction annulée) : impossible de
@@ -90,11 +93,22 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ khol
   const { kholleurId } = await params;
 
   try {
-    await prisma.$transaction([
-      prisma.competence.deleteMany({ where: { kholleurId } }),
-      prisma.disponibilite.deleteMany({ where: { kholleurId } }),
-      prisma.utilisateur.delete({ where: { id: kholleurId } }),
-    ]);
+    const utilisateur = await prisma.utilisateur.findUniqueOrThrow({ where: { id: kholleurId } });
+    const autresRoles = utilisateur.roles.filter((r) => r !== "KHOLLEUR");
+
+    await prisma.$transaction(
+      autresRoles.length > 0
+        ? [
+            prisma.competence.deleteMany({ where: { kholleurId } }),
+            prisma.disponibilite.deleteMany({ where: { kholleurId } }),
+            prisma.utilisateur.update({ where: { id: kholleurId }, data: { roles: autresRoles } }),
+          ]
+        : [
+            prisma.competence.deleteMany({ where: { kholleurId } }),
+            prisma.disponibilite.deleteMany({ where: { kholleurId } }),
+            prisma.utilisateur.delete({ where: { id: kholleurId } }),
+          ]
+    );
   } catch {
     return NextResponse.json(
       {
