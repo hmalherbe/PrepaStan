@@ -22,7 +22,7 @@ const LIENS_PAR_ROLE: Record<string, Lien[]> = {
     { href: "/admin/classes", label: "Classes" },
     { href: "/admin/eleves", label: "Étudiants" },
     { href: "/admin/disciplines", label: "Disciplines" },
-    { href: "/admin/personnes", label: "Personnes" },
+    { href: "/admin/personnes", label: "Enseignants" },
     { href: "/admin/salles", label: "Salles" },
     { href: "/admin/envoi-identifiants", label: "Envoi des identifiants" },
     { href: "/admin/prise-de-main", label: "Prendre la main" },
