@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { requireRole } from "@/lib/auth";
+import { compteExistantAvecEmailDifferent, messageCompteEmailDifferent } from "@/lib/coherenceCompte";
 import { parserCsv } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
 
@@ -61,6 +62,13 @@ export async function POST(req: Request) {
     }
 
     const existant = await prisma.utilisateur.findUnique({ where: { email } });
+    if (!existant) {
+      const doublon = await compteExistantAvecEmailDifferent(nom, prenom, email);
+      if (doublon) {
+        erreurs.push({ ligne: numeroLigne, message: messageCompteEmailDifferent(nom, prenom, doublon.email) });
+        continue;
+      }
+    }
     let kholleurId: string;
     if (existant) {
       kholleurId = existant.id;

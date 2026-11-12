@@ -313,6 +313,17 @@ export default async function GuidePage() {
           comptes khôlleur, référent et étudiant, pré-coche ceux qui ne se sont jamais connectés, et envoie
           (ou prévisualise, sans rien envoyer) le lien d&apos;activation pour la sélection.
         </p>
+        <p>
+          <strong>Une même personne, khôlleur et/ou référent, ne doit jamais avoir deux comptes.</strong> Si
+          elle cumule les deux rôles, un seul compte doit porter les deux — jamais un compte khôlleur et un
+          compte référent séparés avec des emails différents. Pour éviter que ça se reproduise (comme pour
+          Sandrine Cruciani, dont le compte khôlleur avait été créé par erreur avec un autre email que son
+          compte référent existant, créant deux comptes distincts au lieu d&apos;un seul à deux rôles),
+          PrepaStan refuse désormais la création, la modification ou l&apos;import d&apos;un compte khôlleur
+          ou référent si son nom et prénom correspondent déjà à un compte existant sous un email différent —
+          sans possibilité de saisir un email alternatif : il faut reprendre l&apos;email du compte déjà
+          enregistré, ce qui fusionne automatiquement les deux rôles sur ce même compte.
+        </p>
       </div>
     </main>
   );

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { requireRole } from "@/lib/auth";
+import { compteExistantAvecEmailDifferent, messageCompteEmailDifferent } from "@/lib/coherenceCompte";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/admin/kholleurs
@@ -41,6 +42,16 @@ export async function POST(req: Request) {
   const body = bodySchema.parse(await req.json());
 
   const existant = await prisma.utilisateur.findUnique({ where: { email: body.email } });
+
+  if (!existant) {
+    const doublon = await compteExistantAvecEmailDifferent(body.nom, body.prenom, body.email);
+    if (doublon) {
+      return NextResponse.json(
+        { error: messageCompteEmailDifferent(body.nom, body.prenom, doublon.email) },
+        { status: 409 }
+      );
+    }
+  }
 
   const kholleur = existant
     ? await prisma.utilisateur.update({

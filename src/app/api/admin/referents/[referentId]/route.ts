@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import { compteExistantAvecEmailDifferent, messageCompteEmailDifferent } from "@/lib/coherenceCompte";
 import { prisma } from "@/lib/prisma";
 
 // DELETE /api/admin/referents/:referentId
@@ -47,6 +48,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ referent
   }
 
   const referentExistant = await prisma.professeurReferent.findUniqueOrThrow({ where: { id: referentId } });
+
+  const doublon = await compteExistantAvecEmailDifferent(
+    body.nom,
+    body.prenom,
+    body.email,
+    referentExistant.utilisateurId
+  );
+  if (doublon) {
+    return NextResponse.json(
+      { error: messageCompteEmailDifferent(body.nom, body.prenom, doublon.email) },
+      { status: 409 }
+    );
+  }
 
   try {
     const referent = await prisma.$transaction(async (tx) => {

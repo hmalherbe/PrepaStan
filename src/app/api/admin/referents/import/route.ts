@@ -5,6 +5,7 @@ import { z } from "zod";
 import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { ANNEE_SCOLAIRE_COOKIE, anneeScolaireCourante } from "@/lib/anneeScolaire";
 import { requireRole } from "@/lib/auth";
+import { compteExistantAvecEmailDifferent, messageCompteEmailDifferent } from "@/lib/coherenceCompte";
 import { parserCsv } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
 
@@ -67,6 +68,15 @@ export async function POST(req: Request) {
     if (!discipline) {
       erreurs.push({ ligne: numeroLigne, message: `Discipline "${disciplineNom}" introuvable` });
       continue;
+    }
+
+    const compteExistantParEmail = await prisma.utilisateur.findUnique({ where: { email } });
+    if (!compteExistantParEmail) {
+      const doublon = await compteExistantAvecEmailDifferent(nom, prenom, email);
+      if (doublon) {
+        erreurs.push({ ligne: numeroLigne, message: messageCompteEmailDifferent(nom, prenom, doublon.email) });
+        continue;
+      }
     }
 
     await prisma.classeDiscipline.upsert({

@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import { compteExistantAvecEmailDifferent, messageCompteEmailDifferent } from "@/lib/coherenceCompte";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/admin/kholleurs/:kholleurId
@@ -40,6 +41,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ kholleur
   const { kholleurId } = await params;
 
   const body = bodySchema.parse(await req.json());
+
+  const doublon = await compteExistantAvecEmailDifferent(body.nom, body.prenom, body.email, kholleurId);
+  if (doublon) {
+    return NextResponse.json(
+      { error: messageCompteEmailDifferent(body.nom, body.prenom, doublon.email) },
+      { status: 409 }
+    );
+  }
 
   try {
     const kholleur = await prisma.$transaction(async (tx) => {
