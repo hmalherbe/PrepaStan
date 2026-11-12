@@ -27,11 +27,11 @@ export async function POST(req: Request) {
   const [passage1, passage2] = await Promise.all([
     prisma.passage.findUnique({
       where: { id: passageId1 },
-      include: { note: { select: { valeur: true } }, creneau: { include: { sessionKholle: true } } },
+      include: { note: { select: { valeur: true, absent: true } }, creneau: { include: { sessionKholle: true } } },
     }),
     prisma.passage.findUnique({
       where: { id: passageId2 },
-      include: { note: { select: { valeur: true } }, creneau: { include: { sessionKholle: true } } },
+      include: { note: { select: { valeur: true, absent: true } }, creneau: { include: { sessionKholle: true } } },
     }),
   ]);
 
@@ -53,9 +53,14 @@ export async function POST(req: Request) {
     );
   }
 
-  if (passage1.note?.valeur != null || passage2.note?.valeur != null) {
+  if (
+    passage1.note?.valeur != null ||
+    passage1.note?.absent ||
+    passage2.note?.valeur != null ||
+    passage2.note?.absent
+  ) {
     return NextResponse.json(
-      { error: "Impossible d'intervertir : une note a déjà été saisie pour au moins un des deux élèves" },
+      { error: "Impossible d'intervertir : une note (ou une absence) a déjà été saisie pour au moins un des deux élèves" },
       { status: 409 }
     );
   }

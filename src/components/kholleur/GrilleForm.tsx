@@ -11,6 +11,7 @@ type Ligne = {
   heureFin: string;
   salle: string;
   valeur: number | null;
+  absent: boolean;
   appreciation: string;
   fichierNom: string | null;
 };
@@ -57,6 +58,21 @@ export function GrilleForm({
     );
   }
 
+  // Cocher "Absent" efface la note déjà saisie (une absence n'est pas une
+  // note de 0) ; décocher ne fait que réafficher le champ note, vide, prêt à
+  // être ressaisi — dans les deux cas, enregistré aussitôt comme les autres
+  // champs plutôt que d'attendre un onBlur qui n'a pas de sens ici.
+  function toggleAbsent(passageId: string) {
+    setLignes((prev) => {
+      const suivant = prev.map((l) =>
+        l.passageId === passageId ? { ...l, absent: !l.absent, valeur: l.absent ? l.valeur : null } : l
+      );
+      const ligne = suivant.find((l) => l.passageId === passageId);
+      if (ligne) enregistrerLigne(ligne);
+      return suivant;
+    });
+  }
+
   async function enregistrerLigne(ligne: Ligne) {
     setEtats((prev) => ({ ...prev, [ligne.passageId]: "saving" }));
     try {
@@ -64,7 +80,8 @@ export function GrilleForm({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          valeur: ligne.valeur,
+          valeur: ligne.absent ? null : ligne.valeur,
+          absent: ligne.absent,
           appreciation: estAppreciationVide(ligne.appreciation) ? null : ligne.appreciation,
         }),
       });
@@ -133,7 +150,9 @@ export function GrilleForm({
     }
   }
 
-  const toutSaisi = lignes.every((l) => l.valeur !== null && !estAppreciationVide(l.appreciation));
+  // Un étudiant absent n'a ni note ni appréciation obligatoire ; sinon, les
+  // deux restent requis comme avant.
+  const toutSaisi = lignes.every((l) => l.absent || (l.valeur !== null && !estAppreciationVide(l.appreciation)));
 
   return (
     <div>
@@ -170,17 +189,25 @@ export function GrilleForm({
               </td>
               <td>{l.salle}</td>
               <td>
-                <input
-                  type="number"
-                  min={0}
-                  max={20}
-                  step={0.5}
-                  style={{ width: 70 }}
-                  value={l.valeur ?? ""}
-                  disabled={fige}
-                  onChange={(e) => majLigne(l.passageId, "valeur", e.target.value)}
-                  onBlur={() => enregistrerLigne(l)}
-                />
+                {!l.absent && (
+                  <input
+                    type="number"
+                    min={0}
+                    max={20}
+                    step={0.5}
+                    style={{ width: 70 }}
+                    value={l.valeur ?? ""}
+                    disabled={fige}
+                    onChange={(e) => majLigne(l.passageId, "valeur", e.target.value)}
+                    onBlur={() => enregistrerLigne(l)}
+                  />
+                )}
+                <label
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4, fontSize: "0.85rem", marginTop: 4 }}
+                >
+                  <input type="checkbox" checked={l.absent} disabled={fige} onChange={() => toggleAbsent(l.passageId)} />
+                  Absent
+                </label>
               </td>
               <td>
                 <AppreciationEditor

@@ -12,6 +12,7 @@ type Ligne = {
   heureDebut: string;
   heureFin: string;
   valeur: number | null;
+  absent: boolean;
   appreciation: string;
 };
 
@@ -58,6 +59,22 @@ export function DetailSessionReferent({
     );
   }
 
+  // Même logique que GrilleForm.tsx côté khôlleur : cocher "Absent" efface
+  // la note déjà saisie et enregistre aussitôt.
+  function toggleAbsent(passageId: string) {
+    setGroupes((prev) => {
+      const suivant = prev.map((g) => ({
+        ...g,
+        lignes: g.lignes.map((l) =>
+          l.passageId === passageId ? { ...l, absent: !l.absent, valeur: l.absent ? l.valeur : null } : l
+        ),
+      }));
+      const ligne = suivant.flatMap((g) => g.lignes).find((l) => l.passageId === passageId);
+      if (ligne) enregistrerLigne(ligne);
+      return suivant;
+    });
+  }
+
   async function enregistrerLigne(ligne: Ligne) {
     setEtatsSauvegarde((prev) => ({ ...prev, [ligne.passageId]: "saving" }));
     try {
@@ -65,7 +82,8 @@ export function DetailSessionReferent({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          valeur: ligne.valeur,
+          valeur: ligne.absent ? null : ligne.valeur,
+          absent: ligne.absent,
           appreciation: estAppreciationVide(ligne.appreciation) ? null : ligne.appreciation,
         }),
       });
@@ -143,16 +161,24 @@ export function DetailSessionReferent({
                     {enEdition ? (
                       <>
                         <td>
-                          <input
-                            type="number"
-                            min={0}
-                            max={20}
-                            step={0.5}
-                            style={{ width: 70 }}
-                            value={l.valeur ?? ""}
-                            onChange={(e) => majLigne(l.passageId, "valeur", e.target.value)}
-                            onBlur={() => enregistrerLigne(l)}
-                          />
+                          {!l.absent && (
+                            <input
+                              type="number"
+                              min={0}
+                              max={20}
+                              step={0.5}
+                              style={{ width: 70 }}
+                              value={l.valeur ?? ""}
+                              onChange={(e) => majLigne(l.passageId, "valeur", e.target.value)}
+                              onBlur={() => enregistrerLigne(l)}
+                            />
+                          )}
+                          <label
+                            style={{ flexDirection: "row", alignItems: "center", gap: 4, fontSize: "0.85rem", marginTop: 4 }}
+                          >
+                            <input type="checkbox" checked={l.absent} onChange={() => toggleAbsent(l.passageId)} />
+                            Absent
+                          </label>
                         </td>
                         <td>
                           <AppreciationEditor
@@ -179,7 +205,7 @@ export function DetailSessionReferent({
                       </>
                     ) : (
                       <>
-                        <td>{l.valeur ?? "—"}</td>
+                        <td>{l.absent ? "ABS" : (l.valeur ?? "—")}</td>
                         <td>
                           {l.appreciation ? (
                             <div className="ql-editor" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: l.appreciation }} />

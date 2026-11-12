@@ -23,7 +23,7 @@ export default async function NotesElevePage() {
       },
     },
     include: {
-      note: { select: { valeur: true, appreciation: true, fichierNom: true } },
+      note: { select: { valeur: true, absent: true, appreciation: true, fichierNom: true } },
       creneau: { include: { sessionKholle: { include: { discipline: true, validationReferent: true } } } },
     },
     orderBy: [{ creneau: { date: "desc" } }],
@@ -36,6 +36,7 @@ export default async function NotesElevePage() {
     date: p.creneau.date.toISOString().slice(0, 10),
     valide: p.creneau.sessionKholle.validationReferent?.statut === "VALIDE",
     valeur: p.note?.valeur ? Number(p.note.valeur) : null,
+    absent: p.note?.absent ?? false,
     appreciation: p.note?.appreciation ?? "",
     fichierNom: p.note?.fichierNom ?? null,
   }));

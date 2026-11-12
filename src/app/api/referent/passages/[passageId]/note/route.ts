@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 const bodySchema = z.object({
   valeur: z.number().min(0).max(20).nullable(),
   appreciation: z.string().nullable(),
+  absent: z.boolean().optional().default(false),
 });
 
 // Mêmes règles que l'éditeur du kholleur (voir
@@ -59,11 +60,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ passageI
   const appreciation = body.appreciation
     ? sanitizeHtml(body.appreciation, OPTIONS_SANITIZE_APPRECIATION)
     : body.appreciation;
+  const valeur = body.absent ? null : body.valeur;
 
   const note = await prisma.note.upsert({
     where: { passageId },
-    update: { ...body, appreciation, dateSaisie: new Date() },
-    create: { passageId, ...body, appreciation, dateSaisie: new Date() },
+    update: { valeur, absent: body.absent, appreciation, dateSaisie: new Date() },
+    create: { passageId, valeur, absent: body.absent, appreciation, dateSaisie: new Date() },
   });
 
   return NextResponse.json(note);

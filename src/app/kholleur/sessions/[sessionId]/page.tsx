@@ -23,7 +23,7 @@ export default async function GrilleKholleurPage({
     include: {
       salle: true,
       passages: {
-        include: { eleve: true, note: { select: { valeur: true, appreciation: true, fichierNom: true } } },
+        include: { eleve: true, note: { select: { valeur: true, absent: true, appreciation: true, fichierNom: true } } },
         orderBy: { ordre: "asc" },
       },
     },
@@ -43,6 +43,7 @@ export default async function GrilleKholleurPage({
       heureFin: c.heureFin,
       salle: c.salle.nom,
       valeur: p.note?.valeur ? Number(p.note.valeur) : null,
+      absent: p.note?.absent ?? false,
       appreciation: p.note?.appreciation ?? "",
       fichierNom: p.note?.fichierNom ?? null,
     }))

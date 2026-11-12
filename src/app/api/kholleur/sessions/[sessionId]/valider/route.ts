@@ -6,9 +6,10 @@ import { compterGrillesNonValidees } from "@/lib/sessionValidation";
 
 // POST /api/kholleur/sessions/:sessionId/valider
 // Valide la grille du kholleur connecté pour cette session : rejette si une
-// note OU une appréciation manque (les deux sont obligatoires), sinon
-// verrouille la saisie et vérifie si tous les kholleurs de la session ont
-// désormais validé (pour notifier le référent).
+// note OU une appréciation manque (les deux sont obligatoires) pour un
+// passage non marqué absent — un étudiant absent n'a besoin ni de l'une ni
+// de l'autre — sinon verrouille la saisie et vérifie si tous les kholleurs
+// de la session ont désormais validé (pour notifier le référent).
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ sessionId: string }> }
@@ -32,7 +33,17 @@ export async function POST(
   const passagesIncomplets = await prisma.passage.count({
     where: {
       creneau: { sessionKholleId, kholleurId },
-      OR: [{ note: { is: null } }, { note: { valeur: null } }, { note: { appreciation: null } }, { note: { appreciation: "" } }],
+      OR: [
+        { note: { is: null } },
+        {
+          note: {
+            is: {
+              absent: false,
+              OR: [{ valeur: null }, { appreciation: null }, { appreciation: "" }],
+            },
+          },
+        },
+      ],
     },
   });
 

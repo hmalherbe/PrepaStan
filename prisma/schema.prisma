@@ -303,6 +303,13 @@ model Note {
   passageId    String    @unique
   passage      Passage   @relation(fields: [passageId], references: [id], onDelete: Cascade)
   valeur       Decimal?
+  // Étudiant absent à cette khôlle : valeur reste alors toujours null (une
+  // absence n'est pas une note de 0) et l'appréciation devient facultative
+  // pour la validation de la grille (voir toutSaisi dans GrilleForm.tsx) —
+  // contrairement à une khôlle normale où les deux sont obligatoires.
+  // Aucun changement nécessaire aux statistiques/moyennes : elles filtrent
+  // déjà sur valeur non nul, donc une absence en est naturellement exclue.
+  absent       Boolean   @default(false)
   appreciation String?
   dateSaisie   DateTime?
   // Pièce jointe optionnelle (PDF ou Word) associée à cette khôlle — ex.

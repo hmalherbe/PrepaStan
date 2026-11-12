@@ -259,6 +259,13 @@ export default async function GuidePage() {
           saisi. Cette validation est définitive de leur côté : le professeur référent est notifié dès que tous les
           khôlleurs d&apos;une session ont validé.
         </p>
+        <p>
+          Si un étudiant était absent à sa khôlle, cochez <strong>Absent</strong> plutôt que de laisser le champ
+          note vide : la note redevient alors inutile et l&apos;appréciation facultative, et la grille peut être
+          validée normalement sans cette note. Une absence n&apos;est jamais comptée comme un 0 dans les moyennes
+          et statistiques (elle en est simplement exclue), et s&apos;affiche « ABS » partout où elle apparaît
+          (grille, correction par le référent, notes de l&apos;étudiant).
+        </p>
       </div>
 
       <div className="carte">
@@ -267,10 +274,10 @@ export default async function GuidePage() {
           Après connexion, l&apos;écran <strong>Sessions à valider</strong> liste les sessions de leur(s)
           discipline(s), avec l&apos;état de validation de chaque khôlleur. Un bouton <strong>Modifier</strong>
           sur la fiche de chaque khôlleur permet au référent de corriger lui-même une note ou une appréciation
-          (ex. une coquille repérée en relisant), sans attendre que ce khôlleur précis ait validé sa grille.
-          Une fois tous les khôlleurs d&apos;une session validés, ils peuvent la <strong>valider</strong> à
-          leur tour : les notes et appréciations deviennent alors visibles aux étudiants concernés, qui en
-          sont notifiés par email.
+          (ex. une coquille repérée en relisant), sans attendre que ce khôlleur précis ait validé sa grille. Ils
+          peuvent eux aussi cocher <strong>Absent</strong> si le khôlleur ne l&apos;a pas fait. Une fois tous les
+          khôlleurs d&apos;une session validés, ils peuvent la <strong>valider</strong> à leur tour : les notes et
+          appréciations deviennent alors visibles aux étudiants concernés, qui en sont notifiés par email.
         </p>
       </div>
 

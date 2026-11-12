@@ -10,6 +10,7 @@ type Ligne = {
   date: string; // "YYYY-MM-DD"
   valide: boolean;
   valeur: number | null;
+  absent: boolean;
   appreciation: string;
   fichierNom: string | null;
 };
@@ -69,7 +70,7 @@ export function NotesEleveTable({ lignes }: { lignes: Ligne[] }) {
               <td>{new Date(l.date).toLocaleDateString("fr-FR")}</td>
               {l.valide ? (
                 <>
-                  <td>{l.valeur ?? "—"}</td>
+                  <td>{l.absent ? "ABS" : (l.valeur ?? "—")}</td>
                   <td>
                     {l.appreciation ? (
                       <div className="ql-editor" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: l.appreciation }} />

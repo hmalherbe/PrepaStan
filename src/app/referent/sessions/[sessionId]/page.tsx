@@ -59,6 +59,7 @@ export default async function DetailSessionReferentPage({
           heureDebut: c.heureDebut,
           heureFin: c.heureFin,
           valeur: p.note?.valeur ? Number(p.note.valeur) : null,
+          absent: p.note?.absent ?? false,
           appreciation: p.note?.appreciation ?? "",
         }))
       ),
