@@ -163,13 +163,12 @@ export default async function GuidePage() {
           </li>
         </ul>
         <p>
-          Le bouton <strong>Imprimer</strong> organise les pages différemment de l&apos;écran : toutes les
-          langues vivantes (tous jours confondus) sont réunies sur une seule page, regroupées par langue ; chaque
-          discipline qui n&apos;est pas une langue a une page séparée par jour (un jour de droit donné, par
-          exemple, a sa propre page, distincte de celle d&apos;un autre jour de droit). Un trait fin noir marque
-          un changement de kholleur au sein d&apos;une même discipline ; un changement de discipline (sur la
-          page des langues, entre deux langues) est précédé de 3 lignes vides et marqué par un trait bleu plus
-          épais.
+          Le bouton <strong>Imprimer</strong> produit une page par jour, comme à l&apos;écran, mais avec les
+          langues vivantes de chaque jour regroupées en tête de page (plutôt que mélangées aux autres
+          disciplines dans l&apos;ordre alphabétique habituel). Un trait fin noir marque un changement de
+          kholleur au sein d&apos;une même discipline ; un changement de discipline (y compris la frontière
+          entre les langues vivantes et le reste du jour) est précédé de 3 lignes vides et marqué par un
+          trait bleu plus épais.
         </p>
         <p>
           Sur ce même écran de relecture, vous pouvez aussi <strong>intervertir deux élèves</strong> : cliquez
