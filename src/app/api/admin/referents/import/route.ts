@@ -5,7 +5,12 @@ import { z } from "zod";
 import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { ANNEE_SCOLAIRE_COOKIE, anneeScolaireCourante } from "@/lib/anneeScolaire";
 import { requireRole } from "@/lib/auth";
-import { compteExistantAvecEmailDifferent, messageCompteEmailDifferent } from "@/lib/coherenceCompte";
+import {
+  compteExistantAvecEmailDifferent,
+  memePersonne,
+  messageCompteEmailDifferent,
+  messageEmailDejaPrisParAutrePersonne,
+} from "@/lib/coherenceCompte";
 import { parserCsv } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
 
@@ -71,6 +76,13 @@ export async function POST(req: Request) {
     }
 
     const compteExistantParEmail = await prisma.utilisateur.findUnique({ where: { email } });
+    if (compteExistantParEmail && !memePersonne(compteExistantParEmail.nom, compteExistantParEmail.prenom, nom, prenom)) {
+      erreurs.push({
+        ligne: numeroLigne,
+        message: messageEmailDejaPrisParAutrePersonne(compteExistantParEmail.nom, compteExistantParEmail.prenom),
+      });
+      continue;
+    }
     if (!compteExistantParEmail) {
       const doublon = await compteExistantAvecEmailDifferent(nom, prenom, email);
       if (doublon) {

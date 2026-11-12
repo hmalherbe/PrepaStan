@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { requireRole } from "@/lib/auth";
-import { compteExistantAvecEmailDifferent, messageCompteEmailDifferent } from "@/lib/coherenceCompte";
+import {
+  compteExistantAvecEmailDifferent,
+  memePersonne,
+  messageCompteEmailDifferent,
+  messageEmailDejaPrisParAutrePersonne,
+} from "@/lib/coherenceCompte";
 import { parserCsv } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
 
@@ -62,6 +67,13 @@ export async function POST(req: Request) {
     }
 
     const existant = await prisma.utilisateur.findUnique({ where: { email } });
+    if (existant && !memePersonne(existant.nom, existant.prenom, nom, prenom)) {
+      erreurs.push({
+        ligne: numeroLigne,
+        message: messageEmailDejaPrisParAutrePersonne(existant.nom, existant.prenom),
+      });
+      continue;
+    }
     if (!existant) {
       const doublon = await compteExistantAvecEmailDifferent(nom, prenom, email);
       if (doublon) {

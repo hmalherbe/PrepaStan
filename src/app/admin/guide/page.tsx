@@ -324,6 +324,12 @@ export default async function GuidePage() {
           sans possibilité de saisir un email alternatif : il faut reprendre l&apos;email du compte déjà
           enregistré, ce qui fusionne automatiquement les deux rôles sur ce même compte.
         </p>
+        <p>
+          À l&apos;inverse, si l&apos;email saisi appartient déjà à un compte d&apos;une <strong>autre</strong>{" "}
+          personne (nom/prénom différents — par exemple une coquille dans l&apos;email), la création,
+          la modification ou l&apos;import est également refusée avec un message indiquant à qui cet
+          email appartient déjà, plutôt que de fusionner silencieusement les deux comptes par erreur.
+        </p>
       </div>
     </main>
   );

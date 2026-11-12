@@ -42,3 +42,25 @@ export function messageCompteEmailDifferent(nom: string, prenom: string, emailEx
     `utilisez cette même adresse pour que cette personne garde un seul compte (khôlleur et référent cumulés).`
   );
 }
+
+// Inverse du cas ci-dessus : un email déjà pris par un compte d'une AUTRE
+// personne (nom/prénom différents). Sans ce garde-fou, la création/import
+// d'un khôlleur ou référent dont l'email correspond par erreur (coquille,
+// copier-coller) au compte de quelqu'un d'autre fusionnait silencieusement
+// les rôles sur ce compte existant au lieu de signaler le conflit — l'admin
+// avait alors l'impression que « rien ne s'était passé » (aucun nouveau
+// compte créé, et le compte existant modifié sans que son nom/email
+// n'apparaisse changé).
+export function memePersonne(nom1: string, prenom1: string, nom2: string, prenom2: string): boolean {
+  return (
+    nom1.trim().toLowerCase() === nom2.trim().toLowerCase() &&
+    prenom1.trim().toLowerCase() === prenom2.trim().toLowerCase()
+  );
+}
+
+export function messageEmailDejaPrisParAutrePersonne(nomExistant: string, prenomExistant: string): string {
+  return (
+    `L'adresse email saisie est déjà utilisée par un autre compte : ${prenomExistant} ${nomExistant}. ` +
+    `Utilisez une adresse email différente.`
+  );
+}

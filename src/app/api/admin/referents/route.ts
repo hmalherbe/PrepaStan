@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { baseUrlDepuisRequete, envoyerActivationNouveauCompte } from "@/lib/activationCompte";
 import { requireRole } from "@/lib/auth";
-import { compteExistantAvecEmailDifferent, messageCompteEmailDifferent } from "@/lib/coherenceCompte";
+import {
+  compteExistantAvecEmailDifferent,
+  memePersonne,
+  messageCompteEmailDifferent,
+  messageEmailDejaPrisParAutrePersonne,
+} from "@/lib/coherenceCompte";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/admin/referents
@@ -62,6 +67,12 @@ export async function POST(req: Request) {
 
   if (!body.utilisateurId) {
     const existantParEmail = await prisma.utilisateur.findUnique({ where: { email: body.email! } });
+    if (existantParEmail && !memePersonne(existantParEmail.nom, existantParEmail.prenom, body.nom!, body.prenom!)) {
+      return NextResponse.json(
+        { error: messageEmailDejaPrisParAutrePersonne(existantParEmail.nom, existantParEmail.prenom) },
+        { status: 409 }
+      );
+    }
     if (!existantParEmail) {
       const doublon = await compteExistantAvecEmailDifferent(body.nom!, body.prenom!, body.email!);
       if (doublon) {
