@@ -356,7 +356,7 @@ export function ReferentsForm({
 
         {modeCompte === "existant" ? (
           <label>
-            Référent
+            Compte (khôlleur ou référent existant)
             <select value={utilisateurId} onChange={(e) => setUtilisateurId(e.target.value)} required>
               <option value="" disabled>
                 Choisir…

@@ -88,7 +88,20 @@ export async function POST(req: Request) {
     const referents = await prisma.$transaction(async (tx) => {
       let utilisateurId = body.utilisateurId;
       let nouveauCompte: { id: string; email: string; prenom: string } | null = null;
-      if (!utilisateurId) {
+      if (utilisateurId) {
+        // Compte choisi directement dans la liste « Compte existant » (ex. un
+        // khôlleur qui n'est pas encore référent) : s'assurer que son rôle
+        // PROFESSEUR_REFERENT est bien présent, sans quoi il ne pourrait pas
+        // accéder aux écrans référent malgré les lignes ProfesseurReferent
+        // créées ci-dessous.
+        const compte = await tx.utilisateur.findUniqueOrThrow({ where: { id: utilisateurId } });
+        if (!compte.roles.includes("PROFESSEUR_REFERENT")) {
+          await tx.utilisateur.update({
+            where: { id: utilisateurId },
+            data: { roles: [...compte.roles, "PROFESSEUR_REFERENT"] },
+          });
+        }
+      } else {
         // Si l'email correspond déjà à un compte existant (ex. un kholleur),
         // ajoute simplement le rôle PROFESSEUR_REFERENT à ce compte au lieu
         // d'échouer : une même personne peut cumuler les deux rôles sous un

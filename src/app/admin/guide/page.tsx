@@ -330,6 +330,13 @@ export default async function GuidePage() {
           la modification ou l&apos;import est également refusée avec un message indiquant à qui cet
           email appartient déjà, plutôt que de fusionner silencieusement les deux comptes par erreur.
         </p>
+        <p>
+          Sur l&apos;écran <strong>Référents</strong>, le choix <strong>« Compte existant »</strong> lors de
+          l&apos;ajout d&apos;un référent liste aussi bien les khôlleurs déjà créés que les référents déjà
+          créés : sélectionner un khôlleur l&apos;ajoute comme référent sous ce même compte (cumul des deux
+          rôles), sans créer de second compte — c&apos;est la façon recommandée de déclarer un khôlleur
+          également référent, plutôt que de ressaisir ses informations via « Nouveau compte ».
+        </p>
       </div>
     </main>
   );

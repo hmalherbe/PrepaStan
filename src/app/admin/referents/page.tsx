@@ -16,8 +16,12 @@ export default async function ReferentsPage() {
       orderBy: { nom: "asc" },
     }),
     prisma.discipline.findMany({ orderBy: { nom: "asc" } }),
+    // Inclut aussi les comptes khôlleur (pas seulement ceux déjà référents) :
+    // choisir un compte existant permet aussi bien de réassigner un référent
+    // à une autre classe/discipline que de cumuler le rôle référent sur un
+    // compte khôlleur déjà créé (une même personne garde alors un seul login).
     prisma.utilisateur.findMany({
-      where: { roles: { has: "PROFESSEUR_REFERENT" } },
+      where: { roles: { hasSome: ["PROFESSEUR_REFERENT", "KHOLLEUR"] } },
       select: { id: true, nom: true, prenom: true, email: true },
       orderBy: [{ nom: "asc" }],
     }),
