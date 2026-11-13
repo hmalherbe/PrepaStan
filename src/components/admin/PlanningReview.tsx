@@ -661,23 +661,34 @@ function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
       </thead>
       <tbody>
         {creneaux.map((c, index) => {
-          // Changement de discipline (ex. frontière entre le bloc des
-          // langues vivantes regroupées en tête, voir parJourImpression, et
-          // le reste du jour) : une ligne vierge suivie d'une répétition de
-          // l'entête du tableau, pour bien détacher visuellement les deux
-          // blocs sans avoir à relire la première page pour retrouver les
-          // colonnes. Changement de kholleur SANS changement de discipline :
-          // simple trait noir fin, pas de ligne vierge ni d'entête répétée.
-          // Jamais avant la toute première ligne, qui n'a rien à séparer
-          // d'une ligne précédente.
+          // Changement de discipline : deux cas bien distincts.
+          // - Vers une AUTRE langue vivante (les langues sont toujours
+          //   regroupées en tête, voir parJourImpression — jamais après une
+          //   discipline non-langue) : simple trait noir fin, comme un
+          //   changement de kholleur, toutes les langues restant dans le
+          //   même tableau sans être redécoupées en blocs.
+          // - Vers une discipline qui n'est PAS une langue (fin du bloc des
+          //   langues, ou passage à une discipline non-langue suivante) :
+          //   2 lignes vierges puis une répétition de l'entête du tableau,
+          //   pour bien détacher visuellement les blocs sans avoir à relire
+          //   la première page pour retrouver les colonnes.
+          // Changement de kholleur SANS changement de discipline : simple
+          // trait noir fin, comme pour un changement de langue. Jamais rien
+          // avant la toute première ligne, qui n'a rien à séparer d'une
+          // ligne précédente (precedent === null).
           const precedent = index > 0 ? creneaux[index - 1] : null;
           const nouvelleDiscipline = precedent !== null && precedent.discipline !== c.discipline;
+          const nouvelleLangue = nouvelleDiscipline && c.estLangueVivante;
+          const nouvelleDisciplineNonLangue = nouvelleDiscipline && !c.estLangueVivante;
           const nouveauKholleur = precedent !== null && !nouvelleDiscipline && precedent.kholleurId !== c.kholleurId;
-          const classeLigne = nouveauKholleur ? "ligne-nouveau-kholleur-impression" : undefined;
+          const classeLigne = nouveauKholleur || nouvelleLangue ? "ligne-nouveau-kholleur-impression" : undefined;
           return (
             <Fragment key={c.id}>
-              {nouvelleDiscipline && (
+              {nouvelleDisciplineNonLangue && (
                 <>
+                  <tr className="ligne-vide-impression">
+                    <td colSpan={6}></td>
+                  </tr>
                   <tr className="ligne-vide-impression">
                     <td colSpan={6}></td>
                   </tr>
