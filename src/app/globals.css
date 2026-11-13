@@ -550,6 +550,16 @@ form label {
   height: 1em;
 }
 
+/* Trait mauve au-dessus de toute ligne d'entête du tableau imprimé — aussi
+   bien la toute première (thead, en haut de chaque page) que celles
+   répétées avant une discipline non-langue (voir TableImpression). Même
+   couleur fixe que --couleur-primaire en thème clair, mais codée en dur
+   (pas la variable) : comme les autres traits de cette table, l'impression
+   n'a pas vocation à suivre un thème clair/sombre. */
+.ligne-entete-impression th {
+  border-top: 3px solid #6c4cf1;
+}
+
 /* Nom d'élève cliquable dans le tableau de détail d'une semaine
    (PlanningReview) : sélection en vue d'intervertir deux élèves. Un bouton
    stylé pour se fondre dans le texte plutôt que ressembler à un bouton. */

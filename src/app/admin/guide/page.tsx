@@ -183,6 +183,8 @@ export default async function GuidePage() {
           changement vers une discipline qui n&apos;est pas une langue (fin du bloc des langues, ou passage à la
           discipline non-langue suivante) est en revanche précédé de 2 lignes vierges, suivies d&apos;une
           répétition de l&apos;entête du tableau (Discipline, Étudiants, Préparation, Khôlle, Kholleur, Salle).
+          Chaque entête du tableau, qu&apos;elle soit la toute première de la page ou l&apos;une de ces
+          répétitions, est surmontée d&apos;un même trait mauve.
         </p>
         <p>
           Sur ce même écran de relecture, vous pouvez aussi <strong>intervertir deux élèves</strong> : cliquez

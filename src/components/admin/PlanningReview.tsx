@@ -646,17 +646,16 @@ export function PlanningReview({
 // (inutile sur la vue écran, où le jour est déjà le titre de chaque bloc) :
 // ici une page peut mélanger plusieurs jours (langues vivantes) ou plusieurs
 // kholleurs d'un même jour (discipline non-langue).
+const ENTETE_COLONNES_IMPRESSION = ["Discipline", "Étudiants", "Préparation", "Khôlle", "Kholleur", "Salle"];
+
 function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
   return (
     <table>
       <thead>
-        <tr>
-          <th>Discipline</th>
-          <th>Étudiants</th>
-          <th>Préparation</th>
-          <th>Khôlle</th>
-          <th>Kholleur</th>
-          <th>Salle</th>
+        <tr className="ligne-entete-impression">
+          {ENTETE_COLONNES_IMPRESSION.map((libelle) => (
+            <th key={libelle}>{libelle}</th>
+          ))}
         </tr>
       </thead>
       <tbody>
@@ -692,13 +691,10 @@ function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
                   <tr className="ligne-vide-impression">
                     <td colSpan={6}></td>
                   </tr>
-                  <tr>
-                    <th>Discipline</th>
-                    <th>Étudiants</th>
-                    <th>Préparation</th>
-                    <th>Khôlle</th>
-                    <th>Kholleur</th>
-                    <th>Salle</th>
+                  <tr className="ligne-entete-impression">
+                    {ENTETE_COLONNES_IMPRESSION.map((libelle) => (
+                      <th key={libelle}>{libelle}</th>
+                    ))}
                   </tr>
                 </>
               )}
