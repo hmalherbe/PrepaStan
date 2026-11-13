@@ -521,31 +521,27 @@ form label {
   border-top: 3px solid var(--couleur-texte-discret);
 }
 
-/* Table imprimable (TableImpression, PlanningReview) : deux traits
-   distincts selon ce qui change d'une ligne à l'autre — fin et noir pour un
-   simple changement de kholleur au sein d'une même discipline, épais et
-   bleu pour un changement de discipline (y compris la frontière entre le
-   bloc des langues vivantes regroupées en tête de chaque jour et le reste,
-   voir parJourImpression). Couleurs fixes (pas de variable de thème) :
-   l'impression n'a pas vocation à suivre un thème clair/sombre. 2px (pas
-   1px) : à largeur égale avec le border-bottom 1px déjà posé sur chaque
-   cellule (règle "th, td" plus haut), border-collapse peut choisir de
-   garder ce dernier sur l'arête partagée plutôt que ce trait-ci, qui
-   deviendrait alors invisible — 2px lève l'ambiguïté. */
+/* Table imprimable (TableImpression, PlanningReview) : trait fin noir pour
+   un simple changement de kholleur au sein d'une même discipline. Couleur
+   fixe (pas de variable de thème) : l'impression n'a pas vocation à suivre
+   un thème clair/sombre. 2px (pas 1px) : à largeur égale avec le
+   border-bottom 1px déjà posé sur chaque cellule (règle "th, td" plus
+   haut), border-collapse peut choisir de garder ce dernier sur l'arête
+   partagée plutôt que ce trait-ci, qui deviendrait alors invisible — 2px
+   lève l'ambiguïté. Un changement de discipline (y compris la frontière
+   entre le bloc des langues vivantes regroupées en tête de chaque jour et
+   le reste, voir parJourImpression) n'a lui pas besoin de bordure propre :
+   il est déjà détaché par une ligne vierge puis l'entête du tableau
+   répétée (voir TableImpression), qui jouent déjà ce rôle. */
 .ligne-nouveau-kholleur-impression td {
   border-top: 2px solid #000;
 }
 
-.ligne-nouvelle-discipline-impression td {
-  border-top: 3px solid #1d4ed8;
-}
-
-/* 3 lignes vides insérées juste avant un changement de discipline (voir
-   TableImpression), pour détacher visuellement les deux blocs en plus du
-   trait bleu ci-dessus. Sans bordure (contrairement aux lignes de données),
-   sans quoi la bordure fine par défaut de chaque cellule ("th, td" plus
-   haut) les ferait ressembler à des lignes de contenu plutôt qu'à un
-   espace vide. */
+/* Ligne vierge insérée juste avant un changement de discipline (voir
+   TableImpression), avant l'entête répétée. Sans bordure (contrairement
+   aux lignes de données), sans quoi la bordure fine par défaut de chaque
+   cellule ("th, td" plus haut) la ferait ressembler à une ligne de contenu
+   plutôt qu'à un espace vide. */
 .ligne-vide-impression td {
   border: none;
   padding: 0;

@@ -663,27 +663,34 @@ function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
         {creneaux.map((c, index) => {
           // Changement de discipline (ex. frontière entre le bloc des
           // langues vivantes regroupées en tête, voir parJourImpression, et
-          // le reste du jour) : trait bleu épais, précédé de 3 lignes
-          // vierges pour bien détacher visuellement les deux blocs.
-          // Changement de kholleur SANS changement de discipline : simple
-          // trait noir fin, pas de ligne vierge. Jamais avant la toute
-          // première ligne, qui n'a rien à séparer d'une ligne précédente.
+          // le reste du jour) : une ligne vierge suivie d'une répétition de
+          // l'entête du tableau, pour bien détacher visuellement les deux
+          // blocs sans avoir à relire la première page pour retrouver les
+          // colonnes. Changement de kholleur SANS changement de discipline :
+          // simple trait noir fin, pas de ligne vierge ni d'entête répétée.
+          // Jamais avant la toute première ligne, qui n'a rien à séparer
+          // d'une ligne précédente.
           const precedent = index > 0 ? creneaux[index - 1] : null;
           const nouvelleDiscipline = precedent !== null && precedent.discipline !== c.discipline;
           const nouveauKholleur = precedent !== null && !nouvelleDiscipline && precedent.kholleurId !== c.kholleurId;
-          const classeLigne = nouvelleDiscipline
-            ? "ligne-nouvelle-discipline-impression"
-            : nouveauKholleur
-              ? "ligne-nouveau-kholleur-impression"
-              : undefined;
+          const classeLigne = nouveauKholleur ? "ligne-nouveau-kholleur-impression" : undefined;
           return (
             <Fragment key={c.id}>
-              {nouvelleDiscipline &&
-                [0, 1, 2].map((i) => (
-                  <tr key={`vide-${c.id}-${i}`} className="ligne-vide-impression">
+              {nouvelleDiscipline && (
+                <>
+                  <tr className="ligne-vide-impression">
                     <td colSpan={6}></td>
                   </tr>
-                ))}
+                  <tr>
+                    <th>Discipline</th>
+                    <th>Étudiants</th>
+                    <th>Préparation</th>
+                    <th>Khôlle</th>
+                    <th>Kholleur</th>
+                    <th>Salle</th>
+                  </tr>
+                </>
+              )}
               <tr className={classeLigne}>
                 <td>{c.discipline}</td>
                 <td>{c.eleves.map((e) => e.nom).join(", ")}</td>
