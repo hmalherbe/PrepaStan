@@ -247,10 +247,13 @@ export default async function GuidePage() {
           automatique — à un khôlleur qui n&apos;a pas encore saisi ses notes, ou à un référent qui n&apos;a pas
           encore validé une session dont toutes les grilles sont pourtant déjà validées (vérifié toutes les 6h,
           au plus une relance par personne et par session) — et personnalisez (ou désactivez) le corps des
-          emails envoyés à chaque rôle (khôlleurs, référents, étudiants). Le <strong>mode test</strong>{" "}
-          redirige TOUS les emails (y compris activation de compte et mot de passe oublié) vers une seule
-          adresse de votre choix, sans toucher aux destinataires réels — pratique pour tester sans rien envoyer
-          à de vraies personnes ; le destinataire réel reste visible en préfixe du sujet reçu.
+          emails envoyés à chaque rôle (khôlleurs, référents, étudiants). Pour les étudiants, deux cases
+          indépendantes : <strong>« note disponible »</strong> (envoyée quand le référent clôture la session) et{" "}
+          <strong>« convocation »</strong> (envoyée à la publication du planning, sans corps personnalisable) —
+          désactiver l&apos;une n&apos;affecte jamais l&apos;autre. Le <strong>mode test</strong> redirige TOUS
+          les emails (y compris activation de compte et mot de passe oublié) vers une seule adresse de votre
+          choix, sans toucher aux destinataires réels — pratique pour tester sans rien envoyer à de vraies
+          personnes ; le destinataire réel reste visible en préfixe du sujet reçu.
         </p>
       </div>
 

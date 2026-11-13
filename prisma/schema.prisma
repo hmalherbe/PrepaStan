@@ -398,10 +398,19 @@ model ParametresApplication {
   modeleEmailReferent String?
   modeleEmailEleve    String?
   // Case à cocher par rôle destinataire : permet de désactiver l'envoi sans
-  // perdre le modèle personnalisé déjà saisi.
-  envoiEmailKholleur Boolean @default(true)
-  envoiEmailReferent Boolean @default(true)
-  envoiEmailEleve    Boolean @default(true)
+  // perdre le modèle personnalisé déjà saisi. envoiEmailEleve ne gouverne
+  // QUE l'email "note disponible" (envoyé à la clôture d'une session par le
+  // référent, voir modeleEmailEleve ci-dessus et son usage dans
+  // /api/referent/sessions/[sessionId]/valider) — jamais la convocation
+  // (envoyée à la publication du planning), qui a son propre interrupteur
+  // ci-dessous : les deux emails sont distincts et n'ont pas à être liés
+  // (bug corrigé après qu'une convocation désactivée par erreur via la case
+  // "Étudiants", crue ne concerner que la note, ait fait disparaître des
+  // convocations réelles sans que l'admin ne le sache).
+  envoiEmailKholleur    Boolean @default(true)
+  envoiEmailReferent    Boolean @default(true)
+  envoiEmailEleve       Boolean @default(true)
+  envoiEmailConvocation Boolean @default(true)
 
   // Mode test : redirige TOUS les emails (kholleurs, étudiants, référents,
   // activation de compte, mot de passe oublié...) vers emailModeTest au lieu

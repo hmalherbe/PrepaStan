@@ -100,17 +100,20 @@ export async function listerDestinatairesEleves(sessionIds: string[]): Promise<{
 
 // Envoie à chaque élève concerné (compte de connexion requis) sa convocation
 // pour l'ensemble de ses créneaux parmi `sessionIds`. Respecte
-// ParametresApplication.envoiEmailEleve (false = n'envoie rien, retourne 0).
-// `eleveIds`, si fourni, restreint l'envoi à ces seuls élèves (renvoi manuel
-// ciblé) ; omis = tous les élèves concernés, comportement historique
-// inchangé (publication initiale). Retourne le nombre d'élèves notifiés.
+// ParametresApplication.envoiEmailConvocation (false = n'envoie rien,
+// retourne 0) — PAS envoiEmailEleve, qui ne gouverne que l'email "note
+// disponible" (distinct de la convocation, voir le commentaire sur ce champ
+// dans schema.prisma). `eleveIds`, si fourni, restreint l'envoi à ces seuls
+// élèves (renvoi manuel ciblé) ; omis = tous les élèves concernés,
+// comportement historique inchangé (publication initiale). Retourne le
+// nombre d'élèves notifiés.
 export async function envoyerEmailsConvocationsEleves(
   sessionIds: string[],
   semaine: number,
   eleveIds?: string[]
 ): Promise<number> {
   const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
-  if (parametres?.envoiEmailEleve === false) return 0;
+  if (parametres?.envoiEmailConvocation === false) return 0;
 
   const filtre = eleveIds ? new Set(eleveIds) : null;
   const creneaux = await chargerCreneaux(sessionIds);

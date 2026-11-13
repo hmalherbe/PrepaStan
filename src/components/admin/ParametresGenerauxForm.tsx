@@ -11,6 +11,7 @@ export function ParametresGenerauxForm({
   envoiKholleurInitial,
   envoiReferentInitial,
   envoiEleveInitial,
+  envoiConvocationInitial,
   modeTestEmailInitial,
   emailModeTestInitial,
   poidsEquilibrageKholleurInitial,
@@ -27,6 +28,7 @@ export function ParametresGenerauxForm({
   envoiKholleurInitial: boolean;
   envoiReferentInitial: boolean;
   envoiEleveInitial: boolean;
+  envoiConvocationInitial: boolean;
   modeTestEmailInitial: boolean;
   emailModeTestInitial: string;
   poidsEquilibrageKholleurInitial: number;
@@ -43,6 +45,7 @@ export function ParametresGenerauxForm({
   const [envoiKholleur, setEnvoiKholleur] = useState(envoiKholleurInitial);
   const [envoiReferent, setEnvoiReferent] = useState(envoiReferentInitial);
   const [envoiEleve, setEnvoiEleve] = useState(envoiEleveInitial);
+  const [envoiConvocation, setEnvoiConvocation] = useState(envoiConvocationInitial);
   const [modeTestEmail, setModeTestEmail] = useState(modeTestEmailInitial);
   const [emailModeTest, setEmailModeTest] = useState(emailModeTestInitial);
   const [poidsEquilibrageKholleur, setPoidsEquilibrageKholleur] = useState(poidsEquilibrageKholleurInitial);
@@ -69,6 +72,7 @@ export function ParametresGenerauxForm({
           envoiEmailKholleur: envoiKholleur,
           envoiEmailReferent: envoiReferent,
           envoiEmailEleve: envoiEleve,
+          envoiEmailConvocation: envoiConvocation,
           modeTestEmail,
           emailModeTest: emailModeTest.trim() || null,
           poidsEquilibrageKholleur,
@@ -164,6 +168,21 @@ export function ParametresGenerauxForm({
         actif={envoiEleve}
         onActifChange={setEnvoiEleve}
       />
+      <label style={{ display: "block", marginBottom: 10 }}>
+        <input
+          type="checkbox"
+          checked={envoiConvocation}
+          onChange={(e) => setEnvoiConvocation(e.target.checked)}
+          style={{ marginRight: 8 }}
+        />
+        Étudiants — convocation à la publication du planning
+      </label>
+      <p style={{ color: "#777", fontSize: "0.9rem" }}>
+        Case indépendante de la précédente : « note disponible » et « convocation » sont deux emails distincts
+        envoyés à deux moments différents (clôture de session / publication du planning), chacun avec son propre
+        interrupteur — désactiver l&apos;un n&apos;affecte jamais l&apos;autre. La convocation n&apos;a pas
+        (encore) de corps personnalisable.
+      </p>
 
       <h3>Réglages du solveur (fine-tuning)</h3>
       <p style={{ color: "#777", fontSize: "0.9rem" }}>
