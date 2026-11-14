@@ -1,11 +1,13 @@
 // Diagnostic ponctuel (lecture seule) : pour une (classe, semaine) déjà
 // publiée, explique pourquoi aucune convocation élève n'a pu partir —
-// vérifie le réglage global (ParametresApplication.envoiEmailEleve) puis,
-// pour chaque élève concerné par les créneaux de cette semaine, s'il a un
-// compte de connexion (Eleve.utilisateurId non nul) : c'est la condition
-// requise pour recevoir un email (voir envoyerEmailsConvocationsEleves dans
-// src/lib/notificationsPlanning.ts), la même que pour "note disponible"
-// depuis le début.
+// vérifie le réglage global (ParametresApplication.envoiEmailConvocation,
+// et modeTestEmail/emailModeTest) puis, pour chaque élève concerné par les
+// créneaux de cette semaine, s'il a un compte de connexion
+// (Eleve.utilisateurId non nul) : c'est la condition requise pour recevoir
+// un email (voir envoyerEmailsConvocationsEleves dans
+// src/lib/notificationsPlanning.ts). envoiEmailConvocation est un champ
+// distinct de envoiEmailEleve (qui ne gouverne que l'email "note
+// disponible") depuis la migration 20261113120000_envoi_email_convocation_separe.
 //
 // Usage (depuis /root/PrepaStan sur le VPS) :
 //   docker compose -f docker-compose.prod.yml exec -T \
@@ -25,9 +27,11 @@ async function main() {
 
   const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
   console.log("=== Réglages globaux ===");
-  console.log(`  envoiEmailEleve : ${parametres?.envoiEmailEleve ?? "true (valeur par défaut, pas de ligne en base)"}`);
-  console.log(`  modeTestEmail   : ${parametres?.modeTestEmail ?? false}`);
-  console.log(`  emailModeTest   : ${parametres?.emailModeTest ?? "(vide)"}`);
+  console.log(
+    `  envoiEmailConvocation : ${parametres?.envoiEmailConvocation ?? "true (valeur par défaut, pas de ligne en base)"}`
+  );
+  console.log(`  modeTestEmail         : ${parametres?.modeTestEmail ?? false}`);
+  console.log(`  emailModeTest         : ${parametres?.emailModeTest ?? "(vide)"}`);
   console.log();
 
   const sessions = await prisma.sessionKholle.findMany({
