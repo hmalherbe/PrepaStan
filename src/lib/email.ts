@@ -21,6 +21,37 @@ const LIEN_PREPASTAN = process.env.NEXTAUTH_URL
   ? `<a href="${process.env.NEXTAUTH_URL}">PrepaStan</a>`
   : "PrepaStan";
 
+// Resend impose une limite de 10 requêtes/seconde PAR ÉQUIPE, tous
+// environnements et tous types d'email confondus (voir
+// https://resend.com/docs/api-reference/rate-limit) — au-delà, elle
+// répond 429, jamais retentée par les appelants ci-dessous (chacun logue
+// l'échec en console et abandonne, par design, pour ne jamais faire
+// planter l'opération déclenchante). Sans limiteur, publier un planning à
+// plus d'une dizaine d'étudiants perdait ainsi silencieusement toutes les
+// convocations au-delà de la dizaine envoyée dans la même seconde
+// (constaté en démo : 10 convocations reçues sur 29 envoyées d'un coup).
+// Espacer chaque appel d'au moins INTERVALLE_MIN_MS (avec une marge sous
+// 1000/10 = 100ms) ramène n'importe quelle rafale à un débit soutenable,
+// quelle que soit la fonction d'envoi appelante — y compris plusieurs
+// déclenchées en parallèle (ex. une publication de planning en même temps
+// qu'un rappel automatique), puisque c'est ici, dans l'unique point de
+// passage vers Resend, et non dans chaque boucle d'envoi en masse.
+// Réservation de créneau : lecture puis écriture de prochainCreneauDisponible
+// entièrement synchrones (aucun await entre les deux), donc jamais de
+// concurrence possible même si reserverCreneauResend() est appelée de
+// nombreuses fois "en même temps" (Promise.allSettled sur un gros tableau) —
+// chaque appel repart toujours du dernier créneau réservé par le précédent.
+const INTERVALLE_MIN_MS = 110;
+let prochainCreneauDisponible = 0;
+
+function reserverCreneauResend(): Promise<void> {
+  const maintenant = Date.now();
+  const debut = Math.max(maintenant, prochainCreneauDisponible);
+  prochainCreneauDisponible = debut + INTERVALLE_MIN_MS;
+  const attente = debut - maintenant;
+  return attente > 0 ? new Promise((resolve) => setTimeout(resolve, attente)) : Promise.resolve();
+}
+
 // Point de passage UNIQUE de tous les envois (quel que soit le rôle
 // destinataire — kholleur, étudiant, référent, admin) : permet le mode test
 // (Paramètres) qui redirige tout vers une même adresse, sans avoir à
@@ -40,6 +71,7 @@ async function envoyerViaResend({
   const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
   const modeTest = parametres?.modeTestEmail && parametres.emailModeTest;
 
+  await reserverCreneauResend();
   await resend!.emails.send({
     from: EXPEDITEUR,
     to: modeTest ? parametres!.emailModeTest! : destinataire,
