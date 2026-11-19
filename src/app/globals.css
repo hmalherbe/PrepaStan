@@ -534,14 +534,20 @@ form label {
 
 /* Couleur fixe (jamais une variable de thème) pour tous les traits
    ci-dessous : l'impression n'a pas vocation à suivre un thème
-   clair/sombre. Même épaisseur partout (2px) : le trait bleu de
-   changement de kholleur n'a besoin d'aucune largeur différenciante pour
-   l'emporter sur le trait fin par défaut, puisqu'il remplace entièrement
-   ce dernier (voir .ligne-avant-nouveau-kholleur-impression plus bas) au
-   lieu d'entrer en concurrence avec lui sur la même arête. */
+   clair/sombre. Trait fin entre deux lignes ordinaires (même discipline,
+   même kholleur) — distinct par son épaisseur du cadre et du trait de
+   changement de kholleur ci-dessous, tous deux à 2px. */
 .table-impression-bloc th,
 .table-impression-bloc td {
-  border-bottom: 2px solid #000;
+  border-bottom: 1px solid #000;
+}
+
+/* Cadre épais autour de chaque tableau — même épaisseur (2px) que le trait
+   de changement de kholleur ci-dessous, pour une cohérence visuelle entre
+   ce qui structure la page (le cadre) et ce qui signale un changement à
+   l'intérieur (le trait bleu). */
+.table-impression-bloc {
+  border: 2px solid #000;
 }
 
 /* Entête de chaque bloc : texte bleu (identique à --couleur-primaire en
@@ -557,12 +563,14 @@ form label {
 }
 
 /* Changement de kholleur (même discipline) OU changement de langue au sein
-   du bloc des langues (voir construireBlocsImpression) : trait bleu,
-   remplaçant le trait noir par défaut plutôt que s'y ajoutant — posé en
+   du bloc des langues (voir construireBlocsImpression) : trait bleu épais
+   (2px, comme le cadre ci-dessus — contre 1px pour un trait ordinaire),
+   remplaçant le trait fin par défaut plutôt que s'y ajoutant — posé en
    border-bottom sur la ligne qui PRÉCÈDE le changement (voir
    TableImpression), jamais en border-top sur la suivante, pour qu'une
    seule bordure soit déclarée sur cette arête et qu'il n'y ait donc jamais
-   de conflit à arbitrer par border-collapse. */
+   de conflit à arbitrer par border-collapse, quelle que soit l'épaisseur
+   choisie de chaque côté. */
 .ligne-avant-nouveau-kholleur-impression td {
   border-bottom: 2px solid #1d4ed8;
 }
@@ -815,10 +823,11 @@ th.triable:hover {
     max-width: none;
     box-shadow: none;
     /* Plusieurs tables désormais par page (un bloc par discipline, voir
-       .table-impression-bloc) : l'habillage "carte" (bordure arrondie,
-       fond) de la règle "table" à l'écran serait répété pour chacune,
-       surchargeant visuellement la page imprimée. */
-    border: none;
+       .table-impression-bloc) : l'habillage "carte" à l'écran (coins
+       arrondis, fond, bordure fine grise dépendante du thème) serait
+       répété pour chacune, surchargeant visuellement la page imprimée —
+       remplacé par un cadre carré fixe propre à l'impression, voir
+       .table-impression-bloc plus haut. */
     border-radius: 0;
     background: transparent;
   }
