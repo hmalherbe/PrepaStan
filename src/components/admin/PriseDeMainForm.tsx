@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type Role = "KHOLLEUR" | "PROFESSEUR_REFERENT" | "ELEVE";
 
@@ -10,11 +10,33 @@ const LIBELLE_ROLE: Record<Role, string> = {
   ELEVE: "Étudiant",
 };
 
-export function PriseDeMainForm({ emailInitial }: { emailInitial: string }) {
+type Personne = { email: string; nom: string; prenom: string };
+
+export function PriseDeMainForm({
+  emailInitial,
+  personnes,
+}: {
+  emailInitial: string;
+  personnes: Personne[];
+}) {
   const [email, setEmail] = useState(emailInitial);
   const [motDePasseAdmin, setMotDePasseAdmin] = useState("");
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [suggestionsVisibles, setSuggestionsVisibles] = useState(false);
+
+  const suggestions = useMemo(() => {
+    const saisie = email.trim().toLowerCase();
+    if (saisie.length < 2) return [];
+    return personnes
+      .filter(
+        (p) =>
+          p.email.toLowerCase().includes(saisie) ||
+          `${p.prenom} ${p.nom}`.toLowerCase().includes(saisie) ||
+          `${p.nom} ${p.prenom}`.toLowerCase().includes(saisie)
+      )
+      .slice(0, 8);
+  }, [email, personnes]);
   // Renseigné quand la personne cumule plusieurs rôles (ex. khôlleur ET
   // référent) : le serveur renvoie choixRequis plutôt que de créer la
   // session, le temps de demander lequel incarner (voir route demarrer).
@@ -98,15 +120,64 @@ export function PriseDeMainForm({ emailInitial }: { emailInitial: string }) {
         demarrer();
       }}
     >
-      <label>
+      <label style={{ position: "relative", display: "block" }}>
         Email de la personne
         <input
           type="email"
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setSuggestionsVisibles(true);
+          }}
+          onFocus={() => setSuggestionsVisibles(true)}
+          onBlur={() => setTimeout(() => setSuggestionsVisibles(false), 150)}
           placeholder="prenom.nom@exemple.fr"
+          autoComplete="off"
         />
+        {suggestionsVisibles && suggestions.length > 0 && (
+          <ul
+            style={{
+              position: "absolute",
+              zIndex: 1,
+              left: 0,
+              right: 0,
+              margin: 0,
+              padding: 4,
+              listStyle: "none",
+              background: "white",
+              border: "1px solid #ccc",
+              borderRadius: 4,
+              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+            }}
+          >
+            {suggestions.map((p) => (
+              <li key={p.email}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    // onMouseDown (pas onClick) pour agir avant le onBlur du champ.
+                    e.preventDefault();
+                    setEmail(p.email);
+                    setSuggestionsVisibles(false);
+                  }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "6px 8px",
+                    border: "none",
+                    background: "none",
+                    color: "inherit",
+                    cursor: "pointer",
+                  }}
+                >
+                  {p.prenom} {p.nom} <span style={{ color: "#777" }}>— {p.email}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </label>
       <label>
         Votre mot de passe administrateur
