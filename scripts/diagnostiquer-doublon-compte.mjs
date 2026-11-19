@@ -25,7 +25,7 @@ async function compter(id) {
     validationReferent,
     sessionsEnVigueur,
     tokens,
-    rappelsNotation,
+    rappelsJourMeme,
     rappelsValidationReferent,
     jobsLances,
   ] = await Promise.all([
@@ -38,7 +38,7 @@ async function compter(id) {
     prisma.validationReferent.count({ where: { professeurReferentId: id } }),
     prisma.sessionKholle.count({ where: { referentId: id } }),
     prisma.tokenReinitialisationMotDePasse.count({ where: { utilisateurId: id } }),
-    prisma.rappelNotationEnvoye.count({ where: { kholleurId: id } }),
+    prisma.rappelJourMemeEnvoye.count({ where: { kholleurId: id } }),
     prisma.rappelValidationReferentEnvoye.count({ where: { referentId: id } }),
     prisma.planificationJob.count({ where: { lanceParId: id } }),
   ]);
@@ -53,7 +53,7 @@ async function compter(id) {
     validationReferent,
     sessionsEnVigueur,
     tokens,
-    rappelsNotation,
+    rappelsJourMeme,
     rappelsValidationReferent,
     jobsLances,
   };
@@ -83,7 +83,7 @@ async function main() {
     console.log(`  ValidationReferent               : ${r.validationReferent}`);
     console.log(`  SessionKholle.referentId (semaine en vigueur) : ${r.sessionsEnVigueur}`);
     console.log(`  TokenReinitialisationMotDePasse  : ${r.tokens}`);
-    console.log(`  RappelNotationEnvoye             : ${r.rappelsNotation}`);
+    console.log(`  RappelJourMemeEnvoye             : ${r.rappelsJourMeme}`);
     console.log(`  RappelValidationReferentEnvoye   : ${r.rappelsValidationReferent}`);
     console.log(`  PlanificationJob lancés (admin)  : ${r.jobsLances}`);
   }

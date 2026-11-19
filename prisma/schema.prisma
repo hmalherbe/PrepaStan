@@ -388,9 +388,13 @@ model PlanificationJob {
 // restant facile à étendre avec d'autres colonnes plus tard.
 model ParametresApplication {
   id                           String @id @default("singleton")
-  // Nombre de jours après la khôlle avant d'envoyer un email de rappel au
-  // kholleur s'il n'a pas encore saisi note/appréciation (0 = envoi
-  // immédiat dès le lendemain de la khôlle). Voir src/lib/rappelsNotation.ts.
+  // Nombre de jours après qu'une session a toutes ses grilles kholleur
+  // validées, avant d'envoyer un email de rappel au professeur référent
+  // qui ne l'a toujours pas validée lui-même (0 = envoi immédiat). Ne
+  // concerne plus les kholleurs depuis l'introduction de l'invitation
+  // systématique du jour même (voir RappelJourMemeEnvoye et
+  // envoyerRappelsValidationReferentEnAttente dans
+  // src/lib/rappelsNotation.ts).
   delaiEnvoiMailsNotationJours Int    @default(0)
   // Corps de mail personnalisables par rôle destinataire (publipostage avec
   // #Nom / #Prénom, voir src/lib/modelesEmail.ts) ; null = texte par défaut.
@@ -442,25 +446,33 @@ model ParametresApplication {
   margeMinutesEntreKholles Int @default(0)
 }
 
-// Empêche de renvoyer plusieurs fois le même rappel à un kholleur pour une
-// même session — une ligne est créée dès qu'un rappel est envoyé, jamais
-// supprimée (même si le kholleur valide ensuite : inutile de la garder pour
-// la logique d'envoi, mais elle ne gêne pas non plus).
-model RappelNotationEnvoye {
-  id              String   @id @default(cuid())
-  sessionKholleId String
-  kholleurId      String
-  dateEnvoi       DateTime @default(now())
+// Empêche de renvoyer plusieurs fois la même invitation du jour même à un
+// kholleur — une ligne est créée dès qu'elle est envoyée pour une date
+// donnée, jamais supprimée. `date` est un jour sans heure (minuit UTC,
+// comme Creneau.date), pas un horodatage — un kholleur n'a besoin que
+// d'une seule invitation par jour, même s'il khôlle plusieurs fois ce
+// jour-là (voir envoyerInvitationsJourMemeEnAttente dans
+// rappelsNotation.ts). Remplace l'ancien rappel "vous n'avez toujours pas
+// saisi vos notes" envoyé une fois, N jours après la khôlle (délai
+// configurable) : ce dernier a été supprimé au profit de cette invitation
+// systématique, envoyée le matin même de la khôlle plutôt qu'après coup.
+model RappelJourMemeEnvoye {
+  id         String   @id @default(cuid())
+  kholleurId String
+  date       DateTime
+  dateEnvoi  DateTime @default(now())
 
-  @@unique([sessionKholleId, kholleurId])
+  @@unique([kholleurId, date])
 }
 
-// Équivalent de RappelNotationEnvoye ci-dessus, mais pour le rappel envoyé à
-// un professeur référent qui n'a pas encore validé une session dont toutes
-// les grilles kholleur sont pourtant déjà validées (voir
-// envoyerRappelsValidationReferentEnAttente dans rappelsNotation.ts). Même
-// principe : une ligne par (session, référent) dès qu'un rappel part,
-// jamais supprimée, jamais renvoyée une deuxième fois.
+// Même principe de garde-fou que RappelJourMemeEnvoye ci-dessus (une ligne
+// dès qu'un rappel part, jamais supprimée, jamais renvoyée une deuxième
+// fois), mais pour le rappel envoyé à un professeur référent qui n'a pas
+// encore validé une session dont toutes les grilles kholleur sont pourtant
+// déjà validées, passé le délai configuré (voir
+// envoyerRappelsValidationReferentEnAttente dans rappelsNotation.ts) — clé
+// par (session, référent), pas (kholleur, date) : ce rappel reste lié à
+// une session précise, contrairement à l'invitation du jour même.
 model RappelValidationReferentEnvoye {
   id              String   @id @default(cuid())
   sessionKholleId String

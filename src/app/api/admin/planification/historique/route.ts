@@ -10,17 +10,19 @@ import { prisma } from "@/lib/prisma";
 //
 // ValidationReferent n'a pas onDelete: Cascade depuis SessionKholle (voir
 // prisma/schema.prisma) : supprimée explicitement en premier pour éviter
-// une violation de contrainte de clé étrangère. RappelNotationEnvoye n'a
-// pas de vraie contrainte de clé étrangère (juste un champ sessionKholleId
-// texte) donc ne bloquerait rien, mais laisserait des lignes orphelines
-// sans intérêt une fois leur session supprimée.
+// une violation de contrainte de clé étrangère. RappelJourMemeEnvoye n'a
+// rien à voir avec SessionKholle (clé (kholleurId, date), voir
+// schema.prisma) : rien n'y devient orphelin quand des sessions sont
+// supprimées, pas besoin de la nettoyer ici. RappelValidationReferentEnvoye,
+// en revanche, référence bien sessionKholleId sans contrainte de clé
+// étrangère — laissé tel quel (comportement déjà existant avant ce
+// changement, hors périmètre ici).
 export async function DELETE() {
   const auth = await requireRole(["ADMIN"]);
   if (auth instanceof NextResponse) return auth;
 
   const { supprimes } = await prisma.$transaction(async (tx) => {
     await tx.validationReferent.deleteMany({});
-    await tx.rappelNotationEnvoye.deleteMany({});
     // Cascade Prisma : Creneau (donc Passage puis Note) et ValidationGrille.
     const { count } = await tx.sessionKholle.deleteMany({});
     return { supprimes: count };

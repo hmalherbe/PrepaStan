@@ -437,40 +437,53 @@ export async function envoyerEmailConvocationKholle({
   }
 }
 
-// Rappel envoyé à un kholleur qui n'a pas encore validé sa grille de
-// notation pour une session déjà khôllée, passé le délai configuré dans
-// Paramètres (voir src/lib/rappelsNotation.ts). N'échoue jamais bruyamment,
-// comme envoyerEmailPublicationPlanning ci-dessus.
-export async function envoyerEmailRappelNotation({
+// Invitation envoyée au kholleur le matin même de sa khôlle, une fois par
+// jour (voir envoyerInvitationsJourMemeEnAttente dans
+// src/lib/rappelsNotation.ts), listant toutes ses khôlles du jour — qu'il
+// khôlle une seule fois ou plusieurs fois dans la journée, sur une ou
+// plusieurs disciplines/classes. N'échoue jamais bruyamment, comme
+// envoyerEmailPublicationPlanning ci-dessus.
+export async function envoyerEmailInvitationNotationJourMeme({
   destinataire,
   nomKholleur,
-  classeNom,
-  disciplineNom,
-  semaine,
+  creneaux,
 }: {
   destinataire: string;
   nomKholleur: string;
-  classeNom: string;
-  disciplineNom: string;
-  semaine: number;
+  creneaux: CreneauEmail[];
 }): Promise<void> {
   if (!resend) {
-    console.warn(`RESEND_API_KEY non configuré : email de rappel non envoyé à ${destinataire}`);
+    console.warn(`RESEND_API_KEY non configuré : email d'invitation (jour même) non envoyé à ${destinataire}`);
     return;
   }
+
+  const lignes = creneaux
+    .map(
+      (c) =>
+        `<tr><td>${c.heureDebut}-${c.heureFin}</td><td>${c.disciplineNom}</td>` +
+        `<td>${c.salleNom}</td><td>${c.eleves.join(", ")}</td></tr>`
+    )
+    .join("");
 
   try {
     await envoyerViaResend({
       destinataire,
-      subject: `PrepaStan — Rappel : notes à saisir (${disciplineNom}, ${classeNom} semaine ${semaine})`,
+      subject: "PrepaStan — Vous khôllez aujourd'hui",
       html: `
         <p>Bonjour ${nomKholleur},</p>
-        <p>Les notes et appréciations de vos khôlles de ${disciplineNom} pour la classe ${classeNom}
-        (semaine ${semaine}) n'ont pas encore été saisies.</p>
-        <p>Connectez-vous à ${LIEN_PREPASTAN} pour compléter votre grille de notation dès que possible.</p>
+        <p>Vous donnez khôlle aujourd'hui :</p>
+        <table cellpadding="6" style="border-collapse: collapse;">
+          <thead>
+            <tr style="text-align:left;">
+              <th>Horaire</th><th>Discipline</th><th>Salle</th><th>Élèves</th>
+            </tr>
+          </thead>
+          <tbody>${lignes}</tbody>
+        </table>
+        <p>Pensez à saisir les notes et appréciations sur ${LIEN_PREPASTAN} une fois chaque khôlle terminée.</p>
       `,
     });
   } catch (err) {
-    console.error(`Échec de l'envoi de l'email de rappel à ${destinataire} :`, err);
+    console.error(`Échec de l'envoi de l'email d'invitation (jour même) à ${destinataire} :`, err);
   }
 }

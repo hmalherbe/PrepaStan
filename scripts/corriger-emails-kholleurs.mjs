@@ -104,14 +104,14 @@ async function fusionner(tx, garde, perdant) {
     }
   }
 
-  for (const r of await tx.rappelNotationEnvoye.findMany({ where: { kholleurId: perdant.id } })) {
-    const existeDejaChezGarde = await tx.rappelNotationEnvoye.findUnique({
-      where: { sessionKholleId_kholleurId: { sessionKholleId: r.sessionKholleId, kholleurId: garde.id } },
+  for (const r of await tx.rappelJourMemeEnvoye.findMany({ where: { kholleurId: perdant.id } })) {
+    const existeDejaChezGarde = await tx.rappelJourMemeEnvoye.findUnique({
+      where: { kholleurId_date: { kholleurId: garde.id, date: r.date } },
     });
     if (existeDejaChezGarde) {
-      await tx.rappelNotationEnvoye.delete({ where: { id: r.id } });
+      await tx.rappelJourMemeEnvoye.delete({ where: { id: r.id } });
     } else {
-      await tx.rappelNotationEnvoye.update({ where: { id: r.id }, data: { kholleurId: garde.id } });
+      await tx.rappelJourMemeEnvoye.update({ where: { id: r.id }, data: { kholleurId: garde.id } });
     }
   }
 

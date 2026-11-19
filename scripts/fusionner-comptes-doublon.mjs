@@ -52,13 +52,13 @@ async function main() {
       `-> ${garder.prenom} ${garder.nom} <${garder.email}> (${idGarder})\n`
   );
 
-  const [creneaux, competences, disponibilites, referent, validationGrilles, rappelsNotation] = await Promise.all([
+  const [creneaux, competences, disponibilites, referent, validationGrilles, rappelsJourMeme] = await Promise.all([
     prisma.creneau.findMany({ where: { kholleurId: idSupprimer }, select: { id: true } }),
     prisma.competence.findMany({ where: { kholleurId: idSupprimer }, select: { disciplineId: true } }),
     prisma.disponibilite.findMany({ where: { kholleurId: idSupprimer }, select: { id: true } }),
     prisma.professeurReferent.findMany({ where: { utilisateurId: idSupprimer }, select: { id: true, classeId: true, disciplineId: true } }),
     prisma.validationGrille.findMany({ where: { kholleurId: idSupprimer }, select: { sessionKholleId: true } }),
-    prisma.rappelNotationEnvoye.findMany({ where: { kholleurId: idSupprimer }, select: { sessionKholleId: true } }),
+    prisma.rappelJourMemeEnvoye.findMany({ where: { kholleurId: idSupprimer }, select: { date: true } }),
   ]);
   const [validationReferent, sessionsEnVigueur, rappelsValidationReferent] = await Promise.all([
     prisma.validationReferent.findMany({ where: { professeurReferentId: idSupprimer }, select: { sessionKholleId: true } }),
@@ -108,7 +108,7 @@ async function main() {
   console.log(`  ValidationGrille (kholleur)      : ${validationGrilles.length}`);
   console.log(`  ValidationReferent               : ${validationReferent.length}`);
   console.log(`  SessionKholle.referentId         : ${sessionsEnVigueur.length}`);
-  console.log(`  RappelNotationEnvoye             : ${rappelsNotation.length}`);
+  console.log(`  RappelJourMemeEnvoye             : ${rappelsJourMeme.length}`);
   console.log(`  RappelValidationReferentEnvoye   : ${rappelsValidationReferent.length}`);
   const rolesFusionnes = [...new Set([...garder.roles, ...supprimer.roles])];
   console.log(`  Rôles finaux du compte conservé  : ${rolesFusionnes.join(", ")} (actuels : ${garder.roles.join(", ")})`);
@@ -139,7 +139,7 @@ async function main() {
       data: { professeurReferentId: idGarder },
     }),
     prisma.sessionKholle.updateMany({ where: { referentId: idSupprimer }, data: { referentId: idGarder } }),
-    prisma.rappelNotationEnvoye.updateMany({ where: { kholleurId: idSupprimer }, data: { kholleurId: idGarder } }),
+    prisma.rappelJourMemeEnvoye.updateMany({ where: { kholleurId: idSupprimer }, data: { kholleurId: idGarder } }),
     prisma.rappelValidationReferentEnvoye.updateMany({
       where: { referentId: idSupprimer },
       data: { referentId: idGarder },

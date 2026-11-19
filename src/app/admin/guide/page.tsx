@@ -244,9 +244,9 @@ export default async function GuidePage() {
         <h3>Paramètres</h3>
         <p>
           Sur l&apos;écran <strong>Paramètres</strong>, réglez le délai avant l&apos;envoi d&apos;un rappel
-          automatique — à un khôlleur qui n&apos;a pas encore saisi ses notes, ou à un référent qui n&apos;a pas
-          encore validé une session dont toutes les grilles sont pourtant déjà validées (vérifié toutes les 6h,
-          au plus une relance par personne et par session) — et personnalisez (ou désactivez) le corps des
+          automatique à un référent qui n&apos;a pas encore validé une session dont toutes les grilles sont
+          pourtant déjà validées (vérifié toutes les 15 min, au plus une relance par référent et par session) —
+          et personnalisez (ou désactivez) le corps des
           emails envoyés à chaque rôle (khôlleurs, référents, étudiants). Pour les étudiants, deux cases
           indépendantes : <strong>« note disponible »</strong> (envoyée quand le référent clôture la session) et{" "}
           <strong>« convocation »</strong> (envoyée à la publication du planning, sans corps personnalisable) —
@@ -272,6 +272,12 @@ export default async function GuidePage() {
           validée normalement sans cette note. Une absence n&apos;est jamais comptée comme un 0 dans les moyennes
           et statistiques (elle en est simplement exclue), et s&apos;affiche « ABS » partout où elle apparaît
           (grille, correction par le référent, notes de l&apos;étudiant).
+        </p>
+        <p>
+          Chaque matin à 9h (heure de Paris), un khôlleur qui a au moins une khôlle ce jour-là reçoit
+          automatiquement un email listant ses créneaux du jour (horaire, discipline, salle, élèves), pour
+          l&apos;inviter à saisir notes et appréciations dès que ses khôlles sont passées. Un seul envoi par
+          khôlleur et par jour.
         </p>
       </div>
 

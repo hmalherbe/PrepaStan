@@ -1,76 +1,92 @@
 import { prisma } from "@/lib/prisma";
-import { envoyerEmailGrillesValidees, envoyerEmailRappelNotation } from "@/lib/email";
+import { envoyerEmailGrillesValidees, envoyerEmailInvitationNotationJourMeme } from "@/lib/email";
 import { compterGrillesNonValidees } from "@/lib/sessionValidation";
 
-// Parcourt les sessions déjà khôllées (créneau passé) mais pas encore
-// entièrement validées, et relance par email chaque kholleur qui n'a pas
-// encore validé sa grille — au plus une fois par (session, kholleur), passé
-// le délai configuré dans Paramètres (ParametresApplication). Appelé
-// périodiquement depuis src/instrumentation.ts.
-export async function envoyerRappelsNotationEnAttente(): Promise<{ envoyes: number }> {
-  const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
-  const delaiJours = parametres?.delaiEnvoiMailsNotationJours ?? 0;
+// "Aujourd'hui" en heure de Paris, sous la forme d'une Date à minuit UTC —
+// même convention que Creneau.date (un jour calendaire, pas un horodatage).
+// Toujours appelée après 9h (voir juste en dessous), donc jamais près d'un
+// changement de jour UTC ambigu pour la France.
+function dateDuJourParis(maintenant: Date): Date {
+  const [annee, mois, jour] = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" })
+    .format(maintenant)
+    .split("-")
+    .map(Number);
+  return new Date(Date.UTC(annee, mois - 1, jour));
+}
 
-  const dateLimite = new Date();
-  dateLimite.setDate(dateLimite.getDate() - delaiJours);
+// Invite chaque kholleur qui khôlle aujourd'hui (créneau du jour même) à
+// saisir notes et appréciations une fois sa khôlle terminée — un seul email
+// par kholleur même s'il khôlle plusieurs fois dans la journée, envoyé une
+// seule fois par jour (voir RappelJourMemeEnvoye), jamais avant 9h heure de
+// Paris. Appelée périodiquement depuis src/instrumentation.ts : comme la
+// vérification peut tomber n'importe quand après 9h (pas pile à l'heure),
+// c'est le garde-fou "déjà envoyé aujourd'hui" qui assure l'envoi une
+// seule fois, pas l'heure exacte de l'appel. Remplace l'ancien rappel
+// "vous n'avez toujours pas saisi vos notes" envoyé après coup (délai
+// configurable) : voir RappelJourMemeEnvoye dans schema.prisma.
+export async function envoyerInvitationsJourMemeEnAttente(): Promise<{ envoyes: number }> {
+  const maintenant = new Date();
+  const heureParis = Number(
+    new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }).format(maintenant)
+  );
+  if (heureParis < 9) return { envoyes: 0 };
+
+  const aujourdhui = dateDuJourParis(maintenant);
 
   const creneaux = await prisma.creneau.findMany({
     where: {
-      date: { lte: dateLimite },
+      date: aujourdhui,
       sessionKholle: { statut: { in: ["PLANIFIEE", "EN_COURS"] } },
     },
     select: {
       kholleurId: true,
       kholleur: { select: { email: true, nom: true, prenom: true } },
-      sessionKholle: {
-        select: {
-          id: true,
-          semaine: true,
-          classe: { select: { nom: true } },
-          discipline: { select: { nom: true } },
-        },
-      },
+      heureDebut: true,
+      heureFin: true,
+      salle: { select: { nom: true } },
+      passages: { select: { eleve: { select: { nom: true, prenom: true } } } },
+      sessionKholle: { select: { discipline: { select: { nom: true } } } },
     },
+    orderBy: [{ heureDebut: "asc" }],
   });
 
-  // (sessionKholleId, kholleurId) uniques concernés par au moins un créneau passé.
-  const paires = new Map<string, (typeof creneaux)[number]>();
+  const creneauxParKholleur = new Map<string, typeof creneaux>();
   for (const c of creneaux) {
-    paires.set(`${c.sessionKholle.id}|${c.kholleurId}`, c);
+    const liste = creneauxParKholleur.get(c.kholleurId) ?? [];
+    liste.push(c);
+    creneauxParKholleur.set(c.kholleurId, liste);
   }
 
   let envoyes = 0;
-  for (const c of paires.values()) {
-    const validation = await prisma.validationGrille.findUnique({
-      where: { kholleurId_sessionKholleId: { kholleurId: c.kholleurId, sessionKholleId: c.sessionKholle.id } },
+  for (const [kholleurId, liste] of creneauxParKholleur) {
+    const dejaEnvoye = await prisma.rappelJourMemeEnvoye.findUnique({
+      where: { kholleurId_date: { kholleurId, date: aujourdhui } },
     });
-    if (validation?.statut === "VALIDE") continue; // déjà fait
+    if (dejaEnvoye) continue; // déjà envoyé aujourd'hui
 
-    const dejaEnvoye = await prisma.rappelNotationEnvoye.findUnique({
-      where: { sessionKholleId_kholleurId: { sessionKholleId: c.sessionKholle.id, kholleurId: c.kholleurId } },
+    await envoyerEmailInvitationNotationJourMeme({
+      destinataire: liste[0].kholleur.email,
+      nomKholleur: `${liste[0].kholleur.prenom} ${liste[0].kholleur.nom}`,
+      creneaux: liste.map((c) => ({
+        date: aujourdhui,
+        heureDebut: c.heureDebut,
+        heureFin: c.heureFin,
+        disciplineNom: c.sessionKholle.discipline.nom,
+        salleNom: c.salle.nom,
+        eleves: c.passages.map((p) => `${p.eleve.prenom} ${p.eleve.nom}`),
+      })),
     });
-    if (dejaEnvoye) continue; // déjà relancé une fois pour cette session
-
-    await envoyerEmailRappelNotation({
-      destinataire: c.kholleur.email,
-      nomKholleur: `${c.kholleur.prenom} ${c.kholleur.nom}`,
-      classeNom: c.sessionKholle.classe.nom,
-      disciplineNom: c.sessionKholle.discipline.nom,
-      semaine: c.sessionKholle.semaine,
-    });
-    await prisma.rappelNotationEnvoye.create({
-      data: { sessionKholleId: c.sessionKholle.id, kholleurId: c.kholleurId },
-    });
+    await prisma.rappelJourMemeEnvoye.create({ data: { kholleurId, date: aujourdhui } });
     envoyes++;
   }
 
   return { envoyes };
 }
 
-// Équivalent de envoyerRappelsNotationEnAttente ci-dessus, mais côté
-// professeur référent : relance par email chaque référent (TOUS ceux du
-// vivier ProfesseurReferent de la discipline, pas seulement celui en
-// vigueur cette semaine-là — même règle que /api/kholleur/sessions/
+// Équivalent conceptuel de envoyerInvitationsJourMemeEnAttente ci-dessus,
+// mais côté professeur référent : relance par email chaque référent (TOUS
+// ceux du vivier ProfesseurReferent de la discipline, pas seulement celui
+// en vigueur cette semaine-là — même règle que /api/kholleur/sessions/
 // [sessionId]/valider) dont la session a toutes ses grilles kholleur déjà
 // validées, mais qui ne l'a toujours pas validée lui-même — au plus une
 // fois par (session, référent), passé le même délai configuré dans
