@@ -521,43 +521,50 @@ form label {
   border-top: 3px solid var(--couleur-texte-discret);
 }
 
-/* Table imprimable (TableImpression, PlanningReview) : trait fin noir pour
-   un simple changement de kholleur au sein d'une même discipline, ET pour
-   un changement de discipline d'une langue vivante à une autre (les
-   langues restent toutes regroupées dans le même bloc, voir
-   parJourImpression, sans être redécoupées en sous-blocs). Couleur fixe
-   (pas de variable de thème) : l'impression n'a pas vocation à suivre un
-   thème clair/sombre. 2px (pas 1px) : à largeur égale avec le border-bottom
-   1px déjà posé sur chaque cellule (règle "th, td" plus haut),
-   border-collapse peut choisir de garder ce dernier sur l'arête partagée
-   plutôt que ce trait-ci, qui deviendrait alors invisible — 2px lève
-   l'ambiguïté. Un changement vers une discipline qui n'est PAS une langue
-   n'a lui pas besoin de bordure propre : il est déjà détaché par 2 lignes
-   vierges puis l'entête du tableau répétée (voir TableImpression), qui
-   jouent déjà ce rôle. */
-.ligne-nouveau-kholleur-impression td {
-  border-top: 2px solid #000;
+/* Tables imprimables (TableImpression, PlanningReview) : un <table> par
+   bloc (toutes les langues vivantes d'un jour regroupées dans un seul, une
+   discipline non-langue par bloc — voir construireBlocsImpression), espacés
+   de 2cm entre eux pour bien les détacher visuellement, sans avoir à
+   relire la page précédente pour retrouver les colonnes (chaque bloc a sa
+   propre entête). Pas de marge avant le tout premier bloc d'un jour (déjà
+   assurée par .jour-titre juste au-dessus, voir le bloc @media print). */
+.table-impression-bloc + .table-impression-bloc {
+  margin-top: 2cm;
 }
 
-/* Lignes vierges insérées juste avant un changement vers une discipline
-   qui n'est pas une langue (voir TableImpression), avant l'entête répétée.
-   Sans bordure (contrairement aux lignes de données), sans quoi la
-   bordure fine par défaut de chaque cellule ("th, td" plus haut) les
-   ferait ressembler à des lignes de contenu plutôt qu'à un espace vide. */
-.ligne-vide-impression td {
-  border: none;
-  padding: 0;
-  height: 1em;
+/* Couleur fixe (jamais une variable de thème) pour tous les traits
+   ci-dessous : l'impression n'a pas vocation à suivre un thème
+   clair/sombre. Même épaisseur partout (2px) : le trait bleu de
+   changement de kholleur n'a besoin d'aucune largeur différenciante pour
+   l'emporter sur le trait fin par défaut, puisqu'il remplace entièrement
+   ce dernier (voir .ligne-avant-nouveau-kholleur-impression plus bas) au
+   lieu d'entrer en concurrence avec lui sur la même arête. */
+.table-impression-bloc th,
+.table-impression-bloc td {
+  border-bottom: 2px solid #000;
 }
 
-/* Trait mauve au-dessus de toute ligne d'entête du tableau imprimé — aussi
-   bien la toute première (thead, en haut de chaque page) que celles
-   répétées avant une discipline non-langue (voir TableImpression). Même
-   couleur fixe que --couleur-primaire en thème clair, mais codée en dur
-   (pas la variable) : comme les autres traits de cette table, l'impression
-   n'a pas vocation à suivre un thème clair/sombre. */
-.ligne-entete-impression th {
-  border-top: 3px solid #6c4cf1;
+/* Entête de chaque bloc : texte bleu (identique à --couleur-primaire en
+   thème clair, codée en dur comme les autres traits de cette table). */
+.table-impression-bloc thead th {
+  color: #1d4ed8;
+}
+
+/* Discipline mise en avant : première colonne de chaque ligne de données
+   (jamais l'entête, qui a déjà sa propre mise en forme ci-dessus). */
+.cellule-discipline-impression {
+  font-weight: 700;
+}
+
+/* Changement de kholleur (même discipline) OU changement de langue au sein
+   du bloc des langues (voir construireBlocsImpression) : trait bleu,
+   remplaçant le trait noir par défaut plutôt que s'y ajoutant — posé en
+   border-bottom sur la ligne qui PRÉCÈDE le changement (voir
+   TableImpression), jamais en border-top sur la suivante, pour qu'une
+   seule bordure soit déclarée sur cette arête et qu'il n'y ait donc jamais
+   de conflit à arbitrer par border-collapse. */
+.ligne-avant-nouveau-kholleur-impression td {
+  border-bottom: 2px solid #1d4ed8;
 }
 
 /* Nom d'élève cliquable dans le tableau de détail d'une semaine
@@ -807,6 +814,13 @@ th.triable:hover {
     overflow-x: visible;
     max-width: none;
     box-shadow: none;
+    /* Plusieurs tables désormais par page (un bloc par discipline, voir
+       .table-impression-bloc) : l'habillage "carte" (bordure arrondie,
+       fond) de la règle "table" à l'écran serait répété pour chacune,
+       surchargeant visuellement la page imprimée. */
+    border: none;
+    border-radius: 0;
+    background: transparent;
   }
 
   /* Pas de page-break-inside: avoid sur la table elle-même : sur un jour
@@ -830,7 +844,7 @@ th.triable:hover {
   }
 
   .jour-titre {
-    margin: 0 0 6px;
+    margin: 0 0 2cm;
     font-size: 1rem;
   }
 

@@ -177,14 +177,13 @@ export default async function GuidePage() {
         <p>
           Le bouton <strong>Imprimer</strong> produit une page par jour, comme à l&apos;écran, mais avec les
           langues vivantes de chaque jour regroupées en tête de page (plutôt que mélangées aux autres
-          disciplines dans l&apos;ordre alphabétique habituel). Un trait fin noir marque un changement de
-          kholleur au sein d&apos;une même discipline, ainsi qu&apos;un changement d&apos;une langue vivante à une
-          autre (toutes les langues restent dans le même tableau, sans être redécoupées en blocs). Un
-          changement vers une discipline qui n&apos;est pas une langue (fin du bloc des langues, ou passage à la
-          discipline non-langue suivante) est en revanche précédé de 2 lignes vierges, suivies d&apos;une
-          répétition de l&apos;entête du tableau (Discipline, Étudiants, Préparation, Khôlle, Kholleur, Salle).
-          Chaque entête du tableau, qu&apos;elle soit la toute première de la page ou l&apos;une de ces
-          répétitions, est surmontée d&apos;un même trait mauve.
+          disciplines dans l&apos;ordre alphabétique habituel) et un tableau séparé par discipline (toutes les
+          langues partageant un seul tableau, séparées entre elles par un simple trait bleu — jamais redécoupées
+          en plusieurs tableaux). Un trait bleu marque aussi un changement de kholleur au sein d&apos;une même
+          discipline. Chaque tableau a sa propre entête (Discipline, Étudiants, Préparation, Khôlle, Kholleur,
+          Salle, écrite en bleu), séparée du tableau suivant par 2 cm d&apos;espace, et du titre du jour par 2 cm
+          également. La discipline est en gras sur chaque ligne, et les horaires utilisent le format «&nbsp;14h00&nbsp;»
+          plutôt que «&nbsp;14:00&nbsp;».
         </p>
         <p>
           Sur ce même écran de relecture, vous pouvez aussi <strong>intervertir deux élèves</strong> : cliquez

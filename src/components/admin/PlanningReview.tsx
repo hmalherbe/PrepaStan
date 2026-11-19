@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { RenvoiAvecSelectionModal } from "@/components/admin/RenvoiAvecSelectionModal";
 
 type EleveCreneau = { passageId: string; eleveId: string; nom: string };
@@ -640,79 +640,90 @@ export function PlanningReview({
   );
 }
 
-// Table statique utilisée par la vue impression (.vue-impression) : pas de
-// bouton Modifier ni de sélection pour intervertir, contrairement à la vue
-// écran — une page imprimée n'a rien d'interactif. Colonne "Jour" en plus
-// (inutile sur la vue écran, où le jour est déjà le titre de chaque bloc) :
-// ici une page peut mélanger plusieurs jours (langues vivantes) ou plusieurs
-// kholleurs d'un même jour (discipline non-langue).
+// Tables statiques utilisées par la vue impression (.vue-impression) : pas
+// de bouton Modifier ni de sélection pour intervertir, contrairement à la
+// vue écran — une page imprimée n'a rien d'interactif.
 const ENTETE_COLONNES_IMPRESSION = ["Discipline", "Étudiants", "Préparation", "Khôlle", "Kholleur", "Salle"];
 
+// "14:00" -> "14h00", seul format demandé à l'impression (la vue écran garde
+// ":", voir .cellule-horaire ci-dessous qui n'est appliqué qu'ici).
+function formaterHeureImpression(heure: string): string {
+  return heure.replace(":", "h");
+}
+
+// Un "bloc" = un <table> imprimé séparé (voir TableImpression) : toutes les
+// langues vivantes d'un jour tiennent dans un seul bloc (regroupées en tête
+// par parJourImpression, séparées entre elles par un simple trait, jamais
+// redécoupées), tandis que chaque discipline non-langue forme son propre
+// bloc, qu'on recoupe à chaque changement de discipline rencontré dans
+// l'ordre (une même discipline qui reviendrait plus tard dans la journée,
+// après une autre, formerait un second bloc distinct plutôt que de fusionner
+// avec le premier — comportement déjà existant, inchangé par ce découpage).
+function construireBlocsImpression(creneaux: Creneau[]): Creneau[][] {
+  const langues = creneaux.filter((c) => c.estLangueVivante);
+  const nonLangues = creneaux.filter((c) => !c.estLangueVivante);
+  const blocs: Creneau[][] = [];
+  if (langues.length > 0) blocs.push(langues);
+  for (const c of nonLangues) {
+    const blocCourant = blocs[blocs.length - 1];
+    if (blocCourant && blocCourant[blocCourant.length - 1].discipline === c.discipline) {
+      blocCourant.push(c);
+    } else {
+      blocs.push([c]);
+    }
+  }
+  return blocs;
+}
+
 function TableImpression({ creneaux }: { creneaux: Creneau[] }) {
+  const blocs = construireBlocsImpression(creneaux);
   return (
-    <table>
-      <thead>
-        <tr className="ligne-entete-impression">
-          {ENTETE_COLONNES_IMPRESSION.map((libelle) => (
-            <th key={libelle}>{libelle}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {creneaux.map((c, index) => {
-          // Changement de discipline : deux cas bien distincts.
-          // - Vers une AUTRE langue vivante (les langues sont toujours
-          //   regroupées en tête, voir parJourImpression — jamais après une
-          //   discipline non-langue) : simple trait noir fin, comme un
-          //   changement de kholleur, toutes les langues restant dans le
-          //   même tableau sans être redécoupées en blocs.
-          // - Vers une discipline qui n'est PAS une langue (fin du bloc des
-          //   langues, ou passage à une discipline non-langue suivante) :
-          //   2 lignes vierges puis une répétition de l'entête du tableau,
-          //   pour bien détacher visuellement les blocs sans avoir à relire
-          //   la première page pour retrouver les colonnes.
-          // Changement de kholleur SANS changement de discipline : simple
-          // trait noir fin, comme pour un changement de langue. Jamais rien
-          // avant la toute première ligne, qui n'a rien à séparer d'une
-          // ligne précédente (precedent === null).
-          const precedent = index > 0 ? creneaux[index - 1] : null;
-          const nouvelleDiscipline = precedent !== null && precedent.discipline !== c.discipline;
-          const nouvelleLangue = nouvelleDiscipline && c.estLangueVivante;
-          const nouvelleDisciplineNonLangue = nouvelleDiscipline && !c.estLangueVivante;
-          const nouveauKholleur = precedent !== null && !nouvelleDiscipline && precedent.kholleurId !== c.kholleurId;
-          const classeLigne = nouveauKholleur || nouvelleLangue ? "ligne-nouveau-kholleur-impression" : undefined;
-          return (
-            <Fragment key={c.id}>
-              {nouvelleDisciplineNonLangue && (
-                <>
-                  <tr className="ligne-vide-impression">
-                    <td colSpan={6}></td>
-                  </tr>
-                  <tr className="ligne-vide-impression">
-                    <td colSpan={6}></td>
-                  </tr>
-                  <tr className="ligne-entete-impression">
-                    {ENTETE_COLONNES_IMPRESSION.map((libelle) => (
-                      <th key={libelle}>{libelle}</th>
-                    ))}
-                  </tr>
-                </>
-              )}
-              <tr className={classeLigne}>
-                <td>{c.discipline}</td>
-                <td>{c.eleves.map((e) => e.nom).join(", ")}</td>
-                <td className="cellule-horaire">{c.heureDebutPreparation ?? "—"}</td>
-                <td className="cellule-horaire">
-                  {c.heureDebut}-{c.heureFin}
-                </td>
-                <td>{c.kholleurNom}</td>
-                <td>{c.salleNom}</td>
-              </tr>
-            </Fragment>
-          );
-        })}
-      </tbody>
-    </table>
+    <>
+      {blocs.map((bloc, i) => (
+        <table key={i} className="table-impression-bloc">
+          <thead>
+            <tr>
+              {ENTETE_COLONNES_IMPRESSION.map((libelle) => (
+                <th key={libelle}>{libelle}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {bloc.map((c, index) => {
+              // Changement de kholleur (même discipline) OU changement de
+              // langue (toutes les langues partagent le même bloc, voir
+              // construireBlocsImpression) : trait bleu fin. Posé en
+              // border-bottom sur la ligne qui PRÉCÈDE le changement
+              // (jamais en border-top sur la ligne suivante) : les deux
+              // lignes se partageraient alors la même arête, et
+              // border-collapse devrait arbitrer entre deux bordures
+              // concurrentes de même épaisseur (voulue identique à celle
+              // des autres traits du tableau, donc sans largeur
+              // différenciante pour trancher) — en ne posant jamais qu'une
+              // seule bordure déclarée sur cette arête, l'ambiguïté
+              // disparaît complètement.
+              const suivant = index < bloc.length - 1 ? bloc[index + 1] : null;
+              const changeAvantSuivant =
+                suivant !== null && (suivant.kholleurId !== c.kholleurId || suivant.discipline !== c.discipline);
+              return (
+                <tr key={c.id} className={changeAvantSuivant ? "ligne-avant-nouveau-kholleur-impression" : undefined}>
+                  <td className="cellule-discipline-impression">{c.discipline}</td>
+                  <td>{c.eleves.map((e) => e.nom).join(", ")}</td>
+                  <td className="cellule-horaire">
+                    {c.heureDebutPreparation ? formaterHeureImpression(c.heureDebutPreparation) : "—"}
+                  </td>
+                  <td className="cellule-horaire">
+                    {formaterHeureImpression(c.heureDebut)}-{formaterHeureImpression(c.heureFin)}
+                  </td>
+                  <td>{c.kholleurNom}</td>
+                  <td>{c.salleNom}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ))}
+    </>
   );
 }
 
