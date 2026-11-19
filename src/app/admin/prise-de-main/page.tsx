@@ -26,8 +26,8 @@ export default async function PriseDeMainPage({
       <div className="carte">
         <p>
           Permet de se connecter temporairement en tant qu&apos;un étudiant, un khôlleur ou un professeur
-          référent — par exemple pour vérifier ce qu&apos;il voit, ou l&apos;aider à distance. Authentifié par
-          <strong> votre</strong> mot de passe administrateur, jamais celui de la personne. Impossible sur un
+          référent — par exemple pour vérifier ce qu&apos;il voit, ou l&apos;aider à distance. Il suffit de son
+          email, sans connaître ni ressaisir aucun mot de passe. Réservé aux administrateurs ; impossible sur un
           compte administrateur.
         </p>
       </div>

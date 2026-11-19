@@ -20,7 +20,6 @@ export function PriseDeMainForm({
   personnes: Personne[];
 }) {
   const [email, setEmail] = useState(emailInitial);
-  const [motDePasseAdmin, setMotDePasseAdmin] = useState("");
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [suggestionsVisibles, setSuggestionsVisibles] = useState(false);
@@ -50,7 +49,7 @@ export function PriseDeMainForm({
       const res = await fetch("/api/admin/impersonation/demarrer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, motDePasseAdmin, profil }),
+        body: JSON.stringify({ email, profil }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -178,15 +177,6 @@ export function PriseDeMainForm({
             ))}
           </ul>
         )}
-      </label>
-      <label>
-        Votre mot de passe administrateur
-        <input
-          type="password"
-          required
-          value={motDePasseAdmin}
-          onChange={(e) => setMotDePasseAdmin(e.target.value)}
-        />
       </label>
       {erreur && <p className="champ-erreur">{erreur}</p>}
       <p>

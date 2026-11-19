@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
@@ -11,7 +10,6 @@ const ROLES_PRENABLES = ["KHOLLEUR", "PROFESSEUR_REFERENT", "ELEVE"] as const;
 
 const bodySchema = z.object({
   email: z.string().email(),
-  motDePasseAdmin: z.string().min(1),
   // Requis seulement si la personne cumule plusieurs des rôles ci-dessus
   // (ex. khôlleur ET référent) : lequel incarner, choisi par l'admin après
   // un premier appel sans ce champ (voir plus bas, "choixRequis").
@@ -21,8 +19,9 @@ const bodySchema = z.object({
 // POST /api/admin/impersonation/demarrer
 // Prise de main admin : remplace la session courante par celle d'un autre
 // compte (étudiant, khôlleur ou référent), identifié par son email, sans
-// connaître son mot de passe — authentifié à la place par le mot de passe
-// de L'ADMIN courant (ressaisi ici, "sudo" avant une action sensible).
+// connaître son mot de passe — authentifié par la session admin déjà en
+// cours (cette route et la page /admin/prise-de-main sont toutes deux
+// réservées au rôle ADMIN), sans ressaisie de mot de passe supplémentaire.
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -38,14 +37,9 @@ export async function POST(req: Request) {
     );
   }
 
-  const { email, motDePasseAdmin, profil } = bodySchema.parse(await req.json());
+  const { email, profil } = bodySchema.parse(await req.json());
 
   const admin = await prisma.utilisateur.findUniqueOrThrow({ where: { id: session.user.id } });
-  const motDePasseValide = await bcrypt.compare(motDePasseAdmin, admin.password);
-  if (!motDePasseValide) {
-    return NextResponse.json({ error: "Mot de passe administrateur incorrect" }, { status: 401 });
-  }
-
   const cible = await prisma.utilisateur.findUnique({ where: { email } });
   if (!cible) {
     return NextResponse.json({ error: "Aucun compte avec cet email" }, { status: 404 });
@@ -66,9 +60,7 @@ export async function POST(req: Request) {
   // une prise de main doit rester sans ambiguïté sur CE qu'elle montre à
   // l'admin : sans "profil" déjà choisi, on le lui demande plutôt que de
   // deviner (ancien comportement : priorité khôlleur > référent > étudiant,
-  // source de confusion signalée). Le mot de passe est déjà vérifié à ce
-  // stade, donc ce deuxième appel (avec profil) n'a pas besoin de le
-  // revérifier une seconde fois côté UX, juste de le renvoyer.
+  // source de confusion signalée).
   if (rolesPrenables.length > 1 && !profil) {
     return NextResponse.json({ choixRequis: true, roles: rolesPrenables });
   }
