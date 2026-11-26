@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { AppreciationEditor, estAppreciationVide } from "./AppreciationEditor";
 
 type Ligne = {
@@ -19,21 +19,6 @@ type Ligne = {
 type EtatSauvegarde = "idle" | "saving" | "saved" | "error";
 
 const TYPES_FICHIER_ACCEPTES = ".pdf,.doc,.docx";
-
-// Bouton inséré dans le badge de statut (vert) : repris comme un simple lien
-// souligné de la même couleur que le texte du badge, plutôt qu'un bouton
-// classique qui jurerait dans la pastille colorée (même technique que le
-// bouton du bandeau "prise de main", voir NavBar.tsx / .bandeau-prise-de-main
-// dans globals.css).
-const STYLE_LIEN_DANS_BADGE: CSSProperties = {
-  background: "none",
-  border: "none",
-  padding: 0,
-  color: "inherit",
-  textDecoration: "underline",
-  cursor: "pointer",
-  font: "inherit",
-};
 
 export function GrilleForm({
   sessionId,
@@ -171,23 +156,20 @@ export function GrilleForm({
 
   return (
     <div>
-      {gelee ? (
-        <p className="badge badge-succes">
-          Gelée — validée par le référent, verrouillée définitivement{" "}
-          <button type="button" className="no-print" style={STYLE_LIEN_DANS_BADGE} onClick={() => window.print()}>
+      {(gelee || valide) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {gelee ? (
+            <p className="badge badge-succes">Gelée — validée par le référent, verrouillée définitivement</p>
+          ) : (
+            <p className="badge badge-succes">
+              Grille validée{dateValidation ? ` le ${new Date(dateValidation).toLocaleString("fr-FR")}` : ""} — vous
+              pouvez encore la modifier tant que le référent n'a pas validé la session
+            </p>
+          )}
+          <button type="button" className="export-pdf no-print" onClick={() => window.print()}>
             Exporter en PDF
           </button>
-        </p>
-      ) : (
-        valide && (
-          <p className="badge badge-succes">
-            Grille validée{dateValidation ? ` le ${new Date(dateValidation).toLocaleString("fr-FR")}` : ""} — vous
-            pouvez encore la modifier tant que le référent n'a pas validé la session{" "}
-            <button type="button" className="no-print" style={STYLE_LIEN_DANS_BADGE} onClick={() => window.print()}>
-              Exporter en PDF
-            </button>
-          </p>
-        )
+        </div>
       )}
 
       <table>

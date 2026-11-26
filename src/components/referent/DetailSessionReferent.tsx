@@ -157,7 +157,7 @@ export function DetailSessionReferent({
                 {g.statut === "VALIDE" && (
                   <button
                     type="button"
-                    className="discret"
+                    className="export-pdf"
                     onClick={(e) => {
                       e.preventDefault();
                       exporterGrillePDF(g.kholleurId);

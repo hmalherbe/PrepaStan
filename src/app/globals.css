@@ -13,6 +13,8 @@
   --couleur-succes: #12875a;
   --couleur-attente: #c07a06;
   --couleur-erreur: #d1483a;
+  --couleur-export: #e07b00;
+  --couleur-export-fonce: #b86400;
   --couleur-surface: #ffffff;
   --couleur-surface-alt: #f1ecfd;
   --couleur-accent-fond: #ece4fc;
@@ -39,6 +41,8 @@
   --couleur-succes: #1a7f4e;
   --couleur-attente: #b8860b;
   --couleur-erreur: #c0392b;
+  --couleur-export: #d06b00;
+  --couleur-export-fonce: #a85700;
   --couleur-surface: #ffffff;
   --couleur-surface-alt: #f0f0f4;
   --couleur-accent-fond: #eef0fb;
@@ -200,6 +204,19 @@ button.discret {
   background: transparent;
   color: var(--couleur-texte-discret);
   border-color: var(--couleur-bordure);
+}
+
+/* Bouton "Exporter en PDF" (grille de notation, voir GrilleForm.tsx et
+   DetailSessionReferent.tsx) : orange, pour se distinguer nettement des
+   autres actions (violettes/bleues selon le thème). */
+button.export-pdf {
+  background: var(--couleur-export);
+  border-color: var(--couleur-export);
+}
+
+button.export-pdf:hover:not(:disabled) {
+  background: var(--couleur-export-fonce);
+  border-color: var(--couleur-export-fonce);
 }
 
 input,
