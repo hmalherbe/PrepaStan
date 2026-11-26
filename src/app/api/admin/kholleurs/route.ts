@@ -89,6 +89,7 @@ export async function POST(req: Request) {
       utilisateurId: kholleur.id,
       email: kholleur.email,
       prenom: kholleur.prenom,
+      nom: kholleur.nom,
       baseUrl: baseUrlDepuisRequete(req),
     });
   }

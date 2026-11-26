@@ -111,7 +111,13 @@ export async function POST(req: Request) {
           data: { email: l.email, password: await bcrypt.hash(MOT_DE_PASSE_DEFAUT, 12), nom, prenom, roles: ["ELEVE"] },
         });
         utilisateurId = cree.id;
-        await envoyerActivationNouveauCompte({ utilisateurId: cree.id, email: cree.email, prenom: cree.prenom, baseUrl });
+        await envoyerActivationNouveauCompte({
+          utilisateurId: cree.id,
+          email: cree.email,
+          prenom: cree.prenom,
+          nom: cree.nom,
+          baseUrl,
+        });
       }
     }
 

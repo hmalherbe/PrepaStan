@@ -221,22 +221,28 @@ export async function envoyerEmailReinitialisationMotDePasse({
 // ne peuvent de toute façon recevoir aucun email réel (voir RESEND_API_KEY,
 // volontairement absente de .env.demo).
 export function construireEmailActivationCompte({
-  destinataire,
-  nomUtilisateur,
+  prenom,
+  nom,
   lien,
 }: {
-  destinataire: string;
-  nomUtilisateur: string;
+  prenom: string;
+  nom: string;
   lien: string;
 }): { subject: string; html: string } {
   return {
-    subject: "PrepaStan — Activez votre compte",
+    subject: "Bienvenue sur votre espace de gestion des Khôlles Prepa D1 Droit - Economie - Stanislas",
     html: `
-        <p>Bonjour ${nomUtilisateur},</p>
-        <p>Un compte PrepaStan vient d'être créé pour vous, avec cette adresse (${destinataire}).
-        Cliquez sur le lien ci-dessous pour choisir votre mot de passe (valable 7 jours) :</p>
+        <p>Bonjour ${prenom} ${nom},</p>
+        <p>Bienvenue sur votre espace de gestion des khôlles !</p>
+        <p>Un compte personnel a été créé à votre intention. Il vous permettra de recevoir par mail vos
+        plannings de khôlles, les notifications et de saisir puis valider vos notes et commentaires, qui
+        seront ensuite transmis aux professeurs référents et aux étudiants.</p>
+        <p>Pour accéder à votre espace personnel, nous vous invitons à définir votre mot de passe en
+        cliquant sur le lien ci-dessous :</p>
         <p><a href="${lien}">${lien}</a></p>
-        <p>Si vous ne vous attendiez pas à cet email, vous pouvez l'ignorer.</p>
+        <p>Ce lien est valable pendant 7 jours.</p>
+        <p>Nous vous souhaitons une agréable prise en main de cet outil.</p>
+        <p>Bien cordialement,<br>L'équipe de la prépa D1 Droit-Économie</p>
       `,
   };
 }
@@ -249,11 +255,13 @@ export function construireEmailActivationCompte({
 // autres emails ci-dessus.
 export async function envoyerEmailActivationCompte({
   destinataire,
-  nomUtilisateur,
+  prenom,
+  nom,
   lien,
 }: {
   destinataire: string;
-  nomUtilisateur: string;
+  prenom: string;
+  nom: string;
   lien: string;
 }): Promise<void> {
   if (!resend) {
@@ -261,7 +269,7 @@ export async function envoyerEmailActivationCompte({
     return;
   }
 
-  const { subject, html } = construireEmailActivationCompte({ destinataire, nomUtilisateur, lien });
+  const { subject, html } = construireEmailActivationCompte({ prenom, nom, lien });
 
   try {
     await envoyerViaResend({ destinataire, subject, html });

@@ -94,7 +94,13 @@ export async function POST(req: Request) {
       });
       kholleurId = cree.id;
       crees++;
-      await envoyerActivationNouveauCompte({ utilisateurId: cree.id, email: cree.email, prenom: cree.prenom, baseUrl });
+      await envoyerActivationNouveauCompte({
+        utilisateurId: cree.id,
+        email: cree.email,
+        prenom: cree.prenom,
+        nom: cree.nom,
+        baseUrl,
+      });
     }
 
     for (const disciplineId of disciplineIds) {

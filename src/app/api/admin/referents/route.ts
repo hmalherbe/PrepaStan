@@ -87,7 +87,7 @@ export async function POST(req: Request) {
   try {
     const referents = await prisma.$transaction(async (tx) => {
       let utilisateurId = body.utilisateurId;
-      let nouveauCompte: { id: string; email: string; prenom: string } | null = null;
+      let nouveauCompte: { id: string; email: string; prenom: string; nom: string } | null = null;
       if (utilisateurId) {
         // Compte choisi directement dans la liste « Compte existant » (ex. un
         // khôlleur qui n'est pas encore référent) : s'assurer que son rôle
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
             },
           });
           utilisateurId = cree.id;
-          nouveauCompte = { id: cree.id, email: cree.email, prenom: cree.prenom };
+          nouveauCompte = { id: cree.id, email: cree.email, prenom: cree.prenom, nom: cree.nom };
         }
       }
       const referentId = utilisateurId;
@@ -166,6 +166,7 @@ export async function POST(req: Request) {
         utilisateurId: referents.nouveauCompte.id,
         email: referents.nouveauCompte.email,
         prenom: referents.nouveauCompte.prenom,
+        nom: referents.nouveauCompte.nom,
         baseUrl: baseUrlDepuisRequete(req),
       });
     }

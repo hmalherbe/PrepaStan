@@ -21,13 +21,13 @@ export async function POST(req: Request) {
 
   const utilisateurs = await prisma.utilisateur.findMany({
     where: { id: { in: utilisateurIds } },
-    select: { id: true, email: true, prenom: true },
+    select: { id: true, email: true, prenom: true, nom: true },
   });
 
   const baseUrl = baseUrlDepuisRequete(req);
   await Promise.allSettled(
     utilisateurs.map((u) =>
-      envoyerActivationNouveauCompte({ utilisateurId: u.id, email: u.email, prenom: u.prenom, baseUrl })
+      envoyerActivationNouveauCompte({ utilisateurId: u.id, email: u.email, prenom: u.prenom, nom: u.nom, baseUrl })
     )
   );
 

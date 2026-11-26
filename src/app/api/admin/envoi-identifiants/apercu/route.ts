@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
   const utilisateur = await prisma.utilisateur.findUnique({
     where: { id: utilisateurId },
-    select: { email: true, prenom: true },
+    select: { email: true, prenom: true, nom: true },
   });
   if (!utilisateur) {
     return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
@@ -32,8 +32,8 @@ export async function GET(req: Request) {
   const lienFactice = `${baseUrl}/reinitialiser-mot-de-passe?token=apercu-non-fonctionnel`;
 
   const { subject, html } = construireEmailActivationCompte({
-    destinataire: utilisateur.email,
-    nomUtilisateur: utilisateur.prenom,
+    prenom: utilisateur.prenom,
+    nom: utilisateur.nom,
     lien: lienFactice,
   });
 

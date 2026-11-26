@@ -15,11 +15,13 @@ export async function envoyerActivationNouveauCompte({
   utilisateurId,
   email,
   prenom,
+  nom,
   baseUrl,
 }: {
   utilisateurId: string;
   email: string;
   prenom: string;
+  nom: string;
   baseUrl: string;
 }): Promise<void> {
   try {
@@ -32,7 +34,7 @@ export async function envoyerActivationNouveauCompte({
       },
     });
     const lien = `${baseUrl}/reinitialiser-mot-de-passe?token=${token}`;
-    await envoyerEmailActivationCompte({ destinataire: email, nomUtilisateur: prenom, lien });
+    await envoyerEmailActivationCompte({ destinataire: email, prenom, nom, lien });
   } catch (err) {
     console.error(`Échec de la création/envoi du lien d'activation pour ${email} :`, err);
   }

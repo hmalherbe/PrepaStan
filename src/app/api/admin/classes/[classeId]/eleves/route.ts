@@ -38,6 +38,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ classeI
       utilisateurId: utilisateur.id,
       email: utilisateur.email,
       prenom: utilisateur.prenom,
+      nom: utilisateur.nom,
       baseUrl: baseUrlDepuisRequete(req),
     });
   }

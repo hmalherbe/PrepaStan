@@ -63,7 +63,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ eleveId:
 
   try {
     const { eleve, nouveauCompte } = await prisma.$transaction(async (tx) => {
-      let nouveauCompte: { id: string; email: string; prenom: string } | null = null;
+      let nouveauCompte: { id: string; email: string; prenom: string; nom: string } | null = null;
       if (eleveExistant.utilisateurId) {
         if (body.email) {
           await tx.utilisateur.update({
@@ -87,7 +87,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ eleveId:
           },
         });
         await tx.eleve.update({ where: { id: eleveId }, data: { utilisateurId: utilisateur.id } });
-        nouveauCompte = { id: utilisateur.id, email: utilisateur.email, prenom: utilisateur.prenom };
+        nouveauCompte = { id: utilisateur.id, email: utilisateur.email, prenom: utilisateur.prenom, nom: utilisateur.nom };
       }
       // Remplace entièrement la liste des dispenses plutôt que de la fondre
       // avec l'existante : pas de relation many-to-many implicite ici
@@ -123,6 +123,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ eleveId:
         utilisateurId: nouveauCompte.id,
         email: nouveauCompte.email,
         prenom: nouveauCompte.prenom,
+        nom: nouveauCompte.nom,
         baseUrl: baseUrlDepuisRequete(req),
       });
     }
