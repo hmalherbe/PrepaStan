@@ -265,7 +265,9 @@ export default async function GuidePage() {
           chaque session déjà khôllée, ils saisissent la note et l&apos;appréciation de chaque étudiant (une pièce
           jointe PDF ou Word est possible), puis cliquent sur <strong>Valider ma grille</strong> une fois tout
           saisi. Cette validation est définitive de leur côté : le professeur référent est notifié dès que tous les
-          khôlleurs d&apos;une session ont validé.
+          khôlleurs d&apos;une session ont validé. Une fois la grille validée (ou gelée par le référent), un lien{" "}
+          <strong>Exporter en PDF</strong> apparaît dans le bandeau vert : il imprime (ou enregistre en PDF depuis
+          la boîte de dialogue d&apos;impression) uniquement cette grille.
         </p>
         <p>
           Si un étudiant était absent à sa khôlle, cochez <strong>Absent</strong> plutôt que de laisser le champ

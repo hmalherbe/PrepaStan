@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { AppreciationEditor, estAppreciationVide } from "./AppreciationEditor";
 
 type Ligne = {
@@ -19,6 +19,21 @@ type Ligne = {
 type EtatSauvegarde = "idle" | "saving" | "saved" | "error";
 
 const TYPES_FICHIER_ACCEPTES = ".pdf,.doc,.docx";
+
+// Bouton inséré dans le badge de statut (vert) : repris comme un simple lien
+// souligné de la même couleur que le texte du badge, plutôt qu'un bouton
+// classique qui jurerait dans la pastille colorée (même technique que le
+// bouton du bandeau "prise de main", voir NavBar.tsx / .bandeau-prise-de-main
+// dans globals.css).
+const STYLE_LIEN_DANS_BADGE: CSSProperties = {
+  background: "none",
+  border: "none",
+  padding: 0,
+  color: "inherit",
+  textDecoration: "underline",
+  cursor: "pointer",
+  font: "inherit",
+};
 
 export function GrilleForm({
   sessionId,
@@ -157,12 +172,20 @@ export function GrilleForm({
   return (
     <div>
       {gelee ? (
-        <p className="badge badge-succes">Gelée — validée par le référent, verrouillée définitivement</p>
+        <p className="badge badge-succes">
+          Gelée — validée par le référent, verrouillée définitivement{" "}
+          <button type="button" className="no-print" style={STYLE_LIEN_DANS_BADGE} onClick={() => window.print()}>
+            Exporter en PDF
+          </button>
+        </p>
       ) : (
         valide && (
           <p className="badge badge-succes">
             Grille validée{dateValidation ? ` le ${new Date(dateValidation).toLocaleString("fr-FR")}` : ""} — vous
-            pouvez encore la modifier tant que le référent n'a pas validé la session
+            pouvez encore la modifier tant que le référent n'a pas validé la session{" "}
+            <button type="button" className="no-print" style={STYLE_LIEN_DANS_BADGE} onClick={() => window.print()}>
+              Exporter en PDF
+            </button>
           </p>
         )
       )}
@@ -256,10 +279,10 @@ export function GrilleForm({
         </tbody>
       </table>
 
-      {erreurValidation && <p className="champ-erreur">{erreurValidation}</p>}
+      {erreurValidation && <p className="champ-erreur no-print">{erreurValidation}</p>}
 
       {!fige && (
-        <p style={{ marginTop: 16 }}>
+        <p className="no-print" style={{ marginTop: 16 }}>
           <button onClick={valider} disabled={!toutSaisi || validationEnCours}>
             {validationEnCours ? "Validation…" : valide ? "Revalider ma grille" : "Valider ma grille"}
           </button>
