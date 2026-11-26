@@ -291,7 +291,10 @@ export default async function GuidePage() {
           (ex. une coquille repérée en relisant), sans attendre que ce khôlleur précis ait validé sa grille. Ils
           peuvent eux aussi cocher <strong>Absent</strong> si le khôlleur ne l&apos;a pas fait. Une fois tous les
           khôlleurs d&apos;une session validés, ils peuvent la <strong>valider</strong> à leur tour : les notes et
-          appréciations deviennent alors visibles aux étudiants concernés, qui en sont notifiés par email.
+          appréciations deviennent alors visibles aux étudiants concernés, qui en sont notifiés par email. Une fois
+          la grille d&apos;un khôlleur validée, un bouton <strong>Exporter en PDF</strong> apparaît sur sa fiche :
+          il imprime (ou enregistre en PDF depuis la boîte de dialogue d&apos;impression) uniquement cette grille,
+          sans le reste de la page.
         </p>
       </div>
 

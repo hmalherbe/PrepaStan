@@ -1,7 +1,7 @@
 "use client";
 
 import "quill/dist/quill.core.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AppreciationEditor, estAppreciationVide } from "@/components/kholleur/AppreciationEditor";
 
@@ -42,9 +42,33 @@ export function DetailSessionReferent({
   // fois, pour ne pas multiplier les éditeurs Quill montés en même temps).
   const [kholleurEnEdition, setKholleurEnEdition] = useState<string | null>(null);
   const [etatsSauvegarde, setEtatsSauvegarde] = useState<Record<string, EtatSauvegarde>>({});
+  // kholleurId dont on vient de déclencher l'export PDF (voir exporterGrillePDF
+  // ci-dessous) : tant que non nul, l'impression est restreinte à sa seule
+  // fiche (voir .export-un-kholleur dans globals.css), remis à null dès la
+  // fermeture de la boîte de dialogue d'impression (événement "afterprint").
+  const [groupeAExporter, setGroupeAExporter] = useState<string | null>(null);
 
   const totalValides = groupes.filter((g) => g.statut === "VALIDE").length;
   const toutValide = groupes.length > 0 && totalValides === groupes.length;
+
+  useEffect(() => {
+    function reinitialiser() {
+      setGroupeAExporter(null);
+    }
+    window.addEventListener("afterprint", reinitialiser);
+    return () => window.removeEventListener("afterprint", reinitialiser);
+  }, []);
+
+  useEffect(() => {
+    if (groupeAExporter) window.print();
+  }, [groupeAExporter]);
+
+  function exporterGrillePDF(kholleurId: string) {
+    // Vue en lecture seule pour l'export, jamais les champs de saisie :
+    // referme une éventuelle édition en cours avant d'imprimer.
+    setKholleurEnEdition(null);
+    setGroupeAExporter(kholleurId);
+  }
 
   function majLigne(passageId: string, champ: "valeur" | "appreciation", val: string) {
     setGroupes((prev) =>
@@ -112,8 +136,8 @@ export function DetailSessionReferent({
   }
 
   return (
-    <div>
-      <p>
+    <div className={groupeAExporter ? "export-un-kholleur" : undefined}>
+      <p className="no-print">
         {totalValides}/{groupes.length} kholleurs ont validé leur grille.{" "}
         {valide && <StatusBadge statut="VALIDE" />}
       </p>
@@ -121,23 +145,40 @@ export function DetailSessionReferent({
       {groupes.map((g) => {
         const enEdition = kholleurEnEdition === g.kholleurId;
         return (
-          <details key={g.kholleurId} className="carte fiche-kholleur-referent" open={groupes.length <= 3}>
+          <details
+            key={g.kholleurId}
+            className={`carte fiche-kholleur-referent${groupeAExporter === g.kholleurId ? " cible-impression" : ""}`}
+            open={groupeAExporter ? groupeAExporter === g.kholleurId : groupes.length <= 3}
+          >
             <summary style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
               <strong>{g.nom}</strong>
               <StatusBadge statut={g.statut} />
-              {!valide && (
-                <button
-                  type="button"
-                  className="discret"
-                  style={{ marginLeft: "auto" }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setKholleurEnEdition(enEdition ? null : g.kholleurId);
-                  }}
-                >
-                  {enEdition ? "Terminer la modification" : "Modifier"}
-                </button>
-              )}
+              <span className="no-print" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                {g.statut === "VALIDE" && (
+                  <button
+                    type="button"
+                    className="discret"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      exporterGrillePDF(g.kholleurId);
+                    }}
+                  >
+                    Exporter en PDF
+                  </button>
+                )}
+                {!valide && (
+                  <button
+                    type="button"
+                    className="discret"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setKholleurEnEdition(enEdition ? null : g.kholleurId);
+                    }}
+                  >
+                    {enEdition ? "Terminer la modification" : "Modifier"}
+                  </button>
+                )}
+              </span>
             </summary>
 
             <table style={{ marginTop: 12 }}>
@@ -223,10 +264,10 @@ export function DetailSessionReferent({
         );
       })}
 
-      {erreur && <p className="champ-erreur">{erreur}</p>}
+      {erreur && <p className="champ-erreur no-print">{erreur}</p>}
 
       {!valide && (
-        <p style={{ marginTop: 16 }}>
+        <p className="no-print" style={{ marginTop: 16 }}>
           <button onClick={validerSession} disabled={!toutValide || enCours === "session"}>
             {enCours === "session" ? "Validation…" : "Valider la session"}
           </button>

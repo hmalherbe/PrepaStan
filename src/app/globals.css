@@ -886,4 +886,12 @@ th.triable:hover {
     break-before: auto;
     page-break-before: avoid;
   }
+
+  /* Export PDF ciblé d'un seul khôlleur (bouton "Exporter en PDF" dans
+     DetailSessionReferent.tsx, qui déclenche un window.print() classique) :
+     masque les autres fiches khôlleur de la page pour n'imprimer que celle
+     demandée. */
+  .export-un-kholleur .fiche-kholleur-referent:not(.cible-impression) {
+    display: none;
+  }
 }
