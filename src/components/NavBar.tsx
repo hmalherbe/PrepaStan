@@ -35,6 +35,7 @@ const LIENS_PAR_ROLE: Record<string, Lien[]> = {
         { href: "/admin/statistiques/notes-eleves", label: "Notes par étudiant" },
         { href: "/admin/statistiques/notes-kholleurs", label: "Notes par khôlleur" },
         { href: "/admin/statistiques/nombre-kholles", label: "Nombre de khôlles" },
+        { href: "/admin/statistiques/delai-validation", label: "Délai de validation" },
       ],
     },
     { href: "/admin/guide", label: "Guide d'utilisation" },
