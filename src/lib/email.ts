@@ -1,15 +1,22 @@
-import { Resend } from "resend";
 import { MODELES_EMAIL_PAR_DEFAUT, remplacerPlaceholders } from "@/lib/modelesEmail";
 import { prisma } from "@/lib/prisma";
 
 // Sans clé configurée, on ne bloque jamais l'application pour un email : on
-// logue et on continue (utile en développement local sans compte Resend).
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// logue et on continue (utile en développement local sans compte Brevo).
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
-// Tant que le domaine d'envoi n'est pas vérifié sur Resend, seul
-// `onboarding@resend.dev` fonctionne, et uniquement vers l'adresse du compte
-// Resend lui-même — voir https://resend.com/docs/dashboard/domains/introduction.
-const EXPEDITEUR = process.env.RESEND_FROM_EMAIL ?? "PrepaStan <onboarding@resend.dev>";
+// "Nom <email>" — l'adresse doit appartenir à un domaine vérifié dans Brevo
+// (Senders, Domains & Dedicated IPs → Domains, vérification par DNS), sans
+// quoi l'envoi échoue (voir le contrôle de `reponse.ok` dans envoyerViaBrevo
+// ci-dessous). Contrairement à Resend, cette adresse n'a pas besoin d'être
+// réellement consultée : seul le domaine est vérifié, pas chaque boîte.
+const EXPEDITEUR = process.env.BREVO_FROM_EMAIL ?? "PrepaStan <contact@prepastan.fr>";
+
+// Adresse où atterrissent les réponses à nos emails (ex. un étudiant qui
+// répond à sa convocation) — distincte de l'expéditeur ci-dessus. Simple
+// en-tête email standard, sans aucune configuration ni vérification côté
+// Brevo : optionnelle (pas d'en-tête Reply-To du tout si absente).
+const REPONDRE_A = process.env.EMAIL_REPLY_TO;
 
 // Même variable que /api/auth/mot-de-passe-oublie et activationCompte.ts
 // pour construire un lien absolu — mais sans repli sur l'URL de la requête
@@ -21,30 +28,26 @@ const LIEN_PREPASTAN = process.env.NEXTAUTH_URL
   ? `<a href="${process.env.NEXTAUTH_URL}">PrepaStan</a>`
   : "PrepaStan";
 
-// Resend impose une limite de 10 requêtes/seconde PAR ÉQUIPE, tous
-// environnements et tous types d'email confondus (voir
-// https://resend.com/docs/api-reference/rate-limit) — au-delà, elle
-// répond 429, jamais retentée par les appelants ci-dessous (chacun logue
-// l'échec en console et abandonne, par design, pour ne jamais faire
-// planter l'opération déclenchante). Sans limiteur, publier un planning à
-// plus d'une dizaine d'étudiants perdait ainsi silencieusement toutes les
-// convocations au-delà de la dizaine envoyée dans la même seconde
-// (constaté en démo : 10 convocations reçues sur 29 envoyées d'un coup).
-// Espacer chaque appel d'au moins INTERVALLE_MIN_MS (avec une marge sous
-// 1000/10 = 100ms) ramène n'importe quelle rafale à un débit soutenable,
-// quelle que soit la fonction d'envoi appelante — y compris plusieurs
-// déclenchées en parallèle (ex. une publication de planning en même temps
-// qu'un rappel automatique), puisque c'est ici, dans l'unique point de
-// passage vers Resend, et non dans chaque boucle d'envoi en masse.
+// Limite de débit prudente et volontairement conservatrice : Brevo autorise
+// un débit par seconde nettement plus élevé que l'ancienne limite dure de
+// Resend (10 req/s), mais les chiffres exacts varient selon la source — et
+// cette marge ne coûte rien, le débit réel de cette appli ne dépassant
+// jamais quelques dizaines d'emails d'un coup (publication d'un planning à
+// une classe entière). Espacer chaque appel d'au moins INTERVALLE_MIN_MS
+// ramène n'importe quelle rafale à un débit soutenable, quelle que soit la
+// fonction d'envoi appelante — y compris plusieurs déclenchées en parallèle
+// (ex. une publication de planning en même temps qu'un rappel automatique),
+// puisque c'est ici, dans l'unique point de passage vers Brevo, et non dans
+// chaque boucle d'envoi en masse.
 // Réservation de créneau : lecture puis écriture de prochainCreneauDisponible
 // entièrement synchrones (aucun await entre les deux), donc jamais de
-// concurrence possible même si reserverCreneauResend() est appelée de
+// concurrence possible même si reserverCreneauEnvoi() est appelée de
 // nombreuses fois "en même temps" (Promise.allSettled sur un gros tableau) —
 // chaque appel repart toujours du dernier créneau réservé par le précédent.
 const INTERVALLE_MIN_MS = 110;
 let prochainCreneauDisponible = 0;
 
-function reserverCreneauResend(): Promise<void> {
+function reserverCreneauEnvoi(): Promise<void> {
   const maintenant = Date.now();
   const debut = Math.max(maintenant, prochainCreneauDisponible);
   prochainCreneauDisponible = debut + INTERVALLE_MIN_MS;
@@ -52,14 +55,25 @@ function reserverCreneauResend(): Promise<void> {
   return attente > 0 ? new Promise((resolve) => setTimeout(resolve, attente)) : Promise.resolve();
 }
 
+// "Nom <email>" -> { name, email } attendu par l'API Brevo (deux champs
+// séparés, contrairement au Resend précédent qui acceptait la chaîne telle
+// quelle). Sans "<...>" dans la valeur, le nom est simplement omis.
+function analyserExpediteur(valeur: string): { name?: string; email: string } {
+  const correspondance = valeur.match(/^(.*)<(.+)>$/);
+  if (!correspondance) return { email: valeur.trim() };
+  const nom = correspondance[1].trim();
+  return { name: nom || undefined, email: correspondance[2].trim() };
+}
+
 // Point de passage UNIQUE de tous les envois (quel que soit le rôle
 // destinataire — kholleur, étudiant, référent, admin) : permet le mode test
 // (Paramètres) qui redirige tout vers une même adresse, sans avoir à
 // toucher chacune des fonctions d'envoi ci-dessous. Le destinataire réel
 // est préfixé dans le sujet pour rester traçable même en mode test. Appelé
-// seulement une fois `resend` vérifié non nul par l'appelant (voir le garde
-// `if (!resend) {...}` au début de chaque fonction ci-dessous).
-async function envoyerViaResend({
+// seulement une fois `BREVO_API_KEY` vérifiée définie par l'appelant (voir
+// le garde `if (!BREVO_API_KEY) {...}` au début de chaque fonction
+// ci-dessous).
+async function envoyerViaBrevo({
   destinataire,
   subject,
   html,
@@ -71,25 +85,33 @@ async function envoyerViaResend({
   const parametres = await prisma.parametresApplication.findUnique({ where: { id: "singleton" } });
   const modeTest = parametres?.modeTestEmail && parametres.emailModeTest;
 
-  await reserverCreneauResend();
-  const { error } = await resend!.emails.send({
-    from: EXPEDITEUR,
-    to: modeTest ? parametres!.emailModeTest! : destinataire,
-    subject: modeTest ? `[TEST — destinataire réel : ${destinataire}] ${subject}` : subject,
-    html,
+  await reserverCreneauEnvoi();
+  const reponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      "api-key": BREVO_API_KEY!,
+    },
+    body: JSON.stringify({
+      sender: analyserExpediteur(EXPEDITEUR),
+      to: [{ email: modeTest ? parametres!.emailModeTest! : destinataire }],
+      ...(REPONDRE_A ? { replyTo: { email: REPONDRE_A } } : {}),
+      subject: modeTest ? `[TEST — destinataire réel : ${destinataire}] ${subject}` : subject,
+      htmlContent: html,
+    }),
   });
-  // Le SDK Resend ne lève JAMAIS d'exception pour un refus côté API (quota
-  // dépassé, domaine non vérifié, adresse invalide...) — seule une panne
-  // réseau le ferait. Sans ce contrôle explicite, error.name tel que
-  // "daily_quota_exceeded" ou "monthly_quota_exceeded" (voir
-  // https://resend.com/docs/api-reference/errors) passait totalement
-  // inaperçu : chaque fonction d'envoi ci-dessous logue son échec dans son
-  // propre catch, mais seulement si envoyerViaResend lève vraiment — d'où ce
-  // throw, pour que ces échecs apparaissent enfin dans les logs du
-  // conteneur au lieu d'être silencieusement traités comme des envois
-  // réussis.
-  if (error) {
-    throw new Error(`Resend a refusé l'envoi (${error.name}) : ${error.message}`);
+  // L'API REST de Brevo renvoie un vrai code HTTP non-2xx en cas de refus
+  // (ex. 402 pour un quota journalier/mensuel dépassé, 400 pour un domaine
+  // non vérifié) — un simple contrôle de `reponse.ok` suffit donc ici,
+  // contrairement au SDK Resend utilisé auparavant qui ne levait JAMAIS
+  // d'exception pour un refus côté API (uniquement pour une panne réseau),
+  // laissant chaque refus passer totalement inaperçu malgré le try/catch de
+  // chaque fonction d'envoi ci-dessous (bug corrigé ici à l'occasion de
+  // cette migration).
+  if (!reponse.ok) {
+    const corps = await reponse.text();
+    throw new Error(`Brevo a refusé l'envoi (${reponse.status}) : ${corps}`);
   }
 }
 
@@ -150,8 +172,8 @@ export async function envoyerEmailPublicationPlanning({
   creneaux: CreneauEmail[];
   corpsPersonnalise?: string | null;
 }): Promise<void> {
-  if (!resend) {
-    console.warn(`RESEND_API_KEY non configuré : email de publication non envoyé à ${destinataire}`);
+  if (!BREVO_API_KEY) {
+    console.warn(`BREVO_API_KEY non configuré : email de publication non envoyé à ${destinataire}`);
     return;
   }
 
@@ -169,7 +191,7 @@ export async function envoyerEmailPublicationPlanning({
   });
 
   try {
-    await envoyerViaResend({
+    await envoyerViaBrevo({
       destinataire,
       subject: `PrepaStan — Planning ${classeNom} semaine ${semaine} publié`,
       html: `
@@ -204,13 +226,13 @@ export async function envoyerEmailReinitialisationMotDePasse({
   nomUtilisateur: string;
   lien: string;
 }): Promise<void> {
-  if (!resend) {
-    console.warn(`RESEND_API_KEY non configuré : email de réinitialisation non envoyé à ${destinataire}`);
+  if (!BREVO_API_KEY) {
+    console.warn(`BREVO_API_KEY non configuré : email de réinitialisation non envoyé à ${destinataire}`);
     return;
   }
 
   try {
-    await envoyerViaResend({
+    await envoyerViaBrevo({
       destinataire,
       subject: "PrepaStan — Réinitialisation de votre mot de passe",
       html: `
@@ -231,7 +253,7 @@ export async function envoyerEmailReinitialisationMotDePasse({
 // quelle par /api/admin/envoi-identifiants/apercu pour prévisualiser le
 // rendu exact d'un email d'activation sans jamais l'envoyer — utile
 // notamment en démo, où les adresses synthétiques (ex. @demo.prepastan.local)
-// ne peuvent de toute façon recevoir aucun email réel (voir RESEND_API_KEY,
+// ne peuvent de toute façon recevoir aucun email réel (voir BREVO_API_KEY,
 // volontairement absente de .env.demo).
 export function construireEmailActivationCompte({
   prenom,
@@ -277,15 +299,15 @@ export async function envoyerEmailActivationCompte({
   nom: string;
   lien: string;
 }): Promise<void> {
-  if (!resend) {
-    console.warn(`RESEND_API_KEY non configuré : email d'activation non envoyé à ${destinataire}`);
+  if (!BREVO_API_KEY) {
+    console.warn(`BREVO_API_KEY non configuré : email d'activation non envoyé à ${destinataire}`);
     return;
   }
 
   const { subject, html } = construireEmailActivationCompte({ prenom, nom, lien });
 
   try {
-    await envoyerViaResend({ destinataire, subject, html });
+    await envoyerViaBrevo({ destinataire, subject, html });
   } catch (err) {
     console.error(`Échec de l'envoi de l'email d'activation à ${destinataire} :`, err);
   }
@@ -312,8 +334,8 @@ export async function envoyerEmailGrillesValidees({
   semaine: number;
   corpsPersonnalise?: string | null;
 }): Promise<void> {
-  if (!resend) {
-    console.warn(`RESEND_API_KEY non configuré : email de grilles validées non envoyé à ${destinataire}`);
+  if (!BREVO_API_KEY) {
+    console.warn(`BREVO_API_KEY non configuré : email de grilles validées non envoyé à ${destinataire}`);
     return;
   }
 
@@ -323,7 +345,7 @@ export async function envoyerEmailGrillesValidees({
   });
 
   try {
-    await envoyerViaResend({
+    await envoyerViaBrevo({
       destinataire,
       subject: `PrepaStan — Grilles validées : ${disciplineNom}, ${classeNom} semaine ${semaine}`,
       html: `
@@ -359,8 +381,8 @@ export async function envoyerEmailNoteDisponible({
   semaine: number;
   corpsPersonnalise?: string | null;
 }): Promise<void> {
-  if (!resend) {
-    console.warn(`RESEND_API_KEY non configuré : email de note disponible non envoyé à ${destinataire}`);
+  if (!BREVO_API_KEY) {
+    console.warn(`BREVO_API_KEY non configuré : email de note disponible non envoyé à ${destinataire}`);
     return;
   }
 
@@ -370,7 +392,7 @@ export async function envoyerEmailNoteDisponible({
   });
 
   try {
-    await envoyerViaResend({
+    await envoyerViaBrevo({
       destinataire,
       subject: `PrepaStan — Note disponible : ${disciplineNom}, ${classeNom} semaine ${semaine}`,
       html: `
@@ -421,8 +443,8 @@ export async function envoyerEmailConvocationKholle({
   semaine: number;
   creneaux: CreneauConvocationEmail[];
 }): Promise<void> {
-  if (!resend) {
-    console.warn(`RESEND_API_KEY non configuré : email de convocation non envoyé à ${destinataire}`);
+  if (!BREVO_API_KEY) {
+    console.warn(`BREVO_API_KEY non configuré : email de convocation non envoyé à ${destinataire}`);
     return;
   }
 
@@ -436,7 +458,7 @@ export async function envoyerEmailConvocationKholle({
     .join("");
 
   try {
-    await envoyerViaResend({
+    await envoyerViaBrevo({
       destinataire,
       subject: `PrepaStan — Convocation : khôlle(s) ${classeNom} semaine ${semaine}`,
       html: `
@@ -473,8 +495,8 @@ export async function envoyerEmailInvitationNotationJourMeme({
   nomKholleur: string;
   creneaux: CreneauEmail[];
 }): Promise<void> {
-  if (!resend) {
-    console.warn(`RESEND_API_KEY non configuré : email d'invitation (jour même) non envoyé à ${destinataire}`);
+  if (!BREVO_API_KEY) {
+    console.warn(`BREVO_API_KEY non configuré : email d'invitation (jour même) non envoyé à ${destinataire}`);
     return;
   }
 
@@ -487,7 +509,7 @@ export async function envoyerEmailInvitationNotationJourMeme({
     .join("");
 
   try {
-    await envoyerViaResend({
+    await envoyerViaBrevo({
       destinataire,
       subject: "PrepaStan — Vous khôllez aujourd'hui",
       html: `

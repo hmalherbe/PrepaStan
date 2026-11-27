@@ -105,20 +105,20 @@ kholleur (voir `expanserDisponibilites()` dans
 À la publication d'un planning (`POST /api/admin/planification/[classeId]/[semaine]/publier`),
 chaque kholleur concerné reçoit un email récapitulant ses créneaux de la
 semaine (jour, horaire, discipline, salle, élèves), envoyé via
-[Resend](https://resend.com) (`src/lib/email.ts`).
+[Brevo](https://www.brevo.com) (`src/lib/email.ts`).
 
-- Créez un compte gratuit sur [resend.com](https://resend.com), récupérez
-  une clé API et renseignez `RESEND_API_KEY` dans `.env`.
-- Sans `RESEND_API_KEY`, l'envoi est simplement ignoré (message loggé en
+- Créez un compte gratuit sur [brevo.com](https://www.brevo.com), récupérez
+  une clé API (SMTP & API > API Keys) et renseignez `BREVO_API_KEY` dans `.env`.
+- Sans `BREVO_API_KEY`, l'envoi est simplement ignoré (message loggé en
   console) — la publication du planning n'est jamais bloquée par un souci
   d'email.
-- Tant que vous n'avez pas vérifié votre propre nom de domaine sur Resend,
-  laissez `RESEND_FROM_EMAIL` à sa valeur par défaut
-  (`PrepaStan <onboarding@resend.dev>`) : les emails ne peuvent alors être
-  envoyés qu'à l'adresse de votre propre compte Resend, ce qui suffit pour
-  tester. Pour notifier de vraies adresses de kholleurs, il faut vérifier un
-  domaine sur Resend puis mettre `RESEND_FROM_EMAIL` à une adresse de ce
-  domaine.
+- Pour notifier de vraies adresses, vérifiez votre domaine dans Brevo
+  (Senders, Domains & Dedicated IPs > Domains > Add a domain, par DNS) puis
+  mettez `BREVO_FROM_EMAIL` à une adresse de ce domaine — elle n'a pas besoin
+  d'être une boîte réellement consultée, seul le domaine est vérifié.
+- `EMAIL_REPLY_TO` (optionnel) fixe une adresse de réponse différente de
+  l'expéditeur, pour que les réponses des destinataires arrivent dans une
+  vraie boîte surveillée.
 
 ## Authentification
 
