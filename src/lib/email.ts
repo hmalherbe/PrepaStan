@@ -72,12 +72,25 @@ async function envoyerViaResend({
   const modeTest = parametres?.modeTestEmail && parametres.emailModeTest;
 
   await reserverCreneauResend();
-  await resend!.emails.send({
+  const { error } = await resend!.emails.send({
     from: EXPEDITEUR,
     to: modeTest ? parametres!.emailModeTest! : destinataire,
     subject: modeTest ? `[TEST — destinataire réel : ${destinataire}] ${subject}` : subject,
     html,
   });
+  // Le SDK Resend ne lève JAMAIS d'exception pour un refus côté API (quota
+  // dépassé, domaine non vérifié, adresse invalide...) — seule une panne
+  // réseau le ferait. Sans ce contrôle explicite, error.name tel que
+  // "daily_quota_exceeded" ou "monthly_quota_exceeded" (voir
+  // https://resend.com/docs/api-reference/errors) passait totalement
+  // inaperçu : chaque fonction d'envoi ci-dessous logue son échec dans son
+  // propre catch, mais seulement si envoyerViaResend lève vraiment — d'où ce
+  // throw, pour que ces échecs apparaissent enfin dans les logs du
+  // conteneur au lieu d'être silencieusement traités comme des envois
+  // réussis.
+  if (error) {
+    throw new Error(`Resend a refusé l'envoi (${error.name}) : ${error.message}`);
+  }
 }
 
 export type CreneauEmail = {
