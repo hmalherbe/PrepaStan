@@ -509,3 +509,14 @@ model EchecEnvoiEmail {
 
   @@index([dateEnvoi])
 }
+
+// Garde-fou (un seul envoi par semaine), même principe que
+// RappelJourMemeEnvoye : semaineDebut est le lundi (minuit UTC, même
+// convention que Creneau.date) de la semaine dont le résumé vient d'être
+// envoyé — voir envoyerResumeHebdomadaireSiNecessaire dans
+// src/lib/resumeHebdomadaire.ts.
+model ResumeHebdoEnvoye {
+  id           String   @id @default(cuid())
+  semaineDebut DateTime @unique
+  dateEnvoi    DateTime @default(now())
+}

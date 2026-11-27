@@ -1,14 +1,16 @@
 // Hook de démarrage du serveur Next.js (exécuté une fois au lancement du
 // processus, y compris en build "standalone" — voir Dockerfile). Sert ici à
 // planifier la vérification périodique de l'invitation du jour même
-// (kholleurs) et du rappel de validation (référents), sans avoir à ajouter
-// un service de cron séparé au docker-compose de production.
+// (kholleurs), du rappel de validation (référents) et du résumé
+// hebdomadaire, sans avoir à ajouter un service de cron séparé au
+// docker-compose de production.
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
   const { envoyerInvitationsJourMemeEnAttente, envoyerRappelsValidationReferentEnAttente } = await import(
     "@/lib/rappelsNotation"
   );
+  const { envoyerResumeHebdomadaireSiNecessaire } = await import("@/lib/resumeHebdomadaire");
 
   // 15 min : assez fin pour détecter le passage de 9h (heure de Paris, voir
   // envoyerInvitationsJourMemeEnAttente) sans attendre inutilement — ce
@@ -21,8 +23,8 @@ export async function register() {
   // (délai configurable dans Paramètres, au plus un envoi par session).
   const INTERVALLE_MS = 15 * 60 * 1000;
 
-  // Deux try/catch séparés : un échec sur l'un des deux rappels (ex. erreur
-  // base de données ponctuelle) ne doit jamais empêcher l'autre de tourner.
+  // Trois try/catch séparés : un échec sur l'un des rappels (ex. erreur base
+  // de données ponctuelle) ne doit jamais empêcher les autres de tourner.
   async function verifier() {
     try {
       const { envoyes } = await envoyerInvitationsJourMemeEnAttente();
@@ -40,6 +42,15 @@ export async function register() {
       }
     } catch (err) {
       console.error("[rappels-notation] échec de la vérification (référents) :", err);
+    }
+
+    try {
+      const { envoye } = await envoyerResumeHebdomadaireSiNecessaire();
+      if (envoye) {
+        console.log("[resume-hebdomadaire] résumé de la semaine envoyé");
+      }
+    } catch (err) {
+      console.error("[resume-hebdomadaire] échec de la vérification :", err);
     }
   }
 

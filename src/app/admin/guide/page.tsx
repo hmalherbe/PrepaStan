@@ -214,7 +214,9 @@ export default async function GuidePage() {
           rouge, et un référent manquant est signalé explicitement. La même page liste aussi les derniers échecs
           d&apos;envoi d&apos;email (quota dépassé, domaine non vérifié, adresse invalide...), tous types
           confondus — un envoi qui échoue ne bloque jamais l&apos;action qui l&apos;a déclenché (publication,
-          validation...), d&apos;où l&apos;intérêt de ce suivi pour s&apos;en rendre compte.
+          validation...), d&apos;où l&apos;intérêt de ce suivi pour s&apos;en rendre compte. Un résumé condensé de
+          ces mêmes informations (clôtures et validations de la semaine écoulée, échecs d&apos;email, sessions
+          encore bloquées) est aussi envoyé par email chaque lundi matin, sans avoir à se connecter.
         </p>
         <p>
           L&apos;écran <strong>Statistiques</strong> (filtrable par classe) montre la charge de chaque khôlleur, le

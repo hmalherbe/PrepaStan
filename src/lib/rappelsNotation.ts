@@ -1,18 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { dateDuJourParis, heureActuelleParis } from "@/lib/dateParis";
 import { envoyerEmailGrillesValidees, envoyerEmailInvitationNotationJourMeme } from "@/lib/email";
 import { compterGrillesNonValidees } from "@/lib/sessionValidation";
-
-// "Aujourd'hui" en heure de Paris, sous la forme d'une Date à minuit UTC —
-// même convention que Creneau.date (un jour calendaire, pas un horodatage).
-// Toujours appelée après 9h (voir juste en dessous), donc jamais près d'un
-// changement de jour UTC ambigu pour la France.
-function dateDuJourParis(maintenant: Date): Date {
-  const [annee, mois, jour] = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" })
-    .format(maintenant)
-    .split("-")
-    .map(Number);
-  return new Date(Date.UTC(annee, mois - 1, jour));
-}
 
 // Invite chaque kholleur qui khôlle aujourd'hui (créneau du jour même) à
 // saisir notes et appréciations une fois sa khôlle terminée — un seul email
@@ -26,10 +15,7 @@ function dateDuJourParis(maintenant: Date): Date {
 // configurable) : voir RappelJourMemeEnvoye dans schema.prisma.
 export async function envoyerInvitationsJourMemeEnAttente(): Promise<{ envoyes: number }> {
   const maintenant = new Date();
-  const heureParis = Number(
-    new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }).format(maintenant)
-  );
-  if (heureParis < 9) return { envoyes: 0 };
+  if (heureActuelleParis(maintenant) < 9) return { envoyes: 0 };
 
   const aujourdhui = dateDuJourParis(maintenant);
 

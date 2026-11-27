@@ -18,6 +18,12 @@ const EXPEDITEUR = process.env.BREVO_FROM_EMAIL ?? "PrepaStan <contact@prepastan
 // Brevo : optionnelle (pas d'en-tête Reply-To du tout si absente).
 const REPONDRE_A = process.env.EMAIL_REPLY_TO;
 
+// Destinataire du résumé hebdomadaire (voir envoyerEmailResumeHebdomadaire
+// plus bas) : une adresse fixe réellement surveillée, pas forcément celle
+// d'un compte ADMIN de l'appli (voir orgad1@stanislas-nice.com, déjà utilisée
+// comme Reply-To ci-dessus).
+const DESTINATAIRE_RESUME_HEBDO = process.env.EMAIL_RESUME_HEBDO ?? "orgad1@stanislas-nice.com";
+
 // Même variable que /api/auth/mot-de-passe-oublie et activationCompte.ts
 // pour construire un lien absolu — mais sans repli sur l'URL de la requête
 // ici (les fonctions ci-dessous n'ont pas accès à `req`, voir leurs appelants
@@ -579,5 +585,60 @@ export async function envoyerEmailInvitationNotationJourMeme({
     });
   } catch (err) {
     await enregistrerEchecEnvoi({ type: "invitation_jour_meme", destinataire, erreur: err });
+  }
+}
+
+// Digest hebdomadaire envoyé à DESTINATAIRE_RESUME_HEBDO (voir
+// envoyerResumeHebdomadaireSiNecessaire dans src/lib/resumeHebdomadaire.ts,
+// appelée chaque lundi matin) : ce que ce destinataire pourrait vouloir
+// savoir sans avoir à se connecter — clôtures et validations de la semaine
+// écoulée, échecs d'envoi d'email, et l'état actuel des sessions encore
+// bloquées (pas limité à la semaine, puisqu'une session bloquée depuis
+// avant reste pertinente). N'échoue jamais bruyamment, comme les autres
+// emails ci-dessus.
+export async function envoyerEmailResumeHebdomadaire({
+  cloturesSemaine,
+  validationsSemaine,
+  echecsSemaine,
+  nombreSessionsBloquees,
+  plusAncienne,
+}: {
+  cloturesSemaine: number;
+  validationsSemaine: number;
+  echecsSemaine: number;
+  nombreSessionsBloquees: number;
+  plusAncienne: { classeNom: string; disciplineNom: string; semaine: number; jours: number } | null;
+}): Promise<void> {
+  if (!BREVO_API_KEY) {
+    console.warn(`BREVO_API_KEY non configuré : résumé hebdomadaire non envoyé à ${DESTINATAIRE_RESUME_HEBDO}`);
+    return;
+  }
+
+  try {
+    await envoyerViaBrevo({
+      destinataire: DESTINATAIRE_RESUME_HEBDO,
+      subject: "PrepaStan — Résumé de la semaine",
+      html: `
+        <p>Bonjour,</p>
+        <p>Voici le résumé de la semaine écoulée :</p>
+        <ul>
+          <li>${cloturesSemaine} session(s) clôturée(s) par un référent</li>
+          <li>${validationsSemaine} grille(s) validée(s) par un khôlleur</li>
+          <li>${echecsSemaine} échec(s) d'envoi d'email</li>
+        </ul>
+        <p>
+          ${nombreSessionsBloquees} session(s) actuellement publiée(s) mais pas encore clôturée(s)
+          ${
+            plusAncienne
+              ? `, la plus ancienne : ${plusAncienne.disciplineNom}, ${plusAncienne.classeNom} semaine ` +
+                `${plusAncienne.semaine} (depuis ${plusAncienne.jours} jour(s))`
+              : ""
+          }.
+        </p>
+        <p>Connectez-vous à ${LIEN_PREPASTAN} (écran Suivi) pour le détail.</p>
+      `,
+    });
+  } catch (err) {
+    await enregistrerEchecEnvoi({ type: "resume_hebdomadaire", destinataire: DESTINATAIRE_RESUME_HEBDO, erreur: err });
   }
 }
