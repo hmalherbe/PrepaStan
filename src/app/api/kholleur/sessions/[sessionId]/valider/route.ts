@@ -29,6 +29,12 @@ export async function POST(
       { status: 409 }
     );
   }
+  if (sessionKholle.statut === "PLANIFICATION") {
+    return NextResponse.json(
+      { error: "Planning pas encore publié, validation impossible" },
+      { status: 409 }
+    );
+  }
 
   const passagesIncomplets = await prisma.passage.count({
     where: {

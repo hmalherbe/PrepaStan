@@ -16,7 +16,9 @@ export default async function GrilleKholleurPage({
     where: { id: sessionId },
     include: { classe: true, discipline: true },
   });
-  if (!sessionKholle) notFound();
+  // Pas encore publiée (voir /kholleur/sessions/page.tsx qui filtre déjà
+  // cette liste) : jamais accessible non plus par accès direct à l'URL.
+  if (!sessionKholle || sessionKholle.statut === "PLANIFICATION") notFound();
 
   const creneaux = await prisma.creneau.findMany({
     where: { sessionKholleId: sessionId, kholleurId },

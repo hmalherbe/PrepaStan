@@ -8,7 +8,11 @@ export default async function KholleurSessionsPage() {
   const kholleurId = session.user.id;
 
   const sessions = await prisma.sessionKholle.findMany({
-    where: { creneaux: { some: { kholleurId } } },
+    // statut PLANIFICATION = planning généré mais pas encore publié (voir
+    // /api/admin/planification/[classeId]/[semaine]/publier) : jamais
+    // diffusé aux khôlleurs avant ce moment-là, même si des créneaux leur
+    // sont déjà affectés dans le brouillon.
+    where: { creneaux: { some: { kholleurId } }, statut: { not: "PLANIFICATION" } },
     include: { classe: true, discipline: true },
     orderBy: [{ semaine: "desc" }],
   });

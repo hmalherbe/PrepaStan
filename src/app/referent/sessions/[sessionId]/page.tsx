@@ -27,7 +27,9 @@ export default async function DetailSessionReferentPage({
       },
     },
   });
-  if (!sessionKholle) notFound();
+  // Pas encore publiée (voir /referent/sessions/page.tsx qui filtre déjà
+  // cette liste) : jamais accessible non plus par accès direct à l'URL.
+  if (!sessionKholle || sessionKholle.statut === "PLANIFICATION") notFound();
 
   const estReferent = await prisma.professeurReferent.findFirst({
     where: {

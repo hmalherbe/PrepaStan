@@ -12,7 +12,14 @@ export default async function ReferentSessionsPage() {
 
   const sessions = await prisma.sessionKholle.findMany({
     where: {
-      OR: referents.map((r) => ({ classeId: r.classeId, disciplineId: r.disciplineId })),
+      // statut PLANIFICATION = planning généré mais pas encore publié (voir
+      // /api/admin/planification/[classeId]/[semaine]/publier) : jamais
+      // diffusé aux référents avant ce moment-là, même pour leur(s)
+      // discipline(s).
+      AND: [
+        { OR: referents.map((r) => ({ classeId: r.classeId, disciplineId: r.disciplineId })) },
+        { statut: { not: "PLANIFICATION" } },
+      ],
     },
     include: {
       classe: true,

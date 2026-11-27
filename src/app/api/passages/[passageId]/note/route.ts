@@ -34,10 +34,13 @@ const OPTIONS_SANITIZE_APPRECIATION: sanitizeHtml.IOptions = {
 };
 
 // PUT /api/passages/:passageId/note
-// Upsert de la note et de l'appréciation. Rejeté seulement une fois le
-// référent a validé la session (SessionKholle.statut === CLOTUREE) : avant
-// ça, le kholleur peut revenir sur sa grille autant de fois qu'il veut,
-// même après avoir cliqué "Valider ma grille" (voir GrilleForm.tsx).
+// Upsert de la note et de l'appréciation. Rejeté une fois le référent a
+// validé la session (SessionKholle.statut === CLOTUREE) — avant ça, le
+// kholleur peut revenir sur sa grille autant de fois qu'il veut, même après
+// avoir cliqué "Valider ma grille" (voir GrilleForm.tsx) — et aussi tant que
+// le planning n'a pas encore été publié (statut === PLANIFICATION), jamais
+// accessible au kholleur avant ce moment-là (voir /kholleur/sessions/
+// page.tsx qui filtre déjà ces sessions de la liste).
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ passageId: string }> }
@@ -60,6 +63,12 @@ export async function PUT(
   if (passage.creneau.sessionKholle.statut === "CLOTUREE") {
     return NextResponse.json(
       { error: "Session déjà validée par le référent, modification impossible" },
+      { status: 409 }
+    );
+  }
+  if (passage.creneau.sessionKholle.statut === "PLANIFICATION") {
+    return NextResponse.json(
+      { error: "Planning pas encore publié, saisie impossible" },
       { status: 409 }
     );
   }

@@ -31,6 +31,12 @@ export async function POST(
   if (!estReferent) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
+  if (session.statut === "PLANIFICATION") {
+    return NextResponse.json(
+      { error: "Planning pas encore publié, validation impossible" },
+      { status: 409 }
+    );
+  }
 
   const grillesNonValidees = await compterGrillesNonValidees(sessionKholleId);
 

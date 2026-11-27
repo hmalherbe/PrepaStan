@@ -56,6 +56,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ passageI
       { status: 409 }
     );
   }
+  if (passage.creneau.sessionKholle.statut === "PLANIFICATION") {
+    return NextResponse.json(
+      { error: "Planning pas encore publié, modification impossible" },
+      { status: 409 }
+    );
+  }
 
   const appreciation = body.appreciation
     ? sanitizeHtml(body.appreciation, OPTIONS_SANITIZE_APPRECIATION)
