@@ -387,8 +387,11 @@ export function GenererPlanningForm({
     !referentsIncomplets &&
     !affectationsForceesIncompletes;
 
-  async function lancer(forcerMalgreIndisponibilites = false) {
+  async function lancer(
+    options: { forcerMalgreIndisponibilites?: boolean; confirmerEcrasementPlanning?: boolean } = {}
+  ) {
     if (semaine === null) return;
+    const { forcerMalgreIndisponibilites = false, confirmerEcrasementPlanning = false } = options;
     setStatutJob("EN_COURS");
     setMessageJob(null);
 
@@ -415,14 +418,22 @@ export function GenererPlanningForm({
           heureDebut: a.heureDebut || undefined,
         })),
         forcerMalgreIndisponibilites,
+        confirmerEcrasementPlanning,
       }),
     });
     const data = await res.json();
     if (!res.ok) {
+      // Deux motifs distincts peuvent chacun demander confirmation (voir
+      // route.ts) : enchaînés l'un après l'autre si besoin, chacun avec son
+      // propre message, en conservant la confirmation déjà obtenue pour
+      // l'autre motif entre les deux tentatives.
       if (data.confirmationRequise) {
         setStatutJob(null);
         if (confirm(`${data.error}\n\nLancer quand même le calcul du planning ?`)) {
-          await lancer(true);
+          await lancer({
+            forcerMalgreIndisponibilites: data.type === "indisponibilites" ? true : forcerMalgreIndisponibilites,
+            confirmerEcrasementPlanning: data.type === "ecrasement_planning" ? true : confirmerEcrasementPlanning,
+          });
         }
         return;
       }

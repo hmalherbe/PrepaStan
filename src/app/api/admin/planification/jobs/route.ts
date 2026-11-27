@@ -58,6 +58,11 @@ const bodySchema = z.object({
   // rejouer un historique réel incomplet (absences non documentées). Un
   // total SUPÉRIEUR à l'effectif reste toujours une erreur, drapeau ou pas.
   permettreEffectifPartiel: z.boolean().optional().default(false),
+  // Si la (classe, semaine) régénérée contient une discipline déjà publiée
+  // (donc potentiellement déjà notée par un khôlleur), le calcul est d'abord
+  // refusé (voir plus bas) pour laisser l'admin confirmer explicitement
+  // qu'il veut écraser ce qui existe déjà.
+  confirmerEcrasementPlanning: z.boolean().optional().default(false),
 });
 
 // POST /api/admin/planification/jobs
@@ -82,10 +87,52 @@ export async function POST(req: Request) {
     affectationsForcees,
     forcerMalgreIndisponibilites,
     permettreEffectifPartiel,
+    confirmerEcrasementPlanning,
   } = bodySchema.parse(await req.json());
 
   const disciplineIds = [...new Set(quotas.map((q) => q.disciplineId))];
   const kholleurIds = [...new Set(quotas.map((q) => q.kholleurId))];
+
+  // Le callback de fin de calcul (/api/internal/planification/callback)
+  // supprime intégralement les créneaux déjà en base pour cette (classe,
+  // semaine, discipline) — et avec eux, en cascade, les notes/appréciations
+  // et les validations (kholleur et référent) qui portaient dessus — avant
+  // d'écrire les nouveaux. Une session déjà CLOTUREE a été communiquée aux
+  // étudiants (email "note disponible") : la régénérer effacerait des notes
+  // réellement rendues sans aucun moyen de revenir en arrière, donc refusé
+  // sans échappatoire. Une session seulement PLANIFIEE (publiée, pas encore
+  // clôturée) peut déjà avoir des notes saisies par le khôlleur ou être
+  // validée par lui : demande une confirmation explicite, comme pour les
+  // disponibilités ci-dessous.
+  const sessionsExistantes = await prisma.sessionKholle.findMany({
+    where: { classeId, semaine, disciplineId: { in: disciplineIds } },
+    include: { discipline: { select: { nom: true } } },
+  });
+  const sessionsCloturees = sessionsExistantes.filter((s) => s.statut === "CLOTUREE");
+  if (sessionsCloturees.length > 0) {
+    return NextResponse.json(
+      {
+        error:
+          `Session(s) déjà clôturée(s) par le référent (notes communiquées aux étudiants), régénération ` +
+          `impossible : ${sessionsCloturees.map((s) => s.discipline.nom).join(", ")}`,
+      },
+      { status: 409 }
+    );
+  }
+  const sessionsPubliees = sessionsExistantes.filter((s) => s.statut === "PLANIFIEE");
+  if (sessionsPubliees.length > 0 && !confirmerEcrasementPlanning) {
+    return NextResponse.json(
+      {
+        confirmationRequise: true,
+        type: "ecrasement_planning",
+        error:
+          `Session(s) déjà publiée(s) (les khôlleurs ont peut-être déjà commencé à saisir des notes), régénérer ` +
+          `remplacera entièrement l'ancien planning et toute note déjà saisie : ` +
+          `${sessionsPubliees.map((s) => s.discipline.nom).join(", ")}`,
+      },
+      { status: 409 }
+    );
+  }
 
   const eleves = await prisma.eleve.findMany({
     where: { classeId },
@@ -486,6 +533,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         confirmationRequise: true,
+        type: "indisponibilites",
         error: `Certains créneaux dépassent les disponibilités déclarées : ${erreursCapacite.join(" ; ")}`,
       },
       { status: 409 }
