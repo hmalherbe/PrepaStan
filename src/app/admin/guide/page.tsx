@@ -211,7 +211,10 @@ export default async function GuidePage() {
           (et les noms de ceux qui n&apos;ont pas encore validé), puis l&apos;état du référent une fois tous les
           khôlleurs passés — pratique pour repérer d&apos;un coup d&apos;œil où ça bloque, sans ouvrir chaque
           session une par une. Une session restée plus d&apos;une semaine sans être clôturée est mise en évidence en
-          rouge, et un référent manquant est signalé explicitement.
+          rouge, et un référent manquant est signalé explicitement. La même page liste aussi les derniers échecs
+          d&apos;envoi d&apos;email (quota dépassé, domaine non vérifié, adresse invalide...), tous types
+          confondus — un envoi qui échoue ne bloque jamais l&apos;action qui l&apos;a déclenché (publication,
+          validation...), d&apos;où l&apos;intérêt de ce suivi pour s&apos;en rendre compte.
         </p>
         <p>
           L&apos;écran <strong>Statistiques</strong> (filtrable par classe) montre la charge de chaque khôlleur, le

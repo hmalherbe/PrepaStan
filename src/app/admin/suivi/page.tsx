@@ -13,6 +13,20 @@ function joursDepuis(date: Date): number {
   return Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+// Correspond un par un aux valeurs `type` écrites par enregistrerEchecEnvoi
+// dans src/lib/email.ts.
+const LIBELLE_TYPE_EMAIL: Record<string, string> = {
+  publication_planning: "Publication planning",
+  reinitialisation_mot_de_passe: "Réinitialisation mot de passe",
+  activation_compte: "Activation de compte",
+  grilles_validees: "Grilles validées",
+  note_disponible: "Note disponible",
+  convocation: "Convocation",
+  invitation_jour_meme: "Invitation jour même",
+};
+
+const NOMBRE_ECHECS_AFFICHES = 20;
+
 export default async function SuiviPage() {
   await requirePageSession(["ADMIN"]);
 
@@ -33,6 +47,11 @@ export default async function SuiviPage() {
       },
     },
     orderBy: [{ dateDebut: "asc" }],
+  });
+
+  const echecsEnvoi = await prisma.echecEnvoiEmail.findMany({
+    orderBy: { dateEnvoi: "desc" },
+    take: NOMBRE_ECHECS_AFFICHES,
   });
 
   const sessionIds = sessions.map((s) => s.id);
@@ -125,6 +144,43 @@ export default async function SuiviPage() {
           {lignes.length === 0 && (
             <tr>
               <td colSpan={6}>Aucune session en attente — tout est à jour.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      <h2 style={{ marginTop: 32 }}>Derniers échecs d&apos;envoi d&apos;email</h2>
+      <div className="carte">
+        <p>
+          Les {NOMBRE_ECHECS_AFFICHES} échecs les plus récents (quota Brevo dépassé, domaine non vérifié,
+          adresse invalide, panne réseau...), tous types d&apos;email confondus — ce que la publication d&apos;un
+          planning ou une validation ne font jamais échouer de leur côté : l&apos;envoi est tenté en arrière-plan,
+          sans jamais bloquer l&apos;action qui le déclenche.
+        </p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Destinataire</th>
+            <th>Contexte</th>
+            <th>Erreur</th>
+          </tr>
+        </thead>
+        <tbody>
+          {echecsEnvoi.map((e) => (
+            <tr key={e.id}>
+              <td style={{ whiteSpace: "nowrap" }}>{e.dateEnvoi.toLocaleString("fr-FR")}</td>
+              <td>{LIBELLE_TYPE_EMAIL[e.type] ?? e.type}</td>
+              <td>{e.destinataire}</td>
+              <td>{e.contexte ?? "—"}</td>
+              <td style={{ fontSize: "0.85rem", color: "#777" }}>{e.erreur}</td>
+            </tr>
+          ))}
+          {echecsEnvoi.length === 0 && (
+            <tr>
+              <td colSpan={5}>Aucun échec d&apos;envoi récent.</td>
             </tr>
           )}
         </tbody>

@@ -115,6 +115,37 @@ async function envoyerViaBrevo({
   }
 }
 
+// Journalise un échec d'envoi : console (comme avant) + une ligne en base
+// (EchecEnvoiEmail), consultable sur /admin/suivi plutôt que de rester
+// enfoui dans les logs du conteneur. Volontairement séparée de l'appel à
+// envoyerViaBrevo ci-dessus : chaque fonction d'envoi ci-dessous reste seule
+// à connaître son propre `type` et son `contexte` (classe/semaine/
+// discipline le cas échéant). N'aggrave jamais l'échec d'origine si
+// l'écriture en base échoue à son tour (ex. base momentanément
+// injoignable) : simple log de secours, jamais relancé vers l'appelant.
+async function enregistrerEchecEnvoi({
+  type,
+  destinataire,
+  contexte,
+  erreur,
+}: {
+  type: string;
+  destinataire: string;
+  contexte?: string;
+  erreur: unknown;
+}): Promise<void> {
+  const message = erreur instanceof Error ? erreur.message : String(erreur);
+  console.error(
+    `Échec de l'envoi de l'email (${type}) à ${destinataire}${contexte ? ` [${contexte}]` : ""} :`,
+    erreur
+  );
+  try {
+    await prisma.echecEnvoiEmail.create({ data: { type, destinataire, contexte: contexte ?? null, erreur: message } });
+  } catch (err) {
+    console.error("Échec de l'enregistrement en base de l'échec d'envoi ci-dessus :", err);
+  }
+}
+
 export type CreneauEmail = {
   date: Date;
   heureDebut: string;
@@ -209,7 +240,12 @@ export async function envoyerEmailPublicationPlanning({
       `,
     });
   } catch (err) {
-    console.error(`Échec de l'envoi de l'email de publication à ${destinataire} :`, err);
+    await enregistrerEchecEnvoi({
+      type: "publication_planning",
+      destinataire,
+      contexte: `${classeNom} semaine ${semaine}`,
+      erreur: err,
+    });
   }
 }
 
@@ -245,7 +281,7 @@ export async function envoyerEmailReinitialisationMotDePasse({
       `,
     });
   } catch (err) {
-    console.error(`Échec de l'envoi de l'email de réinitialisation à ${destinataire} :`, err);
+    await enregistrerEchecEnvoi({ type: "reinitialisation_mot_de_passe", destinataire, erreur: err });
   }
 }
 
@@ -309,7 +345,7 @@ export async function envoyerEmailActivationCompte({
   try {
     await envoyerViaBrevo({ destinataire, subject, html });
   } catch (err) {
-    console.error(`Échec de l'envoi de l'email d'activation à ${destinataire} :`, err);
+    await enregistrerEchecEnvoi({ type: "activation_compte", destinataire, erreur: err });
   }
 }
 
@@ -355,7 +391,12 @@ export async function envoyerEmailGrillesValidees({
       `,
     });
   } catch (err) {
-    console.error(`Échec de l'envoi de l'email de grilles validées à ${destinataire} :`, err);
+    await enregistrerEchecEnvoi({
+      type: "grilles_validees",
+      destinataire,
+      contexte: `${disciplineNom}, ${classeNom} semaine ${semaine}`,
+      erreur: err,
+    });
   }
 }
 
@@ -402,7 +443,12 @@ export async function envoyerEmailNoteDisponible({
       `,
     });
   } catch (err) {
-    console.error(`Échec de l'envoi de l'email de note disponible à ${destinataire} :`, err);
+    await enregistrerEchecEnvoi({
+      type: "note_disponible",
+      destinataire,
+      contexte: `${disciplineNom}, ${classeNom} semaine ${semaine}`,
+      erreur: err,
+    });
   }
 }
 
@@ -476,7 +522,12 @@ export async function envoyerEmailConvocationKholle({
       `,
     });
   } catch (err) {
-    console.error(`Échec de l'envoi de l'email de convocation à ${destinataire} :`, err);
+    await enregistrerEchecEnvoi({
+      type: "convocation",
+      destinataire,
+      contexte: `${classeNom} semaine ${semaine}`,
+      erreur: err,
+    });
   }
 }
 
@@ -527,6 +578,6 @@ export async function envoyerEmailInvitationNotationJourMeme({
       `,
     });
   } catch (err) {
-    console.error(`Échec de l'envoi de l'email d'invitation (jour même) à ${destinataire} :`, err);
+    await enregistrerEchecEnvoi({ type: "invitation_jour_meme", destinataire, erreur: err });
   }
 }

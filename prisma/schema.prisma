@@ -481,3 +481,31 @@ model RappelValidationReferentEnvoye {
 
   @@unique([sessionKholleId, referentId])
 }
+
+// Journal des échecs d'envoi Brevo (voir envoyerViaBrevo dans
+// src/lib/email.ts) : quota dépassé, domaine non vérifié, adresse invalide,
+// panne réseau... Avant son ajout, ces échecs n'existaient que dans les
+// logs du conteneur (console.error), invisibles sans y aller chercher
+// explicitement — affiché désormais sur /admin/suivi. Pas de relation vers
+// une entité précise (session, utilisateur...) : les emails concernés sont
+// trop divers (activation de compte, réinitialisation de mot de passe...)
+// pour qu'un seul type de clé étrangère couvre tous les cas ; `contexte`
+// (classe/semaine/discipline quand pertinent) suffit à identifier le
+// destinataire concerné sans ce couplage. Jamais purgé automatiquement
+// (journal d'historique, pas un état à faire disparaître) : à reconsidérer
+// si le volume devient gênant en pratique.
+model EchecEnvoiEmail {
+  id           String   @id @default(cuid())
+  // Identifie la fonction d'envoi d'origine (ex. "activation_compte",
+  // "convocation", "publication_planning"...), pour filtrer/regrouper sans
+  // avoir à parser le message d'erreur.
+  type         String
+  destinataire String
+  // Précision libre selon le type d'email (ex. "MP2I-1 semaine 12"),
+  // absente quand ça n'a pas de sens (ex. réinitialisation de mot de passe).
+  contexte     String?
+  erreur       String
+  dateEnvoi    DateTime @default(now())
+
+  @@index([dateEnvoi])
+}
