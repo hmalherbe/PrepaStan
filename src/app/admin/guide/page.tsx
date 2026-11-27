@@ -206,6 +206,14 @@ export default async function GuidePage() {
 
         <h3>Suivre l&apos;avancement</h3>
         <p>
+          L&apos;écran <strong>Suivi</strong> liste toutes les sessions déjà publiées mais pas encore clôturées par
+          le référent, des plus anciennes aux plus récentes, avec le nombre de khôlleurs ayant validé leur grille
+          (et les noms de ceux qui n&apos;ont pas encore validé), puis l&apos;état du référent une fois tous les
+          khôlleurs passés — pratique pour repérer d&apos;un coup d&apos;œil où ça bloque, sans ouvrir chaque
+          session une par une. Une session restée plus d&apos;une semaine sans être clôturée est mise en évidence en
+          rouge, et un référent manquant est signalé explicitement.
+        </p>
+        <p>
           L&apos;écran <strong>Statistiques</strong> (filtrable par classe) montre la charge de chaque khôlleur, le
           score horaire moyen par étudiant, la diversité des khôlleurs vus par étudiant et par discipline, ainsi que
           le taux d&apos;alternance LV1/LV2. Le sous-écran <strong>Notes par khôlleur</strong> liste, toutes classes
