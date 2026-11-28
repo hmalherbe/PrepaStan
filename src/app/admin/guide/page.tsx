@@ -221,7 +221,10 @@ export default async function GuidePage() {
         <p>
           L&apos;écran <strong>Statistiques</strong> (filtrable par classe) montre la charge de chaque khôlleur, le
           score horaire moyen par étudiant, la diversité des khôlleurs vus par étudiant et par discipline, ainsi que
-          le taux d&apos;alternance LV1/LV2. Le sous-écran <strong>Notes par khôlleur</strong> liste, toutes classes
+          le taux d&apos;alternance LV1/LV2. Le sous-écran <strong>Distribution des notes</strong> affiche un
+          histogramme (par tranches de 2 points), filtrable par discipline et par khôlleur, avec moyenne, médiane et
+          écart-type — pour voir la forme de la distribution (resserrée, étalée, bimodale...) plutôt que la seule
+          moyenne. Le sous-écran <strong>Notes par khôlleur</strong> liste, toutes classes
           confondues, la note minimale, maximale, moyenne et le nombre de notes attribuées par chaque khôlleur. Le
           sous-écran <strong>Nombre de khôlles</strong> affiche deux graphiques en anneau, toutes classes
           confondues : le nombre de sessions par discipline, et le nombre de khôlles dispensées par discipline.
