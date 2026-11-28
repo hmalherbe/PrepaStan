@@ -191,6 +191,22 @@ export function NotesElevesTable({
     return kholleurs.filter((k) => idsPresents.has(k.id));
   }, [kholleurs, notes, filtreDiscipline]);
 
+  // Uniquement les disciplines dans lesquelles l'étudiant choisi a au moins
+  // une note — évite de proposer une discipline qui donnerait un tableau
+  // vide pour cet étudiant précis.
+  const disciplinesDisponibles = useMemo(() => {
+    const idsPresents = new Set(notes.filter((n) => n.eleveId === filtreEleve).map((n) => n.disciplineId));
+    return disciplines.filter((d) => idsPresents.has(d.id));
+  }, [disciplines, notes, filtreEleve]);
+
+  function changerEleve(eleveId: string) {
+    setFiltreEleve(eleveId);
+    // La discipline (et donc le khôlleur, qui en dépend) choisie peut ne
+    // plus être pertinente pour ce nouvel étudiant.
+    setFiltreDiscipline("");
+    setFiltreKholleur("");
+  }
+
   function changerDiscipline(disciplineId: string) {
     setFiltreDiscipline(disciplineId);
     // Le khôlleur choisi peut ne plus être pertinent pour la nouvelle
@@ -244,7 +260,7 @@ export function NotesElevesTable({
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", margin: "12px 0" }}>
         <label>
           Étudiant
-          <select value={filtreEleve} onChange={(e) => setFiltreEleve(e.target.value)}>
+          <select value={filtreEleve} onChange={(e) => changerEleve(e.target.value)}>
             {eleves.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.nom}
@@ -256,7 +272,7 @@ export function NotesElevesTable({
           Discipline
           <select value={filtreDiscipline} onChange={(e) => changerDiscipline(e.target.value)}>
             <option value="">Toutes les disciplines</option>
-            {disciplines.map((d) => (
+            {disciplinesDisponibles.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.nom}
               </option>
