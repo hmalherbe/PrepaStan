@@ -51,6 +51,33 @@ async function main() {
   console.log(`\n=== Classe(s) dont le nom contient "${classeNom}" ===`);
   for (const c of classes) console.log(`  id=${c.id} nom="${c.nom}"`);
 
+  const semainesSignalees0 = (process.env.SEMAINES ?? "")
+    .split(",")
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => !Number.isNaN(n));
+  if (semainesSignalees0.length > 0) {
+    // Entièrement sans filtre de classe ni de discipline cette fois : montre
+    // le classeId RÉEL (avec son nom et son année scolaire) derrière chaque
+    // SessionKholle existante pour ces semaines, pour détecter un homonyme
+    // de classe (même nom "L1", classeId différent) que la recherche par
+    // nom ci-dessus aurait pu manquer.
+    console.log(
+      `\n=== TOUTES les SessionKholle (n'importe quelle classe/discipline) pour semaine(s) ${semainesSignalees0.join(", ")} ===`
+    );
+    const toutes = await prisma.sessionKholle.findMany({
+      where: { semaine: { in: semainesSignalees0 } },
+      include: { classe: { include: { anneeScolaire: { select: { libelle: true } } } }, discipline: { select: { nom: true } } },
+      orderBy: [{ semaine: "asc" }],
+    });
+    if (toutes.length === 0) console.log("  Aucune.");
+    for (const s of toutes) {
+      console.log(
+        `  session ${s.id} — semaine ${s.semaine} — classe "${s.classe.nom}" (classeId=${s.classeId}, année=${s.classe.anneeScolaire.libelle}) — ` +
+          `discipline "${s.discipline.nom}" (disciplineId=${s.disciplineId}) — statut ${s.statut} — dateDebut ${s.dateDebut.toISOString().slice(0, 10)}`
+      );
+    }
+  }
+
   for (const classe of classes) {
     console.log(`\n=== PlanificationJob récents pour la classe "${classe.nom}" (id=${classe.id}) ===`);
     const jobs = await prisma.planificationJob.findMany({
