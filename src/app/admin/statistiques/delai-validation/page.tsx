@@ -87,28 +87,46 @@ export default async function DelaiValidationPage() {
       {lignes.length === 0 ? (
         <p>Aucune grille validée pour le moment.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Khôlleur</th>
-              <th>Délai moyen</th>
-              <th>Délai min</th>
-              <th>Délai max</th>
-              <th>Nombre de validations</th>
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          <div className="graphique-barres">
             {lignes.map((l) => (
-              <tr key={l.nom}>
-                <td>{l.nom}</td>
-                <td>{l.moyenne.toFixed(1)} jour(s)</td>
-                <td>{l.min.toFixed(1)} jour(s)</td>
-                <td>{l.max.toFixed(1)} jour(s)</td>
-                <td>{l.nbValidations}</td>
-              </tr>
+              <div className="barre-ligne" key={l.nom}>
+                <span title={l.nom}>{l.nom}</span>
+                <div className="barre-piste">
+                  <div
+                    className="barre-remplissage"
+                    style={{ width: `${Math.max((l.moyenne / Math.max(lignes[0].moyenne, 1)) * 100, 2)}%` }}
+                  />
+                </div>
+                <span className="barre-valeur">
+                  {l.moyenne.toFixed(1)} j (n={l.nbValidations})
+                </span>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Khôlleur</th>
+                <th>Délai moyen</th>
+                <th>Délai min</th>
+                <th>Délai max</th>
+                <th>Nombre de validations</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lignes.map((l) => (
+                <tr key={l.nom}>
+                  <td>{l.nom}</td>
+                  <td>{l.moyenne.toFixed(1)} jour(s)</td>
+                  <td>{l.min.toFixed(1)} jour(s)</td>
+                  <td>{l.max.toFixed(1)} jour(s)</td>
+                  <td>{l.nbValidations}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </main>
   );
