@@ -43,7 +43,7 @@ const PALETTE_ELEVES = [
   "#5c8a2e",
 ];
 
-type SerieEleve = { id: string; nom: string; points: { date: string; valeur: number }[] };
+type SerieEleve = { id: string; nom: string; points: { date: string; valeur: number; disciplineNom: string }[] };
 
 // Graphique en courbe "notes dans le temps" : construit à la main en SVG,
 // comme le reste des graphiques de cette appli (voir BarreHorizontale dans
@@ -107,7 +107,7 @@ function GraphiqueNotesDansLeTemps({ series }: { series: SerieEleve[] }) {
                       setSurvol({
                         x: xPour(p.date),
                         y: yPour(p.valeur),
-                        texte: `${s.nom} — ${formatDateCourte(p.date)} : ${p.valeur}/20`,
+                        texte: `${p.disciplineNom} — ${formatDateCourte(p.date)} : ${p.valeur}/20`,
                       })
                     }
                     onMouseLeave={() => setSurvol(null)}
@@ -219,7 +219,7 @@ export function NotesElevesTable({
     const parEleve = new Map<string, SerieEleve>();
     for (const n of notesFiltrees) {
       const entree = parEleve.get(n.eleveId) ?? { id: n.eleveId, nom: `${n.elevePrenom} ${n.eleveNom}`, points: [] };
-      entree.points.push({ date: n.date, valeur: n.valeur });
+      entree.points.push({ date: n.date, valeur: n.valeur, disciplineNom: n.disciplineNom });
       parEleve.set(n.eleveId, entree);
     }
     return [...parEleve.values()].sort((a, b) => a.nom.localeCompare(b.nom));
