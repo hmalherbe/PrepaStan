@@ -123,6 +123,14 @@ export function DetailSessionReferent({
     setEnCours("session");
     setErreur(null);
     try {
+      // Même précaution que GrilleForm.tsx côté khôlleur : une correction
+      // tapée juste avant ce clic peut ne jamais avoir déclenché son
+      // enregistrement (l'éditeur Quill ne déclenche son "blur" que via son
+      // propre évènement selection-change, pas de façon fiable à l'appel
+      // programmatique). Réenregistrer explicitement toutes les lignes
+      // affichées garantit qu'aucune correction en cours de saisie n'est
+      // perdue avant de rendre les notes visibles aux étudiants.
+      await Promise.allSettled(groupes.flatMap((g) => g.lignes).map((l) => enregistrerLigne(l)));
       const res = await fetch(`/api/referent/sessions/${sessionId}/valider`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) {

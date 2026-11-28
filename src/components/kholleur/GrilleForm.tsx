@@ -138,6 +138,16 @@ export function GrilleForm({
     setValidationEnCours(true);
     setErreurValidation(null);
     try {
+      // Ne pas se fier aux enregistrements déjà déclenchés par un onBlur : le
+      // champ de la toute dernière saisie n'a peut-être jamais perdu le focus
+      // (ex. "Valider ma grille" cliqué juste après la dernière frappe), et
+      // l'éditeur Quill ne déclenche son propre "blur" (évènement
+      // selection-change vers null) que dans certains cas, pas de façon
+      // fiable à un blur DOM programmatique. Réenregistrer explicitement
+      // toutes les lignes ici garantit que le serveur (qui vérifie l'état
+      // réel en base, pas l'état local de ce formulaire) voit bien tout ce
+      // qui est affiché à l'écran avant de valider.
+      await Promise.allSettled(lignes.map((l) => enregistrerLigne(l)));
       const res = await fetch(`/api/kholleur/sessions/${sessionId}/valider`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
