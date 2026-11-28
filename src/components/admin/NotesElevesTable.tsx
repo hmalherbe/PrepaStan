@@ -164,7 +164,9 @@ export function NotesElevesTable({
   notes: NoteLigne[];
 }) {
   const router = useRouter();
-  const [filtreEleve, setFiltreEleve] = useState("");
+  // Pas d'option "Tous les étudiants" : toujours un étudiant précis de
+  // sélectionné, par défaut le premier de la liste.
+  const [filtreEleve, setFiltreEleve] = useState(eleves[0]?.id ?? "");
   const [filtreDiscipline, setFiltreDiscipline] = useState("");
   const [filtreKholleur, setFiltreKholleur] = useState("");
 
@@ -243,7 +245,6 @@ export function NotesElevesTable({
         <label>
           Étudiant
           <select value={filtreEleve} onChange={(e) => setFiltreEleve(e.target.value)}>
-            <option value="">Tous les étudiants</option>
             {eleves.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.nom}
