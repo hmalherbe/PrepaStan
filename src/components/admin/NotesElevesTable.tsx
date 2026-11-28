@@ -181,15 +181,18 @@ export function NotesElevesTable({
     [notes, filtreEleve, filtreDiscipline, filtreKholleur]
   );
 
-  // Uniquement les khôlleurs ayant au moins une note dans la discipline
-  // choisie (toutes si aucune discipline sélectionnée) : évite de proposer
-  // dans la liste "Khôlleur" quelqu'un qui n'intervient pas dans cette
-  // discipline pour cette classe.
+  // Uniquement les khôlleurs ayant au moins une note avec l'étudiant choisi,
+  // dans la discipline choisie (toutes si aucune discipline sélectionnée) :
+  // évite de proposer dans la liste "Khôlleur" quelqu'un qui n'a jamais
+  // khôllé cet étudiant précis (ou pas dans cette discipline).
   const kholleursDisponibles = useMemo(() => {
-    if (!filtreDiscipline) return kholleurs;
-    const idsPresents = new Set(notes.filter((n) => n.disciplineId === filtreDiscipline).map((n) => n.kholleurId));
+    const idsPresents = new Set(
+      notes
+        .filter((n) => n.eleveId === filtreEleve && (!filtreDiscipline || n.disciplineId === filtreDiscipline))
+        .map((n) => n.kholleurId)
+    );
     return kholleurs.filter((k) => idsPresents.has(k.id));
-  }, [kholleurs, notes, filtreDiscipline]);
+  }, [kholleurs, notes, filtreEleve, filtreDiscipline]);
 
   // Uniquement les disciplines dans lesquelles l'étudiant choisi a au moins
   // une note — évite de proposer une discipline qui donnerait un tableau
