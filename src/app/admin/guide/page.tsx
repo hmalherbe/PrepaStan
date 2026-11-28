@@ -228,10 +228,16 @@ export default async function GuidePage() {
           confondues, la note minimale, maximale, moyenne et le nombre de notes attribuées par chaque khôlleur. Le
           sous-écran <strong>Nombre de khôlles</strong> affiche deux graphiques en anneau, toutes classes
           confondues : le nombre de sessions par discipline, et le nombre de khôlles dispensées par discipline.
-          Le sous-écran <strong>Délai de validation</strong> liste, par khôlleur et toutes classes confondues, le
-          nombre moyen (min, max) de jours entre la fin de ses khôlles d&apos;une session et la validation de sa
-          grille — contrairement au Suivi (qui montre qui bloque <em>en ce moment</em>), celui-ci montre qui
-          traîne <em>habituellement</em>, triés du plus lent au plus rapide.
+          Le sous-écran <strong>Délai de validation</strong> affiche en barres (triées de la plus longue à la plus
+          courte), par khôlleur et toutes classes confondues, le nombre moyen de jours entre la fin de ses khôlles
+          d&apos;une session et la validation de sa grille — contrairement au Suivi (qui montre qui bloque{" "}
+          <em>en ce moment</em>), celui-ci montre qui traîne <em>habituellement</em>. Le sous-écran{" "}
+          <strong>Évolution de l&apos;activité</strong> affiche, toutes classes confondues, deux courbes semaine par
+          semaine (nombre de sessions clôturées, nombre de notes saisies) — pour voir la tendance dans le temps
+          plutôt que la seule situation actuelle. Le sous-écran <strong>Notes manquantes</strong> affiche en barres,
+          par classe puis par discipline, le taux de passages (parmi les sessions encore ouvertes) auxquels il
+          manque encore une note ou une appréciation — une vue agrégée du même repère que le rouge sur les grilles
+          individuelles.
         </p>
 
         <h3>Envoi des identifiants</h3>
