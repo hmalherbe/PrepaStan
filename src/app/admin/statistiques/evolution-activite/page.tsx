@@ -40,46 +40,70 @@ function serieContinue(compteurs: Map<string, number>, premiereSemaine: string, 
   return points;
 }
 
-export default async function EvolutionActivitePage() {
+export default async function EvolutionActivitePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ classeId?: string }>;
+}) {
   await requirePageSession(["ADMIN"]);
+  const { classeId } = await searchParams;
 
-  const [validationsReferent, notes] = await Promise.all([
+  const [classes, validationsReferent, notes] = await Promise.all([
+    prisma.classe.findMany({ orderBy: { nom: "asc" } }),
     prisma.validationReferent.findMany({
-      where: { statut: "VALIDE", dateValidation: { not: null } },
+      where: {
+        statut: "VALIDE",
+        dateValidation: { not: null },
+        ...(classeId ? { sessionKholle: { classeId } } : {}),
+      },
       select: { dateValidation: true },
     }),
     prisma.note.findMany({
-      where: { dateSaisie: { not: null } },
+      where: {
+        dateSaisie: { not: null },
+        ...(classeId ? { passage: { creneau: { sessionKholle: { classeId } } } } : {}),
+      },
       select: { dateSaisie: true },
     }),
   ]);
 
   const clotures = compterParSemaine(validationsReferent.map((v) => v.dateValidation!));
   const notesSaisies = compterParSemaine(notes.map((n) => n.dateSaisie!));
-
   const toutesCles = [...clotures.keys(), ...notesSaisies.keys()];
-  if (toutesCles.length === 0) {
-    return (
-      <main className="container">
-        <h1>Évolution de l&apos;activité</h1>
-        <p>Pas encore assez de données (aucune session clôturée ni note saisie).</p>
-      </main>
-    );
-  }
-  const premiereSemaine = toutesCles.reduce((a, b) => (a < b ? a : b));
-  const derniereSemaine = toutesCles.reduce((a, b) => (a > b ? a : b));
+
+  const sousTitre = classeId
+    ? "Semaine par semaine, pour cette classe — complète le Suivi (qui montre l'état actuel) avec une vue de la tendance dans le temps."
+    : "Toutes classes confondues, semaine par semaine — complète le Suivi (qui montre l'état actuel) avec une vue de la tendance dans le temps.";
 
   return (
     <main className="container">
       <h1>Évolution de l&apos;activité</h1>
-      <p style={{ color: "#777", fontSize: "0.9rem", marginTop: -8 }}>
-        Toutes classes confondues, semaine par semaine — complète le Suivi (qui montre l&apos;état{" "}
-        <em>actuel</em>) avec une vue de la tendance dans le temps.
-      </p>
-      <EvolutionActiviteChart
-        cloturesParSemaine={serieContinue(clotures, premiereSemaine, derniereSemaine)}
-        notesSaisiesParSemaine={serieContinue(notesSaisies, premiereSemaine, derniereSemaine)}
-      />
+      <p style={{ color: "#777", fontSize: "0.9rem", marginTop: -8 }}>{sousTitre}</p>
+
+      {toutesCles.length === 0 ? (
+        <>
+          <EvolutionActiviteChart
+            classes={classes.map((c) => ({ id: c.id, nom: c.nom }))}
+            classeIdActuelle={classeId ?? ""}
+            cloturesParSemaine={[]}
+            notesSaisiesParSemaine={[]}
+          />
+          <p>Pas encore de données pour ce filtre (aucune session clôturée ni note saisie).</p>
+        </>
+      ) : (
+        (() => {
+          const premiereSemaine = toutesCles.reduce((a, b) => (a < b ? a : b));
+          const derniereSemaine = toutesCles.reduce((a, b) => (a > b ? a : b));
+          return (
+            <EvolutionActiviteChart
+              classes={classes.map((c) => ({ id: c.id, nom: c.nom }))}
+              classeIdActuelle={classeId ?? ""}
+              cloturesParSemaine={serieContinue(clotures, premiereSemaine, derniereSemaine)}
+              notesSaisiesParSemaine={serieContinue(notesSaisies, premiereSemaine, derniereSemaine)}
+            />
+          );
+        })()
+      )}
     </main>
   );
 }

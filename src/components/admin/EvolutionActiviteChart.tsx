@@ -1,6 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+
+type Classe = { id: string; nom: string };
 
 type Point = { semaine: string; valeur: number };
 
@@ -124,14 +127,40 @@ function GraphiqueEvolution({ titre, sousTitre, points }: { titre: string; sousT
 }
 
 export function EvolutionActiviteChart({
+  classes,
+  classeIdActuelle,
   cloturesParSemaine,
   notesSaisiesParSemaine,
 }: {
+  classes: Classe[];
+  classeIdActuelle: string;
   cloturesParSemaine: Point[];
   notesSaisiesParSemaine: Point[];
 }) {
+  const router = useRouter();
   return (
     <div>
+      <label>
+        Classe
+        <select
+          value={classeIdActuelle}
+          onChange={(e) =>
+            router.push(
+              e.target.value
+                ? `/admin/statistiques/evolution-activite?classeId=${e.target.value}`
+                : "/admin/statistiques/evolution-activite"
+            )
+          }
+        >
+          <option value="">Toutes les classes</option>
+          {classes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nom}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <GraphiqueEvolution
         titre="Sessions clôturées par semaine"
         sousTitre="Nombre de sessions validées par le référent, par semaine réelle de validation (pas la semaine de khôlle)."
@@ -139,7 +168,7 @@ export function EvolutionActiviteChart({
       />
       <GraphiqueEvolution
         titre="Notes saisies par semaine"
-        sousTitre="Nombre de notes (tous khôlleurs, toutes classes) saisies, par semaine réelle de saisie."
+        sousTitre="Nombre de notes (tous khôlleurs) saisies, par semaine réelle de saisie."
         points={notesSaisiesParSemaine}
       />
     </div>
