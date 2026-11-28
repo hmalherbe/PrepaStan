@@ -8,7 +8,11 @@
 //      voir exactement ce qui a été soumis lors du job qui a écrasé une
 //      session déjà publiée sans déclencher la confirmation attendue ;
 //   3. l'historique SessionKholle actuel de cette classe pour les
-//      disciplines trouvées à l'étape 1.
+//      disciplines trouvées à l'étape 1 ;
+//   4. si SEMAINES est fourni, TOUTES les SessionKholle (n'importe quelle
+//      discipline) et TOUS les PlanificationJob (n'importe quelle classe)
+//      pour ces numéros de semaine précis — utile quand on ne sait pas
+//      encore si l'écrasement a touché la discipline/classe attendue.
 // Sert à vérifier si un écrasement "sans confirmation" d'une session
 // PLANIFIEE (voir /api/admin/planification/jobs/route.ts) vient d'un
 // décalage entre le disciplineId réellement soumis et celui de la session
@@ -16,7 +20,7 @@
 //
 // Usage (depuis /root/PrepaStan sur le VPS) :
 //   docker compose -f docker-compose.demo.yml exec -T \
-//     -e CLASSE=L2 -e DISCIPLINE=droit \
+//     -e CLASSE=L2 -e DISCIPLINE=droit -e SEMAINES=5,9 \
 //     app node < scripts/diagnostiquer-ecrasement-planning.mjs
 import { PrismaClient } from "@prisma/client";
 
@@ -52,7 +56,7 @@ async function main() {
     const jobs = await prisma.planificationJob.findMany({
       where: { classeId: classe.id },
       orderBy: { dateDebut: "desc" },
-      take: 10,
+      take: 50,
     });
     if (jobs.length === 0) console.log("  Aucun.");
     for (const job of jobs) {
@@ -74,6 +78,48 @@ async function main() {
       for (const s of sessions) {
         console.log(
           `  session ${s.id} — semaine ${s.semaine} — statut ${s.statut} — dateDebut ${s.dateDebut.toISOString().slice(0, 10)}`
+        );
+      }
+    }
+
+    // Toutes disciplines confondues, pour les semaines explicitement
+    // signalées comme écrasées — au cas où ce ne serait pas (uniquement)
+    // Droit, ou que le job en cause soit hors de la fenêtre ci-dessus.
+    const semainesSignalees = (process.env.SEMAINES ?? "")
+      .split(",")
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => !Number.isNaN(n));
+    if (semainesSignalees.length > 0) {
+      console.log(
+        `\n=== SessionKholle (toutes disciplines) pour classe "${classe.nom}" + semaine(s) ${semainesSignalees.join(", ")} ===`
+      );
+      const sessions = await prisma.sessionKholle.findMany({
+        where: { classeId: classe.id, semaine: { in: semainesSignalees } },
+        include: { discipline: { select: { nom: true } } },
+        orderBy: [{ semaine: "asc" }, { discipline: { nom: "asc" } }],
+      });
+      if (sessions.length === 0) console.log("  Aucune.");
+      for (const s of sessions) {
+        console.log(
+          `  session ${s.id} — semaine ${s.semaine} — discipline "${s.discipline.nom}" (id=${s.disciplineId}) — ` +
+            `statut ${s.statut} — dateDebut ${s.dateDebut.toISOString().slice(0, 10)}`
+        );
+      }
+
+      console.log(
+        `\n=== PlanificationJob (toutes classes) pour semaine(s) ${semainesSignalees.join(", ")} ===`
+      );
+      const jobsSemaines = await prisma.planificationJob.findMany({
+        where: { semaine: { in: semainesSignalees } },
+        orderBy: { dateDebut: "desc" },
+      });
+      if (jobsSemaines.length === 0) console.log("  Aucun.");
+      for (const job of jobsSemaines) {
+        const quotas = job.quotas;
+        const disciplineIdsQuotas = [...new Set(quotas.map((q) => q.disciplineId))];
+        console.log(
+          `  job ${job.id} — classeId ${job.classeId} — ${job.dateDebut.toISOString()} — statut ${job.statut} — ` +
+            `semaine ${job.semaine} — disciplineId(s) dans quotas=${JSON.stringify(disciplineIdsQuotas)}`
         );
       }
     }
