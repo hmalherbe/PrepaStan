@@ -294,6 +294,13 @@ export default async function GuidePage() {
           (grille, correction par le référent, notes de l&apos;étudiant).
         </p>
         <p>
+          Pour chaque étudiant non absent, la case Note ou Appréciation encore vide apparaît en rouge — un repère
+          visuel pour voir d&apos;un coup d&apos;œil ce qu&apos;il reste à saisir, aussi bien sur l&apos;écran du
+          khôlleur que sur la fiche de correction du référent. L&apos;indication <strong>Enregistré</strong>{" "}
+          n&apos;affiche sa coche (✓) qu&apos;une fois la note et l&apos;appréciation toutes les deux saisies pour
+          cet étudiant.
+        </p>
+        <p>
           Chaque matin à 9h (heure de Paris), un khôlleur qui a au moins une khôlle ce jour-là reçoit
           automatiquement un email listant ses créneaux du jour (horaire, discipline, salle, élèves), pour
           l&apos;inviter à saisir notes et appréciations dès que ses khôlles sont passées. Un seul envoi par

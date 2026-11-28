@@ -507,6 +507,16 @@ form label {
   margin: calc(var(--echelle-espacement) * 4px) 0;
 }
 
+/* Met en évidence une case Note ou Appréciation non renseignée (voir
+   GrilleForm.tsx et DetailSessionReferent.tsx) : repère d'un coup d'œil
+   lesquelles restent à saisir, plutôt qu'un simple message générique
+   "notes manquantes" qui ne dit pas lesquelles. Jamais appliquée sur un
+   étudiant absent (ni note ni appréciation requise dans ce cas). */
+.cellule-manquante {
+  background: #fbe4e1;
+  box-shadow: inset 3px 0 0 var(--couleur-erreur);
+}
+
 .carte {
   background: var(--couleur-surface);
   border: 1px solid var(--couleur-bordure);

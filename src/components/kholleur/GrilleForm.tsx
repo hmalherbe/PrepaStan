@@ -193,7 +193,7 @@ export function GrilleForm({
                 {l.heureDebut}-{l.heureFin}
               </td>
               <td>{l.salle}</td>
-              <td>
+              <td className={!l.absent && l.valeur === null ? "cellule-manquante" : undefined}>
                 {!l.absent && (
                   <input
                     type="number"
@@ -214,7 +214,7 @@ export function GrilleForm({
                   Absent
                 </label>
               </td>
-              <td>
+              <td className={!l.absent && estAppreciationVide(l.appreciation) ? "cellule-manquante" : undefined}>
                 <AppreciationEditor
                   value={l.appreciation}
                   disabled={fige}
@@ -253,7 +253,10 @@ export function GrilleForm({
               </td>
               <td style={{ fontSize: "0.8rem", color: "#777" }}>
                 {etats[l.passageId] === "saving" && "Enregistrement…"}
-                {etats[l.passageId] === "saved" && "Enregistré ✓"}
+                {etats[l.passageId] === "saved" &&
+                  (l.absent || (l.valeur !== null && !estAppreciationVide(l.appreciation))
+                    ? "Enregistré ✓"
+                    : "Enregistré")}
                 {etats[l.passageId] === "error" && <span className="champ-erreur">Erreur</span>}
               </td>
             </tr>

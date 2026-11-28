@@ -201,7 +201,7 @@ export function DetailSessionReferent({
                     </td>
                     {enEdition ? (
                       <>
-                        <td>
+                        <td className={!l.absent && l.valeur === null ? "cellule-manquante" : undefined}>
                           {!l.absent && (
                             <input
                               type="number"
@@ -221,7 +221,7 @@ export function DetailSessionReferent({
                             Absent
                           </label>
                         </td>
-                        <td>
+                        <td className={!l.absent && estAppreciationVide(l.appreciation) ? "cellule-manquante" : undefined}>
                           <AppreciationEditor
                             value={l.appreciation}
                             disabled={false}
@@ -237,7 +237,11 @@ export function DetailSessionReferent({
                             <div style={{ fontSize: "0.8rem", color: "#777" }}>Enregistrement…</div>
                           )}
                           {etatsSauvegarde[l.passageId] === "saved" && (
-                            <div style={{ fontSize: "0.8rem", color: "#777" }}>Enregistré ✓</div>
+                            <div style={{ fontSize: "0.8rem", color: "#777" }}>
+                              {l.absent || (l.valeur !== null && !estAppreciationVide(l.appreciation))
+                                ? "Enregistré ✓"
+                                : "Enregistré"}
+                            </div>
                           )}
                           {etatsSauvegarde[l.passageId] === "error" && (
                             <div className="champ-erreur" style={{ fontSize: "0.8rem" }}>Erreur</div>
@@ -246,8 +250,10 @@ export function DetailSessionReferent({
                       </>
                     ) : (
                       <>
-                        <td>{l.absent ? "ABS" : (l.valeur ?? "—")}</td>
-                        <td>
+                        <td className={!l.absent && l.valeur === null ? "cellule-manquante" : undefined}>
+                          {l.absent ? "ABS" : (l.valeur ?? "—")}
+                        </td>
+                        <td className={!l.absent && estAppreciationVide(l.appreciation) ? "cellule-manquante" : undefined}>
                           {l.appreciation ? (
                             <div className="ql-editor" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: l.appreciation }} />
                           ) : (
