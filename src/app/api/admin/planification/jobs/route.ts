@@ -108,18 +108,6 @@ export async function POST(req: Request) {
     where: { classeId, semaine, disciplineId: { in: disciplineIds } },
     include: { discipline: { select: { nom: true } } },
   });
-  // DEBUG TEMPORAIRE (à retirer) — pour diagnostiquer un écrasement sans
-  // confirmation observé en démo.
-  console.log(
-    "[DEBUG planification/jobs]",
-    JSON.stringify({
-      classeId,
-      semaine,
-      disciplineIds,
-      confirmerEcrasementPlanning,
-      sessionsExistantes: sessionsExistantes.map((s) => ({ id: s.id, disciplineId: s.disciplineId, statut: s.statut })),
-    })
-  );
   const sessionsCloturees = sessionsExistantes.filter((s) => s.statut === "CLOTUREE");
   if (sessionsCloturees.length > 0) {
     return NextResponse.json(
