@@ -179,6 +179,25 @@ export function NotesElevesTable({
     [notes, filtreEleve, filtreDiscipline, filtreKholleur]
   );
 
+  // Uniquement les khôlleurs ayant au moins une note dans la discipline
+  // choisie (toutes si aucune discipline sélectionnée) : évite de proposer
+  // dans la liste "Khôlleur" quelqu'un qui n'intervient pas dans cette
+  // discipline pour cette classe.
+  const kholleursDisponibles = useMemo(() => {
+    if (!filtreDiscipline) return kholleurs;
+    const idsPresents = new Set(notes.filter((n) => n.disciplineId === filtreDiscipline).map((n) => n.kholleurId));
+    return kholleurs.filter((k) => idsPresents.has(k.id));
+  }, [kholleurs, notes, filtreDiscipline]);
+
+  function changerDiscipline(disciplineId: string) {
+    setFiltreDiscipline(disciplineId);
+    // Le khôlleur choisi peut ne plus être pertinent pour la nouvelle
+    // discipline : repart sur "Tous les khôlleurs" plutôt que de laisser un
+    // filtre invisible (table vide sans explication) ou une entrée qui
+    // n'est plus proposée dans la liste.
+    setFiltreKholleur("");
+  }
+
   const lignesParEleve = useMemo(() => {
     const parEleve = new Map<string, { nom: string; prenom: string; valeurs: number[] }>();
     for (const n of notesFiltrees) {
@@ -234,7 +253,7 @@ export function NotesElevesTable({
         </label>
         <label>
           Discipline
-          <select value={filtreDiscipline} onChange={(e) => setFiltreDiscipline(e.target.value)}>
+          <select value={filtreDiscipline} onChange={(e) => changerDiscipline(e.target.value)}>
             <option value="">Toutes les disciplines</option>
             {disciplines.map((d) => (
               <option key={d.id} value={d.id}>
@@ -247,7 +266,7 @@ export function NotesElevesTable({
           Khôlleur
           <select value={filtreKholleur} onChange={(e) => setFiltreKholleur(e.target.value)}>
             <option value="">Tous les khôlleurs</option>
-            {kholleurs.map((k) => (
+            {kholleursDisponibles.map((k) => (
               <option key={k.id} value={k.id}>
                 {k.nom}
               </option>
