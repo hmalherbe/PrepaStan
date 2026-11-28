@@ -114,6 +114,7 @@ async function main() {
         orderBy: { dateDebut: "desc" },
       });
       if (jobsSemaines.length === 0) console.log("  Aucun.");
+      const classeIdsVus = new Set();
       for (const job of jobsSemaines) {
         const quotas = job.quotas;
         const disciplineIdsQuotas = [...new Set(quotas.map((q) => q.disciplineId))];
@@ -121,6 +122,21 @@ async function main() {
           `  job ${job.id} — classeId ${job.classeId} — ${job.dateDebut.toISOString()} — statut ${job.statut} — ` +
             `semaine ${job.semaine} — disciplineId(s) dans quotas=${JSON.stringify(disciplineIdsQuotas)}`
         );
+        classeIdsVus.add(job.classeId);
+      }
+
+      // Nom réel de chaque classe apparue ci-dessus, pour repérer si l'une
+      // d'elles n'est PAS celle qu'on croit (ex. un autre classeId que
+      // celui trouvé par recherche de nom au tout début de ce script).
+      if (classeIdsVus.size > 0) {
+        console.log(`\n=== Classe(s) réelle(s) derrière ces classeId ===`);
+        const classesVues = await prisma.classe.findMany({
+          where: { id: { in: [...classeIdsVus] } },
+          include: { anneeScolaire: { select: { libelle: true } } },
+        });
+        for (const c of classesVues) {
+          console.log(`  id=${c.id} nom="${c.nom}" année=${c.anneeScolaire.libelle}`);
+        }
       }
     }
   }
